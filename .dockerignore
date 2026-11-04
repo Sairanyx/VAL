@@ -1,7 +1,6 @@
 .venv
 .git
 __pycache__
-.env
 data/
-.cache/
-notebooks/
+runs/
+.venv-lumi/

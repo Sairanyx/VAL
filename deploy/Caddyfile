@@ -1,7 +1,0 @@
-# Automatic HTTPS for $DOMAIN (point its DNS A record at the VPS first).
-{$DOMAIN} {
-	handle_path /api/* {
-		reverse_proxy api:8000
-	}
-	reverse_proxy ui:8501
-}

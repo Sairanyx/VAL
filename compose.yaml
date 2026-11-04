@@ -1,25 +1,9 @@
 services:
-  api:
+  train:
     build: .
-    # GPU in Docker needs nvidia-container-toolkit on the host.
+    volumes: ["./app:/app/app", "./data:/app/data", "./runs:/app/runs"]
+    # GPU access (needs nvidia-container-toolkit on the host)
     deploy:
       resources:
         reservations:
           devices: [{ driver: nvidia, count: all, capabilities: [gpu] }]
-    env_file: .env
-    ports: ["8000:8000"]
-    volumes: ["./app:/app/app", "./data:/app/data"]
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-  ui:
-    build: .
-    env_file: .env
-    environment: [API_URL=http://api:8000]
-    ports: ["8501:8501"]
-    volumes: ["./app:/app/app"]
-    command: streamlit run app/ui.py --server.address 0.0.0.0
-    depends_on: [api]
-  # Uncomment if you need a DB / vector store
-  # db:
-  #   image: pgvector/pgvector:pg17
-  #   environment: [POSTGRES_PASSWORD=postgres]
-  #   ports: ["5432:5432"]

@@ -1,0 +1,28 @@
+# Production on the VPS: docker compose -f compose.prod.yaml up -d --build
+# Same GPU image; on a VPS without a GPU it simply runs on CPU (fine for serving a demo).
+# Training happens on laptops / LUMI.
+services:
+  api:
+    build: .
+    env_file: .env
+    restart: unless-stopped
+    volumes: ["./data:/app/data"]
+  ui:
+    build: .
+    env_file: .env
+    environment: [API_URL=http://api:8000]
+    command: streamlit run app/ui.py --server.address 0.0.0.0
+    restart: unless-stopped
+    depends_on: [api]
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on: [api, ui]
+volumes:
+  caddy_data:

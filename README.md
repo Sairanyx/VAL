@@ -3,12 +3,11 @@
 > One-line pitch goes here.
 
 ## Setup (once)
-Needs: `git`, `make`, [`uv`](https://docs.astral.sh/uv/), NVIDIA driver.
+Needs: `git`, `make`, NVIDIA driver. One line (Linux) — installs uv, clones, sets up, checks GPU:
 ```bash
-git clone <repo-url> && cd <repo>
-make setup
-make gpu        # should print your GPU name
+curl -LsSf https://astral.sh/uv/install.sh | sh && source ~/.local/bin/env && git clone https://github.com/Sairanyx/Newbies.git && cd Newbies && make setup && make gpu
 ```
+Should end by printing your GPU name.
 
 ## Commands
 | Command | What it does |

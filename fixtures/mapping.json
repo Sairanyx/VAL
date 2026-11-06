@@ -1,0 +1,148 @@
+{
+  "mappings": [
+    {
+      "object_id": "obj_001",
+      "asset_id": "ASSET-001",
+      "tag": "CV-001",
+      "asset_class": "CONTROL_VALVE",
+      "method": "rule_class_spatial",
+      "confidence": 0.92,
+      "notes": "Overhead utility island line"
+    },
+    {
+      "object_id": "obj_002",
+      "asset_id": "ASSET-002",
+      "tag": "CV-002",
+      "asset_class": "CONTROL_VALVE",
+      "method": "rule_class_spatial",
+      "confidence": 0.89,
+      "notes": "Secondary utility branch"
+    },
+    {
+      "object_id": "obj_003",
+      "asset_id": "ASSET-003",
+      "tag": "CV-003",
+      "asset_class": "CONTROL_VALVE",
+      "method": "rule_class_spatial",
+      "confidence": 0.94,
+      "notes": "Cooling supply loop"
+    },
+    {
+      "object_id": "obj_004",
+      "asset_id": "ASSET-013",
+      "tag": "P-001",
+      "asset_class": "PROCESS_PUMP",
+      "method": "rule_class_spatial",
+      "confidence": 0.91,
+      "notes": "Feed pump 1"
+    },
+    {
+      "object_id": "obj_005",
+      "asset_id": "ASSET-017",
+      "tag": "P-005",
+      "asset_class": "PROCESS_PUMP",
+      "method": "rule_class_spatial",
+      "confidence": 0.95,
+      "notes": "Target faulty pump: fouling / efficiency loss"
+    },
+    {
+      "object_id": "obj_006",
+      "asset_id": "ASSET-014",
+      "tag": "P-002",
+      "asset_class": "PROCESS_PUMP",
+      "method": "rule_class_spatial",
+      "confidence": 0.88,
+      "notes": "Feed pump 2"
+    },
+    {
+      "object_id": "obj_007",
+      "asset_id": "ASSET-019",
+      "tag": "M-001",
+      "asset_class": "ELECTRIC_MOTOR",
+      "method": "rule_class_spatial",
+      "confidence": 0.93,
+      "notes": "Drive motor for P-001"
+    },
+    {
+      "object_id": "obj_008",
+      "asset_id": "ASSET-023",
+      "tag": "M-005",
+      "asset_class": "ELECTRIC_MOTOR",
+      "method": "rule_class_spatial",
+      "confidence": 0.92,
+      "notes": "Drive motor for P-005"
+    },
+    {
+      "object_id": "obj_009",
+      "asset_id": "ASSET-025",
+      "tag": "PT-001",
+      "asset_class": "PRESSURE_TRANSMITTER",
+      "method": "rule_class_spatial",
+      "confidence": 0.87,
+      "notes": "Discharge pressure transmitter"
+    },
+    {
+      "object_id": "obj_010",
+      "asset_id": "ASSET-028",
+      "tag": "VS-001",
+      "asset_class": "VIBRATION_SENSOR",
+      "method": "rule_class_spatial",
+      "confidence": 0.85,
+      "notes": "Pump bearing vibration sensor"
+    },
+    {
+      "object_id": "obj_011",
+      "asset_id": "ASSET-004",
+      "tag": "CV-004",
+      "asset_class": "CONTROL_VALVE",
+      "method": "rule_class_spatial",
+      "confidence": 0.90,
+      "notes": "Return bypass valve"
+    },
+    {
+      "object_id": "obj_012",
+      "asset_id": "ASSET-005",
+      "tag": "CV-005",
+      "asset_class": "CONTROL_VALVE",
+      "method": "rule_class_spatial",
+      "confidence": 0.91,
+      "notes": "Drain control valve"
+    },
+    {
+      "object_id": "obj_013",
+      "asset_id": "ASSET-015",
+      "tag": "P-003",
+      "asset_class": "PROCESS_PUMP",
+      "method": "rule_class_spatial",
+      "confidence": 0.89,
+      "notes": "Auxiliary transfer pump"
+    },
+    {
+      "object_id": "obj_014",
+      "asset_id": "ASSET-021",
+      "tag": "M-003",
+      "asset_class": "ELECTRIC_MOTOR",
+      "method": "rule_class_spatial",
+      "confidence": 0.91,
+      "notes": "Drive motor for P-003"
+    },
+    {
+      "object_id": "obj_015",
+      "asset_id": null,
+      "tag": null,
+      "asset_class": null,
+      "method": null,
+      "confidence": 0.0,
+      "notes": "Junction box: no matching Excel asset record"
+    },
+    {
+      "object_id": "obj_016",
+      "asset_id": null,
+      "tag": null,
+      "asset_class": null,
+      "method": null,
+      "confidence": 0.0,
+      "notes": "Temporary toolbox: unmapped floor obstacle"
+    }
+  ]
+}

@@ -26,7 +26,9 @@ Stay in your person's area. Ask before making large changes in someone else's.
 
 ## Git
 - Never commit directly to `main`. It must always run, because it's what we demo.
-- Branch as `name/feature`. Keep branches small and merge within a couple of hours.
+- Before editing anything, check the current branch. If it's `main`, run `git pull`, then create a
+  `name/feature` branch. Ask the user for their name if you can't tell it from `git config user.name`.
+- Keep branches small and merge within a couple of hours.
 - Rebase on `main` before opening a PR, and PR only when `make check` passes.
 - Change `pyproject.toml` and `uv.lock` in their own small PR. Add packages with `uv add`.
 - If running agents in parallel, give each its own git worktree.

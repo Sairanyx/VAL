@@ -1,7 +1,7 @@
 VIEWS_TAG ?= views-v1
 VIEWS_FILE ?= equipment_room_views_v1.tar
 
-.PHONY: setup entire views gpu train tb fmt lint test check up
+.PHONY: setup entire views gpu train tb web fmt lint test check up
 
 setup:   ## install everything
 	uv sync
@@ -19,6 +19,9 @@ train:   ## train a model
 	uv run python -m app.train
 tb:      ## training graphs at http://localhost:6006
 	uv run tensorboard --logdir runs
+SCENE ?= data/scene/sample/scene.ply
+web:     ## web viewer on port 8000, set SCENE= to pick the splat
+	uv run python web/serve.py --scene "$(SCENE)"
 fmt:     ## tidy code style and auto-fix lint
 	uv run --only-group dev ruff format .
 	uv run --only-group dev ruff check --fix .

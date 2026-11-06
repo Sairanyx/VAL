@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Plant Room Viewer</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Everything is served locally: the demo must run with no internet. -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/three.module.js",
+        "three/addons/": "./vendor/three/addons/",
+        "@sparkjsdev/spark": "./vendor/spark/spark.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="view"></canvas>
+  <div id="labels"></div>
+  <div id="crosshair"></div>
+
+  <div id="hud">
+    <div id="status">Loading scene...</div>
+    <div id="stats"></div>
+    <div id="in-view"></div>
+  </div>
+
+  <div id="buttons">
+    <button id="mode">Walk</button>
+    <button id="boxes">Boxes on</button>
+    <button id="reset">Start</button>
+  </div>
+
+  <div id="info" hidden>
+    <button id="info-close" aria-label="Close">&times;</button>
+    <div id="info-body"></div>
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>

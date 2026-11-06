@@ -19,7 +19,8 @@ If you skip it, Claude Code hooks do nothing and work carries on as normal.
 - **Transcripts sync to this repo on `git push`.** That includes prompts and agent output.
 - **Never paste secrets.** Redaction is a safety net, not a guarantee.
 - **Before making this repo public,** for example for submission, ask the team and check what to
-  remove. Anyone who can read the repo can read its checkpoints. Consider submitting a clean copy.
+  remove. Anyone who can read the repo can read its checkpoints and Releases. Consider submitting a
+  clean copy.
 
 ## Daily use
 | Task | Command |

@@ -24,6 +24,7 @@ Should end by printing your GPU name.
 | `make fmt` | Tidy code style and auto-fix lint |
 | `make check` | Lint and test: run before opening a PR |
 | `make entire` | Install and enable Entire |
+| `make views` | Download rendered views for the scene |
 | `make up` | Train inside Docker |
 
 ## Team workflow

@@ -308,6 +308,11 @@ Optional, and only after the main demo works. Ask the MLH coach whether we can e
 
 ## Getting started
 - **Scene and data:** get `Equipment Room.ply` and the Valmet folder from Viktor, not from git.
+- **Rendered views:** run `make views` (needs GitHub's `gh` CLI from cli.github.com, not the unrelated
+  `gh` package on PyPI, and `gh auth login`), or download the `views-v1` Release in
+  a browser and run `make views ARCHIVE=path/to/file.tar`. They go in `data/scene/equipment_room/`:
+  `render/` for the room, `render_detail/` for small objects. Each has `views/`, `depth/`, and
+  `cameras.json`. Delete Releases before making the repo public.
 - **Check your copy:** the SHA-256 of `Equipment Room.ply` starts `83d8c7d99316c08c`.
 - **GPU:** the 5090 is shared, so agree who's using it. Roihu needs `project_2020113` membership, so ask
   Viktor. Most ThinkPads can only handle coding and the viewer.

@@ -1,7 +1,7 @@
 # viktortrilar: main
 **Goal:** my plan tasks: scene loading, cleaning, rendered views, own splat, then splitting objects
-**Done:** app/scene/load.py (read, validate, clean, floor, write), cameras.py, render.py, scripts/roihu_render.sbatch, tests; rendered views for Sasha
-**Verified:** ruff passes; pytest 16 passed, 1 skipped with numpy, no torch tests. Equipment Room.ply: 1,676,481 valid, 1,178,554 after cleaning, floor y of about 1.18 (+y down). Depth check on the first 400-view render, before the floor filter: 93% of sampled points within about 10 cm of solid splats. Coverage with both sets: 97.2% seen by 3+ views, 87.2% at over 400 px per unit (upper room 68.6%). Some close views are soft
-**Roihu:** views in `sinceai/data/scene/equipment_room/render` (400) and `render_detail` (300), each with views/, depth/, cameras.json. Env `inspection/venv-3dgs`; sbatch args SCENE VIEWS OUT_NAME. COLMAP job 2920828 still running, 1,305 frames with no new count between checks, may be in bundle adjustment. Cert valid to 2026-11-07 20:41; pass it with `-o CertificateFile=`
-**Next:** give Sasha access to the views; check COLMAP; split objects when `splat_labels.npy` exists, or try a rough clustering split for Benjamin; compare SAM on renders and real frames
-**Blockers:** Sasha's Roihu access. `data/` is blocked for agent reads by our deny rule, so run tools on it. Open: whether Valmet wants Moving Atoms used
+**Done:** app/scene (loader, cleaning, cameras, render), scripts/views_archive.py and `make views`. 700 views packed to ~/Downloads/equipment_room_views_v1.tar (687 MB, SHA-256 starts 98368c60) and unpacked to data/scene/equipment_room
+**Verified:** ruff and pytest pass with numpy, no torch tests. Archive hash matches Roihu's, 700 images and 700 depth maps unpacked. `make views` Release path untested, as the Release isn't uploaded
+**Roihu:** views also in `sinceai/data/scene/equipment_room`. COLMAP job 2920828 at 1,428 of 1,500 frames at last check; log `sinceai/logs/colmap-2920828.out`. Project at 225.7 of 250 GB after deleting `inspection/nm_trial_1553688/*/frames` with Viktor's approval. Cert valid to 2026-11-07 20:41; pass it with `-o CertificateFile=`
+**Next:** Viktor uploads the archive to Drive and the `views-v1` Release; check COLMAP; lighter tablet scene and rough clustering split for Benjamin
+**Blockers:** GitHub's `gh` isn't installed here (the one in .venv is an unrelated PyPI package). Open: whether Valmet wants Moving Atoms used

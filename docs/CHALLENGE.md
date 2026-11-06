@@ -11,6 +11,9 @@ assets with their data, and deliver AI service guidance?
 segmented objects with details and navigate to one. The written brief says not to spend time on a
 mobile or Android frontend. So we build a browser app that works on a tablet, not a native app.
 
+**Extra credit (verbal, from their engineer):** turn the scene into separate objects that can be
+moved, like `semantic extraction demo 1` ("Every object, its own asset": select, move, simulate).
+
 ## What to build
 Focus on backend and spatial processing, and keep the UI lightweight.
 

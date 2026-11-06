@@ -1,4 +1,5 @@
 # viktortrilar: main
+**Plan:** docs/PLAN.md now has the pipeline, copilot, VLMs, movable objects (extra credit per Valmet's engineer, new `splat_labels.npy`, `/api/changes`), and on-site deployment. Tell the team to read it
 **Goal:** work from Valmet's restored PLY; keep a reconstruction side track for comparison
 **Done:** validated `Equipment Room.ply` and updated AGENTS.md and docs/CHALLENGE.md to use it; earlier: scene rule, scoring, Roihu details, gitignore entries, scripts/select_frames.py + test, scripts/reconstruct_pi3.py, scripts/reconstruct_colmap.py and their sbatch files; 1,500 frames at `/scratch/project_2020113/sinceai/data/valmet_frames`
 **Verified:** all 1,676,481 PLY records valid; plots show the whole room with a dense floor (+y down, floor y of about 1.25); routing not tested. ruff passes; pytest 4 passed, 1 skipped (no torch). Pi3X 100 frames ran (29.2 GB peak), plan view fragmented

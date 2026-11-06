@@ -9,14 +9,24 @@ const EYE_HEIGHT = 1.6; // metres above the floor in walk mode (scene units look
 const LABEL_RANGE = 10; // only label objects closer than this
 const MAX_LABELS = 12;
 
+// Speed settings, changeable in the URL without editing code, e.g. ?res=0.5&splats=300000
+//   res     render resolution relative to the screen (default 1; 0.5 is about 4x fewer pixels)
+//   lod     1 = level of detail on: far-away areas use fewer, bigger splats (default 1)
+//   splats  how many splats LOD aims to draw per frame (default: Spark's choice for the device)
+const params = new URLSearchParams(location.search);
+const RES = Number(params.get("res") ?? 1);
+const LOD = params.get("lod") !== "0";
+const LOD_SPLATS = params.has("splats") ? Number(params.get("splats")) : undefined;
+
 const $ = (id) => document.getElementById(id);
 const canvas = $("view");
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+// Rendering every splat at full high-DPI resolution is the main cost; 1 pixel per CSS pixel is enough.
+renderer.setPixelRatio(RES);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 200);
-scene.add(new SparkRenderer({ renderer }));
+scene.add(new SparkRenderer({ renderer, lodSplatCount: LOD_SPLATS }));
 
 // The scene's +y points down. Turn it upright once here, and put everything in scene
 // coordinates inside `root`, so file coordinates can be used as they are.
@@ -186,13 +196,14 @@ async function load() {
   startPos.y = eyeY;
   camera.position.copy(startPos);
 
-  const splat = new SplatMesh({ url: "scene.ply" });
+  const splat = new SplatMesh({ url: "scene.ply", lod: LOD });
   root.add(splat);
   renderer.setAnimationLoop(animate);
   await splat.initialized;
-  const count = splat.packedSplats?.numSplats ?? splat.splats?.numSplats;
+  const count = splat.packedSplats?.numSplats || splat.splats?.numSplats; // 0 or missing with LOD
   $("status").textContent =
-    `${data.assets.length} objects · ${count?.toLocaleString() ?? "?"} splats · ` +
+    `${data.assets.length} objects · ${count ? `${count.toLocaleString()} splats · ` : ""}` +
+    `res ${RES}, LOD ${LOD ? "on" : "off"}${LOD_SPLATS ? ` (${LOD_SPLATS})` : ""} · ` +
     "drag to look, WASD to move";
 }
 

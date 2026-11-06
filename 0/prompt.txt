@@ -1,0 +1,290 @@
+This is a hackathon codebase for the Since AI hackathon that is running this weekend, since this is a 5 man team the repo will be used across multiple users - how can we assure clean workflow between members? Also let's make a claude.md or agents.md where we put in guidelines for the coding agents. 
+
+- Token usage should be optimized
+- Handoff.md after every prompt finishes running
+- Testing and linting check with uv ruff or similar
+
+Some stuff that is available and grants addiitonal prizes 
+
+<pasted_content id="7ac0">
+Hey, Viktor --
+
+ 
+
+It’s awesome to hear that you’re interested in attending Since AI Hackathon. 
+
+ 
+
+At Major League Hacking (MLH) it’s our mission to empower hackers like you and we're bringing everything you need to build something amazing!
+Alternate text
+
+We know you love prizes and we brought a ton that you can win this weekend by completing challenges & using new tech.
+
+Best Use of ElevenLabs
+
+⭐ Wireless Earbuds ⭐
+	
+Best Use of ElevenLabs logo
+Deploy natural, human-sounding audio with ElevenLabs. Create realistic, dynamic, and emotionally expressive voices for any project, from interactive AI companions to narrated stories and voice-enabled apps. ElevenLabs will empower you to build rich, immersive experiences without the need for actors or complex audio production, using simply the power of AI.
+
+Integrate fully autonomous audio experiences into your hack with ElevenLabs and give your project a voice, along with giving your team the chance to win some wireless earbuds!
+
+Promo Code: Claim your ElevenLabs Q4 2025 - Q4 2026 promo code now!
+ 
+
+Best Use of Gemini API
+
+⭐ MLH Swag Kits ⭐
+	
+Best Use of Gemini API logo
+It’s time to push the boundaries of what's possible with AI using Google Gemini. Check out the Gemini API to build AI-powered apps that make your friends say WHOA. So, what can Gemini do for your hackathon project?
+
+    Understand language like a human and build a chatbot that gives personalized advice
+    Analyze info like a supercomputer and create an app that summarizes complex research papers
+    Generate creative content like code, scripts, music, and more
+
+Think of the possibilities… what will you build with the Google Gemini API this weekend?
+
+ 
+
+Best Use of Entire
+
+⭐ Mini Portable Projector ⭐
+	
+Best Use of Entire logo
+
+Entire is the Git forge for agent-human collaboration. From syncing your sessions and prompts to your Git history, to hosting code and replacing the Pull Request with Trails, Entire are reimagining code hosting and collaboration for the agent era. 
+
+Ready to build faster with AI without burning through tokens or losing context? This challenge is all about building smarter AI workflows. To qualify, your project should leverage as many of Entire’s core capabilities (Sessions, Graph, and/or Brain) as possible.
+
+Your project should lean on Sessions for context and memory and entire-graph for codebase mapping:
+
+    Sessions (Shared Memory): Save your AI agent sessions as instant checkpoints and push them to your team. Teammates or other agents can jump in instantly and pick up right where you left off with zero context loss.
+    Graph (Codebase Mapping): Generate a visual map of how your codebase fits together. Using entire graph search instead of letting agents blindly search files to cut token usage by up to 71%!
+    Brain (Persistent Reasoning): Combine your session data and Graph insights into persistent project knowledge. Agents can query past decisions and architectural lessons through the CLI or MCP so they don’t repeat mistakes or undo working code.
+    Trails (Code review): Assign you or a teammate’s agent a task via Trail (Entire’s issue/PR combo primitive), the agent works on it, and then let your agent review the code change: does the code change match the intent? Should it merge? Let Entire Trails help you decide!
+
+We’re looking for teams that use Entire to create seamless human-AI collaboration, maintain clean code history, and show measurable token efficiency. Build something awesome, keep your agents on track, and show us how Entire powers your workflow!
+
+Promo Code: Claim your Entire Q4 2026 - Q3 2027 promo code now!
+ 
+
+Best Use of Solana
+
+⭐ Unruggable Hardware Wallets ⭐
+	
+Best Use of Solana logo
+The world of development is evolving fast and Solana is leading the charge with a network built to handle all of your infrastructure needs. Forget high fees and slow confirmations, it’s time to build applications that are fast, efficient, and scalable.
+
+Harness Solana's core advantages like blazing fast execution and near-zero transaction costs to make your hackathon ideas become real world projects. With Solana, the possibilities are endless.
+
+    Create a game, social app, or consumer product that relies on instant, high-frequency transactions.
+    Design a sophisticated trading, lending, or decentralized exchange (DEX).
+    Build a prototype for supply chain, identity, or payments that can handle massive, real-world volume.
+
+Show us how you can innovate with Solana for a chance to win Unruggable Hardware Wallets for you and each member of your team!
+
+ 
+
+Best Use of Tiger Data
+
+⭐ Stream Deck Mini ⭐
+	
+Best Use of Tiger Data logo
+
+Building high-performance apps under hackathon deadlines shouldn't mean spending half your weekend configuring complex databases or learning obscure query languages. Tiger Data extends PostgreSQL to give student developers an ultra-fast foundation for real-time data, time-series metrics, and complex analytics.
+
+Why build with Tiger Data this weekend?
+
+    Standard SQL Power: Query massive datasets instantly using the SQL you already know, with no complex NoSQL aggregation pipelines required.
+
+    Unified Data Stack: Store relational user profiles and high-frequency metric streams side-by-side in a single database.
+
+    Instant Dashboards: Serve lag-free, real-time frontend charts using pre-computed Continuous Aggregates.
+
+    90%+ Data Compression: Store millions of events on free-tier cloud instances without running out of disk space.
+
+Whether you’re building real-time IoT monitoring, AI-driven analytics dashboards, or financial prediction engines, show us how Tiger Data powers your project. The team that demonstrates the most innovative, impactful, and performance-driven use of Tiger Data will take home some great prizes!
+
+ 
+
+Best Use of Vultr
+
+⭐ Assorted Prizes ⭐
+	
+Best Use of Vultr logo
+Vultr empowers hackers to bring their high-performance projects to life instantly; providing everything from the speed of one-click deployment and scalable cloud compute, to specialized Vultr Cloud GPUs that can power AI-driven applications. We want you to push the limits of what can be built when infrastructure is no longer the bottleneck!
+
+Sign up for a Vultr account today and claim your free cloud credits! Take your next hack to the cloud with Vultr for a chance to win some awesome prizes for you and your team!
+
+ 
+
+Best Use of Snowflake API
+
+⭐ Arduino Student Kit ⭐
+	
+Best Use of Snowflake API logo
+Play with industry-leading LLMs on a single account using the Snowflake APIs. Adding AI capabilities into your application can be as simple as a single CURL command to Snowflake’s REST API.
+
+Build customized applications, RAG powered chat bots, or embed AI-powered features into your app in half the time with half the hassle. Get started for free with a special, student 120-day Snowflake trial and check out this repository for an example of the Snowflake REST API in action.
+
+ 
+
+Best Use of MongoDB Atlas
+
+⭐ M5Stack IoT Kit ⭐
+	
+Best Use of MongoDB Atlas logo
+MongoDB Atlas takes the leading modern database and makes it accessible in the cloud! Get started with a $50 credit for students or sign up for the Atlas free forever tier (no credit card required). Along with a suite of services and functionalities, you'll have everything you need to manage all of your data, and you can get a headstart with free resources from MongoDB University! Build a hack using MongoDB Atlas for a chance to win a M5Stack IoT Kit for you and each member of your group.
+
+ 
+
+AI tools and APIs give hackers super powers. Join us for our Intro to Google AI Studio workshop at Since AI Hackathon to learn how you can leverage AI in your hack this weekend. Listen during the Opening Ceremony or come visit the MLH table to learn where and when it'll take place.
+
+Google AI Studio is the fastest way to start building with the Gemini family of multimodal generative AI models. Google AI Studio allows you to try out Gemini's massive token context window, grab an API key in seconds, and experiment on prebuilt prompts.  
+Preregister for the workshop now!
+ 
+
+Want to make your hacks better and faster? With the help GitHub Copilot, you can cut your development time in half! This weekend, we'll have an entire mini-event dedicated to showing you how to start hacking with GitHub Copilot. Be sure to signup for the GitHub Student Developer pack for free access to GitHub Copilot.
+Step into the Flight Deck with Copilot!
+ 
+Alternate text
+
+If you're building a hardware-related hack this weekend, don't forget to ask your MLH Coach about our hardware lab! We've got some incredibly useful items for you to utilize in your project; including Arduinos and Raspberry Pis.
+</pasted_content id="7ac0">
+
+ 
+
+Comput e available is the 5090, CSC Lumi and Roihu, thinkpads. Ask any questions that you need
+
+---
+
+These were just the extra challenges, the actual challenge we pick will be provided later
+
+---
+
+The challenge is: Industrial Metaverse: Semantic 3D Scene Understanding & Autonomous Field-Service Copilot from Valmet
+
+<pasted_content id="7ac0">
+Imagine entering a digital industrial plant where the environment does more than look real. It understands where machines are, what they are, how people or robots could move between them and which equipment needs attention. Today's 3D captures can be visually extraordinary—but they often lack the meaning needed for intelligent action. Valmet challenges you to bridge that gap. Explore how spatial perception, semantic 3D understanding and AI-grounded equipment information could transform a scanned industrial environment into a navigable, useful digital world. Think computer vision, point-cloud intelligence, digital twins, robotics simulation and an assistant that can explain the context behind a maintenance decision. This is a chance to make AI understand not just words and numbers, but physical space. A strong demonstration could point toward industrial operations where service experts and autonomous systems find the right equipment faster, navigate complex facilities more intelligently and turn fragmented technical data into confident, context-aware action.
+</pasted_content id="7ac0">
+
+---
+
+More info and probably some data will be available from the company soonish
+
+---
+
+How about the DT and CV part of it
+
+---
+
+Is there something like Nvidia omniverse that we could use?
+
+---
+
+Make a branch for me, is making a branch in the agents.md so the others can just have their agents read it and it will make it for them?
+
+---
+
+Merge the team worfklow branch into main for now
+
+---
+
+I added a valmet folder containing the brief and stuff from the company
+
+---
+
+I put the .ply file in the repo can you check if it's the same
+
+---
+
+Is it still usable? Is the video shown an actual video or is it a render? If we run VGGT or Pi^3 or 3DGS on the video will be get better points?
+
+---
+
+Can we run this on Lumi or Roihu?
+
+---
+
+We already have most of the libraries on roihu so we can run there, so what are we actually using now? All 3 and comparing or?
+
+---
+
+Roihu cert is in repo githignore it then ssh to roihu username is vtrilar - check what we have there and then we can start running
+
+---
+
+So why 500 frames and not more?
+
+---
+
+Let's take 1500 so we have some backup
+
+---
+
+Use 2020113
+
+---
+
+Update we are getting the non-corrupted ply file soon
+
+---
+
+We can still have the reconstruction in case we are allowed to use our own splats - we can compare which one is better
+
+---
+
+Yea go ahead and test 1500 frames
+
+---
+
+New restored .ply (equipment room) is in repo root check it out
+
+---
+
+I got confirmation that we can use our own splat so if we get a better one than the given one we can use that
+
+---
+
+So what are we actually building now, some kind of digital twin of the boiler room? How the company representative framed it they want to have a person runnig this on a tablet and there they can see all these segmented objects/machines and their details - they could also use the app to navigate to a specific object or machine
+
+---
+
+Can you split the work across 5 (Viktor, Eduard, Sasha, Benjamin, Hannu) somewhat evenly so we can each begin working on something, I think an actual demo would work really nicely
+
+---
+
+Can you explain how the pipeline will go end to end?
+
+---
+
+We should have some built in "privacy" bonus points if none of this touches the cloud but runs locally at the plant/factory. So our offline would be let's say a 5090 at the factory and the tablet is connected to it/over network
+
+---
+
+Local LLM could be qwen or something - could OCR or VLMs work for anything here?
+
+---
+
+How much compute would the whole pipeline actually need?
+
+---
+
+Yes I meant for theoretical deployment
+
+---
+
+Regarding the side challenges - which can we use in this project? Also should we be using MLFlow and other experiment tracking or is the timeframe so short that we don't need it?
+
+---
+
+Yes - how do we implement Entire into our workflow, also take the important stuff from the brief and update all required .mds
+
+---
+
+Are you able to setup Entire into the uv requirements/something similar so my team just runs that and is ready?
+
+---
+
+Merge this branch with main, also give me the full pipeline process again

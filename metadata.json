@@ -1,0 +1,65 @@
+{
+  "cli_version": "0.13.1",
+  "checkpoint_id": "01M6S7Z7WJC2QWY4GW86KNQ8JQ",
+  "strategy": "manual-commit",
+  "branch": "viktor/valmet-brief",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".gitignore",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "Makefile",
+    "README.md",
+    "docs/CHALLENGE.md",
+    "docs/ENTIRE.md",
+    "docs/PITCH.md",
+    "docs/PLAN.md",
+    "docs/RESULTS.md",
+    "fixtures/sample_assets.json",
+    "handoffs/viktortrilar.md",
+    "scripts/reconstruct_colmap.py",
+    "scripts/reconstruct_pi3.py",
+    "scripts/roihu_colmap.sbatch",
+    "scripts/roihu_pi3.sbatch",
+    "scripts/select_frames.py",
+    "scripts/setup_entire.sh",
+    "tests/test_select_frames.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 312,
+    "cache_creation_tokens": 478890,
+    "cache_read_tokens": 21928946,
+    "output_tokens": 171112,
+    "api_call_count": 117,
+    "subagent_tokens": {
+      "input_tokens": 8,
+      "cache_creation_tokens": 66678,
+      "cache_read_tokens": 66768,
+      "output_tokens": 7942,
+      "api_call_count": 4
+    }
+  },
+  "redaction": {
+    "replacements": 41,
+    "layers": {
+      "betterleaks": 0,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 0,
+      "credentialed_uri": 0,
+      "entropy": 10,
+      "key_context": 31,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

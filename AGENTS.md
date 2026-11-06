@@ -4,7 +4,8 @@ Since AI Hackathon 2026, 5-person team. Several people and agents work here at o
 This file is loaded with every prompt, so keep it short.
 
 ## Project status
-- Main challenge: not chosen yet. Replace this line with it once announced.
+- Main challenge: Valmet's Industrial Metaverse, semantic 3D scene understanding and a field-service
+  copilot. Full brief: `docs/CHALLENGE.md`. Read it only when the task needs it.
 - Sponsor challenges are optional extras. Don't add a sponsor integration unless asked.
 
 ## Team areas

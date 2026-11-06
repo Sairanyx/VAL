@@ -1,7 +1,9 @@
-.PHONY: setup gpu train tb fmt lint test check up
+.PHONY: setup entire gpu train tb fmt lint test check up
 
 setup:   ## install everything
 	uv sync
+entire:  ## install and enable Entire, set AGENT= for other agents
+	bash scripts/setup_entire.sh
 gpu:     ## check the GPU works
 	uv run python -m app.gpu_check
 train:   ## train a model

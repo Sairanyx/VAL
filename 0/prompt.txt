@@ -1,0 +1,29 @@
+No I meant from a deployment standpoint
+
+---
+
+So lets see the whole process when someone at valmet is taking a new scan how does it work through the whole pipeline?
+
+---
+
+So how do we make the objects "movable" and updatable? Let's say a box appears in the boiler room how can we update the map without rescanning everything? And same for if something leaves?
+
+---
+
+The representative engineer said this would give extra credit if we can somehow have the scene turn into objects and move them around etc etc, kind of like in one of the videos that were in the valmet folder
+
+---
+
+So with this how does the new pipeline work?
+
+---
+
+Regarding VLMs and LLMs how can we use them for operator explanation/other tasks in the pipeline
+
+---
+
+Let's say we have some maintenance logs or manual the operator could ask for example where is this object/machine then with further questions the LLM could fetch maintenance info and other info about the machine
+
+---
+
+Put all of this in plan.md so the others can read about it

@@ -1,12 +1,7 @@
 # viktortrilar: main
-**Plan:** docs/PLAN.md now has the pipeline, copilot, VLMs, movable objects (extra credit per Valmet's engineer, new `splat_labels.npy`, `/api/changes`), and on-site deployment. Tell the team to read it
-**Goal:** work from Valmet's restored PLY; keep a reconstruction side track for comparison
-**Done:** validated `Equipment Room.ply` and updated AGENTS.md and docs/CHALLENGE.md to use it; earlier: scene rule, scoring, Roihu details, gitignore entries, scripts/select_frames.py + test, scripts/reconstruct_pi3.py, scripts/reconstruct_colmap.py and their sbatch files; 1,500 frames at `/scratch/project_2020113/sinceai/data/valmet_frames`
-**Verified:** all 1,676,481 PLY records valid; plots show the whole room with a dense floor (+y down, floor y of about 1.25); routing not tested. ruff passes; pytest 4 passed, 1 skipped (no torch). Pi3X 100 frames ran (29.2 GB peak), plan view fragmented
-**Roihu:** COLMAP job 2920828 still mapping at 22:11, 891 frames in the current model, about 7.8 GB RAM (matching took 466 s; `sinceai/runs/colmap_1500`, log `sinceai/logs/colmap-2920828.out`). OpenBLAS capped in sbatch; "Bad memory unallocation" lines still logged, so check the result. Connect with `-o CertificateFile=` pointing at the repo cert, valid to 2026-11-07 20:41
-**On-site rule:** demo must run offline on a local 5090 with a tablet on its network (AGENTS.md, docs/PLAN.md)
-**Entire:** `make entire` (scripts/setup_entire.sh) tested in a throwaway clone and run here. Repo now private, so checkpoints sync to origin; real sync and resume untested
-**Docs:** added docs/ENTIRE.md and docs/RESULTS.md; updated README, PITCH, CHALLENGE, PLAN, AGENTS from the brief
-**Team:** split work across 5 in docs/PLAN.md and AGENTS.md, with fixtures/sample_assets.json. Teammates can't see it until it's pushed
-**Next:** push so the team can start; build the PLY loader and cleaning step, then floor and occupancy grid; check the COLMAP result; ask Valmet about the missing CSV and RAG files; check GitHub CI ran; teammates run `make entire`
-**Blockers:** none. Own splat is confirmed allowed: use it only if it beats `Equipment Room.ply`. If COLMAP gives one clean model, train 3DGS and compare
+**Goal:** my plan tasks: scene loading, cleaning, rendered views, own splat, then splitting objects
+**Done:** app/scene/load.py (read, validate, clean, floor, write), cameras.py, render.py, scripts/roihu_render.sbatch, tests; rendered views for Sasha
+**Verified:** ruff passes; pytest 16 passed, 1 skipped with numpy, no torch tests. Equipment Room.ply: 1,676,481 valid, 1,178,554 after cleaning, floor y of about 1.18 (+y down). Depth check on the first 400-view render, before the floor filter: 93% of sampled points within about 10 cm of solid splats. Coverage with both sets: 97.2% seen by 3+ views, 87.2% at over 400 px per unit (upper room 68.6%). Some close views are soft
+**Roihu:** views in `sinceai/data/scene/equipment_room/render` (400) and `render_detail` (300), each with views/, depth/, cameras.json. Env `inspection/venv-3dgs`; sbatch args SCENE VIEWS OUT_NAME. COLMAP job 2920828 still running, 1,305 frames with no new count between checks, may be in bundle adjustment. Cert valid to 2026-11-07 20:41; pass it with `-o CertificateFile=`
+**Next:** give Sasha access to the views; check COLMAP; split objects when `splat_labels.npy` exists, or try a rough clustering split for Benjamin; compare SAM on renders and real frames
+**Blockers:** Sasha's Roihu access. `data/` is blocked for agent reads by our deny rule, so run tools on it. Open: whether Valmet wants Moving Atoms used

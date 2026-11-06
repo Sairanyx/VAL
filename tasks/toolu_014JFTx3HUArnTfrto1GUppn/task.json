@@ -1,0 +1,18 @@
+{
+  "tool_use_id": "toolu_014JFTx3HUArnTfrto1GUppn",
+  "agent_id": "ae70c083aa40f30ed",
+  "subagent_type": "web-fetch",
+  "task_description": "Read movingatoms.ai site",
+  "files": [
+    "handoffs/viktortrilar.md"
+  ],
+  "token_usage": {
+    "input_tokens": 6,
+    "cache_creation_tokens": 21547,
+    "cache_read_tokens": 14364,
+    "output_tokens": 4047,
+    "api_call_count": 3
+  },
+  "started_at": "2026-11-06T23:17:49.317984914+02:00",
+  "completed_at": "2026-11-06T23:17:49.31815858+02:00"
+}

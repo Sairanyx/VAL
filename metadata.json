@@ -1,0 +1,55 @@
+{
+  "cli_version": "0.13.1",
+  "checkpoint_id": "01M6SD10MW94DTJZ648806RQHE",
+  "strategy": "manual-commit",
+  "branch": "viktor/scene-loader",
+  "checkpoints_count": 11,
+  "files_touched": [
+    "app/scene/__init__.py",
+    "app/scene/cameras.py",
+    "app/scene/load.py",
+    "app/scene/render.py",
+    "docs/RESULTS.md",
+    "handoffs/viktortrilar.md",
+    "scripts/roihu_render.sbatch",
+    "tests/test_scene_cameras.py",
+    "tests/test_scene_load.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 100,
+    "cache_creation_tokens": 84377,
+    "cache_read_tokens": 14999441,
+    "output_tokens": 54121,
+    "api_call_count": 37,
+    "subagent_tokens": {
+      "input_tokens": 6,
+      "cache_creation_tokens": 21547,
+      "cache_read_tokens": 14364,
+      "output_tokens": 4047,
+      "api_call_count": 3
+    }
+  },
+  "redaction": {
+    "replacements": 56,
+    "layers": {
+      "betterleaks": 0,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 0,
+      "credentialed_uri": 0,
+      "entropy": 12,
+      "key_context": 44,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

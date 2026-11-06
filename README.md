@@ -14,8 +14,16 @@ Should end by printing your GPU name.
 |---|---|
 | `make train` | Train a model |
 | `make tb` | Training graphs at http://localhost:6006 |
-| `make fmt` | Tidy code style |
+| `make fmt` | Tidy code style and auto-fix lint |
+| `make check` | Lint and test: run before opening a PR |
 | `make up` | Train inside Docker |
+
+## Team workflow
+- Work on a `name/feature` branch, not `main`. Keep it small and merge within a couple of hours.
+- Rebase on `main`, run `make check`, then open a PR. CI must pass before merging.
+- Keep your handoff in `handoffs/<name>.md`, so a teammate or agent can pick up your work.
+- Coding agents follow [AGENTS.md](AGENTS.md). Fill in the team areas and the challenge there.
+- Keys go in `.env` (copy `.env.example`), never in git.
 
 ## Structure
 | Path | What it is |
@@ -26,6 +34,8 @@ Should end by printing your GPU name.
 | `runs/` | Training results + saved models (not in git) |
 | `lumi/` | Run on the LUMI supercomputer ([guide](lumi/README.md)) |
 | `docs/` | Plan, pitch, live schedule |
+| `tests/` | Tests, run by `make test` and CI |
+| `handoffs/` | Each person's current status |
 
 ## Pre-existing work
 The setup in the first commits was made before the event. Everything after was built at Since AI 2026.

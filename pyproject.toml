@@ -22,7 +22,11 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["ruff>=0.7", "ipykernel>=6"]
+dev = [
+    "ruff>=0.7",
+    "ipykernel>=6",
+    "pytest>=8",
+]
 
 [tool.uv]
 environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'",
@@ -39,3 +43,10 @@ explicit = true
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

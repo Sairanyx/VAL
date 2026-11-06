@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./uv.lock)",
+      "Read(./data/**)",
+      "Read(./runs/**)",
+      "Read(./.env)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/handoff_check.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}

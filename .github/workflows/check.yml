@@ -1,0 +1,17 @@
+name: check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      # Dev tools only: skips the multi-GB CUDA torch install, so torch tests are skipped here.
+      - run: uv run --only-group dev ruff format --check .
+      - run: uv run --only-group dev ruff check .
+      - run: uv run --only-group dev pytest

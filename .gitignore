@@ -14,3 +14,6 @@ data/*
 logs/
 submission.zip
 runs/
+Valmet_SinceAI2026*/
+*.ply
+cert*.pub

@@ -3,6 +3,7 @@
 // both served by web/serve.py.
 import * as THREE from "three";
 import { SparkControls, SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
+import { setupPhone } from "./phone.js";
 
 const FAULT_TAG = "P-005"; // the pre-chosen faulty device (docs/PLAN.md)
 const EYE_HEIGHT = 1.6; // metres above the floor in walk mode (scene units look close to metres)
@@ -35,6 +36,12 @@ root.rotation.x = Math.PI;
 scene.add(root);
 
 const controls = new SparkControls({ canvas });
+const phone = setupPhone({
+  camera,
+  button: $("phone"),
+  joystick: $("joystick"),
+  onMessage: (msg) => ($("status").textContent = msg),
+});
 const raycaster = new THREE.Raycaster();
 const objects = []; // { asset, box, pick, label, center }
 let walk = true;
@@ -142,6 +149,7 @@ $("boxes").onclick = () => {
 $("reset").onclick = () => {
   camera.position.copy(startPos);
   camera.quaternion.identity();
+  phone.recenter();
 };
 
 // Draw a label over every object in front of the camera, like detections on a camera feed.
@@ -171,14 +179,20 @@ function updateLabels() {
 
 let frames = 0;
 let lastFps = performance.now();
+let lastFrame = performance.now();
 function animate(now) {
-  controls.update(camera);
+  const dt = Math.min((now - lastFrame) / 1000, 0.1);
+  lastFrame = now;
+  // In phone mode the phone's rotation steers, so mouse/touch dragging must not fight it.
+  if (!phone.enabled) controls.update(camera);
+  phone.update(dt);
   if (walk) camera.position.y = eyeY;
   renderer.render(scene, camera);
   updateLabels();
   frames++;
   if (now - lastFps > 1000) {
-    $("stats").textContent = `${Math.round((frames * 1000) / (now - lastFps))} fps`;
+    const fps = Math.round((frames * 1000) / (now - lastFps));
+    $("stats").textContent = `${fps} fps` + (phone.enabled ? ` · ${phone.steps} steps` : "");
     frames = 0;
     lastFps = now;
   }

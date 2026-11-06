@@ -61,6 +61,32 @@ html, body {
 }
 #stats, #in-view { color: var(--muted); font-size: 12px; }
 
+/* Joystick: only on touch screens. */
+#joystick {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  width: 120px;
+  height: 120px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  background: rgba(16, 20, 26, 0.35);
+  touch-action: none;
+}
+#joystick > div {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 48px;
+  height: 48px;
+  margin: -24px 0 0 -24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+}
+@media (pointer: fine) {
+  #joystick { display: none; }
+}
+
 #buttons {
   position: fixed;
   right: 12px;

@@ -20,8 +20,8 @@ train:   ## train a model
 tb:      ## training graphs at http://localhost:6006
 	uv run tensorboard --logdir runs
 SCENE ?= data/scene/sample/scene.ply
-web:     ## web viewer on port 8000, set SCENE= to pick the splat
-	uv run python web/serve.py --scene "$(SCENE)"
+web:     ## web viewer on port 8000, SCENE= picks the splat, HTTPS=1 for phone sensors
+	uv run python web/serve.py --scene "$(SCENE)" $(if $(HTTPS),--https)
 fmt:     ## tidy code style and auto-fix lint
 	uv run --only-group dev ruff format .
 	uv run --only-group dev ruff check --fix .

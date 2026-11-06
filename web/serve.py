@@ -6,15 +6,36 @@
 
 Then open http://localhost:8000 here, or http://<this machine's IP>:8000 on a tablet on the
 same network.
+
+Phones only allow motion sensors on HTTPS pages. `make web HTTPS=1` (or `--https`) serves HTTPS
+with a self-signed certificate made in web/.cert/ on first use. The browser warns once; accept it.
 """
 
 import argparse
 import functools
 import http.server
+import ssl
+import subprocess
 from pathlib import Path
 
 WEB = Path(__file__).resolve().parent
 ROOT = WEB.parent
+CERT_DIR = WEB / ".cert"  # not in git
+
+
+def tls_context() -> ssl.SSLContext:
+    cert, key = CERT_DIR / "cert.pem", CERT_DIR / "key.pem"
+    if not cert.exists():
+        CERT_DIR.mkdir(exist_ok=True)
+        subprocess.run(
+            ["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "30"]
+            + ["-keyout", str(key), "-out", str(cert), "-subj", "/CN=plant-viewer"],
+            check=True,
+            capture_output=True,
+        )
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(cert, key)
+    return ctx
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
@@ -39,6 +60,7 @@ def main() -> None:
     p.add_argument("--assets", type=Path, default=ROOT / "fixtures/sample_assets.json")
     p.add_argument("--host", default="0.0.0.0")
     p.add_argument("--port", type=int, default=8000)
+    p.add_argument("--https", action="store_true", help="serve HTTPS, needed for phone sensors")
     args = p.parse_args()
 
     for f in (args.scene, args.assets):
@@ -48,8 +70,12 @@ def main() -> None:
     routes = {"/scene.ply": args.scene.resolve(), "/assets.json": args.assets.resolve()}
     handler = functools.partial(Handler, routes=routes)
     with http.server.ThreadingHTTPServer((args.host, args.port), handler) as srv:
+        scheme = "https" if args.https else "http"
+        if args.https:
+            srv.socket = tls_context().wrap_socket(srv.socket, server_side=True)
         print(
-            f"Viewer on http://localhost:{args.port}  (scene: {args.scene}, assets: {args.assets})"
+            f"Viewer on {scheme}://localhost:{args.port}  "
+            f"(scene: {args.scene}, assets: {args.assets})"
         )
         srv.serve_forever()
 

@@ -1,0 +1,80 @@
+How is the roihu run doing? Also can we handover the views via repo somehow?
+
+---
+
+Do the whole plan and check what is actually happening with COLMAP - it can't be stuck for so long
+
+---
+
+<task-notification>
+<task-id>bsx5vz7e8</task-id>
+<tool-use-id>toolu_01NHB7bsZXDNkPbo2qD3JShY</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/bsx5vz7e8.output</output-file>
+<status>completed</status>
+<summary>Background command "Package views on Roihu, download, verify by unpacking, and recheck COLMAP" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Is that why it's stuck?
+
+---
+
+Check for the videos and frames in in inspection since thsoe probably take a lot of space
+
+---
+
+Yes go ahead and clean
+
+---
+
+Is COLMAP updating yet?
+
+---
+
+Check on it again so we see where we are - also what else can we do meanwhile
+
+---
+
+I'm making a drive folder what do I need to put in there for Sasha
+
+---
+
+Where are the views in our repo
+
+---
+
+pull them in the repo so we have them
+
+---
+
+<pasted_content id="7ac0">
+(sinceai-hackathon) viktor-trilar@viktor-trilar-ThinkPad-T14s-Gen-1:~/Projects/Newbies$ make views
+mkdir -p data/scene
+gh release download views-v1 --pattern equipment_room_views_v1.tar --dir data/scene --clobber
+usage: gh [-h] [--home] [-p] [-b] [-s] [-r] [-t] [-c] [-w] [-i] [-d] [-v]
+gh: error: unrecognized arguments: release download views-v1 --pattern equipment_room_views_v1.tar --dir data/scene --clobber
+make: *** [Makefile:13: views] Error 2
+(sinceai-hackathon) viktor-trilar@viktor-trilar-ThinkPad-T14s-Gen-1:~/Projects/Newbies$ ^C
+(sinceai-hackathon) viktor-trilar@viktor-trilar-ThinkPad-T14s-Gen-1:~/Projects/Newbies$
+</pasted_content id="7ac0">
+
+---
+
+<task-notification>
+<task-id>bdja3g3ac</task-id>
+<tool-use-id>toolu_01ByKaL1PyMpxCem9bENimKa</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/bdja3g3ac.output</output-file>
+<status>failed</status>
+<summary>Background command "Package views in temp storage, verify locally, then free project space" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bfej0cj7c</task-id>
+<tool-use-id>toolu_01EJRsjQ4GfZVjCWam6Vw1om</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/bfej0cj7c.output</output-file>
+<status>completed</status>
+<summary>Background command "Download the archive with retries, verify its hash, and unpack into the repo folder" completed (exit code 0)</summary>
+</task-notification>

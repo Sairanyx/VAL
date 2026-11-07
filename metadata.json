@@ -1,0 +1,62 @@
+{
+  "cli_version": "0.13.1",
+  "checkpoint_id": "01M6VY1MFGV3MFP3HM630HCWPH",
+  "strategy": "manual-commit",
+  "branch": "viktor/val-scale",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/api/commands.py",
+    "app/copilot/copilot.py",
+    "app/copilot/viewer_actions.py",
+    "docs/CHALLENGE.md",
+    "docs/DEVLOG.md",
+    "docs/RESULTS.md",
+    "docs/TEST_CHECKLIST.md",
+    "docs/USAGE.md",
+    "tests/test_copilot_voice.py",
+    "web/alerts.js",
+    "web/avatar.js",
+    "web/index.html",
+    "web/main.js",
+    "web/route.js",
+    "web/style.css",
+    "web/tour.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 42,
+    "cache_creation_tokens": 45214,
+    "cache_read_tokens": 7383327,
+    "output_tokens": 30228,
+    "api_call_count": 20,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
+    }
+  },
+  "redaction": {
+    "replacements": 202,
+    "layers": {
+      "betterleaks": 21,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 18,
+      "credentialed_uri": 4,
+      "entropy": 28,
+      "key_context": 149,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

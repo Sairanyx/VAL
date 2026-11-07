@@ -21,3 +21,4 @@ cert*.pub
 # web viewer self-signed certificate
 web/.cert/
 .idea/
+skills/

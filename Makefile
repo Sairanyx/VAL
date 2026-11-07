@@ -1,7 +1,7 @@
 VIEWS_TAG ?= views-v1
 VIEWS_FILE ?= equipment_room_views_v1.tar
 
-.PHONY: setup entire views gpu train tb fmt lint test check up api
+.PHONY: setup entire views gpu train tb fmt lint test check up api floor
 
 setup:   ## install everything
 	uv sync
@@ -17,6 +17,8 @@ gpu:     ## check the GPU works
 	uv run python -m app.gpu_check
 api:     ## backend API at http://localhost:8001/docs
 	uv run uvicorn app.api.main:app --host 0.0.0.0 --port 8001 --reload
+floor:   ## floor map: make floor SCENE="path/to/Equipment Room.ply"
+	uv run python -m app.nav.grid "$(SCENE)" --out data/scene/equipment_room/nav_grid.npz --preview runs/floor.png
 train:   ## train a model
 	uv run python -m app.train
 tb:      ## training graphs at http://localhost:6006

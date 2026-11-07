@@ -8,8 +8,11 @@ Writes
 viewer.
 
 These links are procedural, not real identities, and are marked that way. Each record goes to one
-object. Links already in the file, such as the hand-picked target, are kept. Healthy records go
-nearest the route to the target, so a walk passes normal devices and ends at the fault.
+object of a fitting type, or to none: a pump record never lands on a light. Hand-made links, such as
+the picked target, are kept, and earlier procedural ones are made again. Healthy records go nearest
+the route to the target, so a walk passes normal devices and ends at the fault.
+
+Types corrected by eye come from `scenes/<scene>.labels.json`, matched by object ID and position.
 """
 
 import argparse
@@ -24,17 +27,41 @@ from app.copilot.store import DataStore
 EXACT_CONFIDENCE = 0.3
 SIMILAR_CONFIDENCE = 0.15
 CLOSE_STOP = 1.0  # metres: prefer objects a person can get this close to
+# For each record class: exact types, then similar ones. A pump comes with its motor, and a
+# transmitter often looks like a gauge. Nothing else is close enough to stand in.
 LABELS = {
     "CONTROL_VALVE": (["valve"], ["pipe fitting"]),
-    "PROCESS_PUMP": (["pump"], ["motor", "appliance"]),
-    "ELECTRIC_MOTOR": (["motor"], ["pump", "appliance"]),
-    "PRESSURE_TRANSMITTER": (["sensor"], ["control panel", "pipe fitting"]),
-    "VIBRATION_SENSOR": (["sensor"], ["control panel", "pipe fitting"]),
+    "PROCESS_PUMP": (["pump"], ["motor"]),
+    "ELECTRIC_MOTOR": (["motor"], ["pump"]),
+    "PRESSURE_TRANSMITTER": (["sensor"], ["gauge"]),
+    "VIBRATION_SENSOR": (["sensor"], ["gauge"]),
 }
+SAME_OBJECT_M = 0.3  # a fix only applies to an object this close to where it was reviewed
+REVIEWED = "reviewed by eye"
 
 
 def object_labels(asset: dict) -> set[str]:
+    if asset.get("label_source") == REVIEWED:
+        return {asset["label"]}  # A person looked, so the model's guesses don't count.
     return {asset.get(key) for key in ("label", "suggested_label", "sam_label")} - {None}
+
+
+def apply_label_fixes(assets: list[dict], fixes: list[dict]) -> int:
+    """Set types corrected by eye, for the same objects only. Returns how many applied."""
+    by_id = {asset["object_id"]: asset for asset in assets}
+    applied = 0
+    for fix in fixes:
+        asset = by_id.get(fix["object_id"])
+        if asset is None or math.dist(asset["center"], fix["center"]) > SAME_OBJECT_M:
+            continue  # Another extraction: the same ID can be a different object.
+        asset["label_was"] = asset["label"]
+        asset["label"] = fix["label"]
+        asset["label_source"] = REVIEWED
+        asset["label_evidence"] = fix.get("evidence", "")
+        if fix.get("mobility"):
+            asset["mobility"] = fix["mobility"]
+        applied += 1
+    return applied
 
 
 def rank(asset: dict, asset_class: str) -> int | None:
@@ -78,7 +105,7 @@ def build_mapping(
     links = [
         {**asset["mapping"], "object_id": asset["object_id"]}
         for asset in assets
-        if asset.get("mapping")
+        if asset.get("mapping") and not asset["mapping"].get("method", "").startswith("procedural")
     ]
     used_objects = {link["object_id"] for link in links}
     used_records = {link["asset_id"] for link in links}
@@ -138,9 +165,14 @@ def main() -> None:
     parser.add_argument("scene", type=Path)
     parser.add_argument("--assets", default="assets_viewer.json")
     parser.add_argument("--workbook", type=Path)
+    parser.add_argument("--labels", type=Path, help="types corrected by eye")
     args = parser.parse_args()
     scene = json.loads((args.scene / args.assets).read_text())
     assets = scene["assets"]
+    labels = args.labels or Path("scenes") / f"{scene.get('scene_id', args.scene.name)}.labels.json"
+    fixed = 0
+    if labels.exists():
+        fixed = apply_label_fixes(assets, json.loads(labels.read_text())["fixes"])
     route, stop_distance, axes = [], None, (0, 2)
     grid_file, walked_file = args.scene / "nav_grid.npz", args.scene / "walked.npy"
     if grid_file.exists() and (walked_file.exists() or scene.get("start")):
@@ -176,7 +208,13 @@ def main() -> None:
     methods: dict[str, int] = {}
     for link in links:
         methods[link["method"]] = methods.get(link["method"], 0) + 1
-    print(json.dumps({"objects": len(assets), "linked": len(links), "methods": methods}, indent=2))
+    summary = {
+        "objects": len(assets),
+        "types fixed": fixed,
+        "linked": len(links),
+        "methods": methods,
+    }
+    print(json.dumps(summary, indent=2))
 
 
 if __name__ == "__main__":

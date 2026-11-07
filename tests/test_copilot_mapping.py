@@ -2,7 +2,7 @@ import pytest
 
 pytest.importorskip("numpy")
 
-from app.copilot.mapping import build_mapping, route_distance  # noqa: E402
+from app.copilot.mapping import apply_label_fixes, build_mapping, route_distance  # noqa: E402
 
 
 def obj(object_id, label, x=0.0, mobility="fixed", mapping=None):
@@ -84,3 +84,39 @@ def test_no_suitable_object_means_no_link():
 
 def test_route_distance_measures_across_floor():
     assert route_distance([1, 5, 3], [[0, 0, 0], [2, 0, 0]], (0, 2)) == 3
+
+
+def test_a_pump_record_never_lands_on_an_unrelated_type():
+    links = build_mapping(
+        [obj("w", "appliance"), obj("l", "light fixture")], [record("P1", "PROCESS_PUMP")]
+    )
+    assert links == []
+
+
+def test_a_pump_record_can_go_on_a_motor():
+    links = build_mapping([obj("m", "motor")], [record("P1", "PROCESS_PUMP")])
+    assert links[0]["object_id"] == "m" and links[0]["method"] == "procedural_similar_class"
+
+
+def test_earlier_procedural_links_are_made_again():
+    old = {"asset_id": "P1", "tag": "P1", "method": "procedural_similar_class", "confidence": 0.15}
+    links = build_mapping(
+        [obj("wrong", "appliance", mapping=old), obj("right", "pump")],
+        [record("P1", "PROCESS_PUMP")],
+    )
+    assert [link["object_id"] for link in links] == ["right"]
+
+
+def test_a_type_fixed_by_eye_wins_over_model_guesses():
+    asset = obj("a", "pump")  # the model said pump
+    fixes = [{"object_id": "a", "center": [0.0, 0.0, 0.0], "label": "washing machine"}]
+    assert apply_label_fixes([asset], fixes) == 1
+    assert asset["label"] == "washing machine" and asset["label_was"] == "object"
+    assert build_mapping([asset], [record("P1", "PROCESS_PUMP")]) == []
+
+
+def test_a_fix_for_a_different_object_with_the_same_id_is_ignored():
+    asset = obj("a", "pump", x=5.0)
+    fixes = [{"object_id": "a", "center": [0.0, 0.0, 0.0], "label": "door"}]
+    assert apply_label_fixes([asset], fixes) == 0
+    assert asset["label"] == "object"

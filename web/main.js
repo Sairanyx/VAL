@@ -29,6 +29,10 @@ const EYE_HEIGHT = 1.6; // metres above the floor in walk mode (scene units look
 const RANGES = [2, 3, 5, 10]; // metres the Range button cycles through, for frames and labels
 const MAX_BOXES = 15;
 const BACKGROUND_LABELS = new Set(["pipe", "pipe fitting", "cable", "hose", "object"]);
+// Rough size of a label on screen, to keep them from overlapping.
+const LABEL_CHAR_PX = 6.5;
+const LABEL_PAD_PX = 14;
+const LABEL_HEIGHT_PX = 22;
 
 // Lighter defaults for tablets, until they're measured on the real Lenovo.
 const TABLET_RES = 0.75;
@@ -1294,12 +1298,24 @@ function chooseLabels() {
   // A warning always shows, even past the limits or with boxes off.
   for (const o of objects) if (o.warning && !o.gone) o.box.visible = true;
   const next = new Set();
-  inView.forEach((item, index) => {
+  const taken = []; // label boxes already placed on screen this round, so none overlap
+  const filteringNow = filters?.isActive();
+  for (const item of inView) {
+    const o = item.o;
     // Unconfirmed objects keep their frame, but don't crowd the view with a generic tag.
-    if (item.o.asset.status === "new, unconfirmed") return;
-    if (index >= MAX_LABELS && !item.pinned) return;
-    next.add(item.o);
-  });
+    if (o.asset.status === "new, unconfirmed") continue;
+    // Pipes, cables and unknown "object"s are everywhere: name them only when asked for.
+    if (item.rank === 3 && o !== selected && !filteringNow) continue;
+    if (next.size >= MAX_LABELS && !item.pinned) continue;
+    const width = labelText(o).length * LABEL_CHAR_PX + LABEL_PAD_PX;
+    const box = { left: item.x - width / 2, right: item.x + width / 2, top: item.y - LABEL_HEIGHT_PX, bottom: item.y };
+    const overlaps = taken.some(
+      (other) => box.left < other.right && box.right > other.left && box.top < other.bottom && box.bottom > other.top,
+    );
+    if (overlaps && !item.pinned && o !== selected) continue;
+    taken.push(box);
+    next.add(o);
+  }
   for (const o of objects) setLabel(o, labelText(o), next.has(o) && !alerts?.isShowing(o));
   shownLabels = [...next];
 }
@@ -1654,6 +1670,10 @@ async function load() {
   eyeY = floor + EYE_HEIGHT;
   root.updateMatrixWorld(true);
   const door = doorStart(data);
+  // Say so, rather than start somewhere else without a word.
+  if (!door && params.get("start") === null) {
+    $("status").textContent = "No door among the objects, so this starts in the middle of the room";
+  }
   const start = door ? door.point.toArray() : (data.start ?? [0, data.floor_y ?? 0, 0]);
   startPos = root.localToWorld(new THREE.Vector3(...start));
   startPos.y = eyeY;

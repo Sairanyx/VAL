@@ -1,0 +1,109 @@
+read the plan.md and all the things that viktor has said.
+
+---
+
+yeah dleete the architecture one.
+
+---
+
+tell me in 2 sentences what are splats in this project
+
+---
+
+oki so show me an image of some splats in space. just find it online no need to make one
+
+---
+
+oki what are assets same thing
+
+---
+
+so each asset has its splats
+
+---
+
+tehn whats object same as asset
+
+---
+
+whats ampping
+
+---
+
+https://vlsplat.github.io/   https://arxiv.org/abs/2611.01939    take a look fro now.   also what is SAM and how it works find something for me to see
+
+---
+
+oki so we have covered a bit biktors part and then shashas.   right?  what do I get now from Theyre part what is their output so I start understaning my part the floor routing nearby searchg backend PAI.
+
+---
+
+so im thinking we break the environment into 1 by 1 meter. like lets say we have a 100m^2 envronment, then we plan every possible route before hand as the envirnoment doesnt chnage for now lets say, so we get instant routes, like a* will run once for all 1 by 1 meter swyares to all the other 1by 1 meter square and same for others, squares someone cannot walk by or past as there is no space lets say 1 by 1 meter safe its a taken square so has to be avvoided. so when user asks route to this obkect it just redoes all the pipeline , video, makes the splat ply etc, remakes boxes for the object that moved, sjudtst the object tat moved in sim, then fills in the gap from the floor where object was moved and recalutates all routes that are affected. we could have some dynamic size of person to say if they can go or not, like small robot can be 30cm 30cm and big person 1.5m 1.5 m, or if some dangerous pipe, then has to be 1.5m for sure for safety., What do you think?  and then we need to think what we need to serve to hannu and benjmain, do we make a db that we store all on cloud and then the lenovo tablet can have some light db to store it. we use tiger db or posgre or whats best? we need to store info somwhere rather than just json passing it aeround right thats heavy and also not smart to put all egs in a basket like one folder rigth?
+
+---
+
+small here but if we have a factory thats huge with millions of assets........     also tiger db on the cloudor the local machine computing I mean and sotring. Like the lenonovo runs locally on web broswer  and then the computation is run on no internet local server or servers placed in smart spots in the factory lets say, Also we make swares 5cm by 5cm? we need to think of the scaling this too not only this room. Would be hard to precompute all routes per 1 m to 1m and then by request narrow down to 5cm 5cm?
+
+---
+
+we look for the objects to dynamically show and be percieved on a specific radius, like 3 meters radious?   cause we can have even if the obejct is detected and is 10 meters far, no point its impossible to show the words on top of object so small so hard to visualise far obejcts,. or we load the whole room but might heavey and only diposklay the 3 m radious ones dynamically as user walks. how do we know the user is on a location when we are moving?
+
+---
+
+no qr codes. AR trackjing and also location from tablet and video stamps if any and postions according to other objects in the room i guess a mix aproximation?  we will have the real camera and then fainly like a double layer the animated virtual world or just virual world or just real. defualt both.
+
+---
+
+we will scan qr code at entarnce in the room that will open the app on broswer so that is our starting point
+
+---
+
+we do it with https then on no internet. it all will be on local network. the tablet and the server, on the facility then we have the cloud someewhewre where all backup is stored and all updates are stored lets say worldwide facilities .   what else we need to decide can we start builind for now?  what is the order we will build and list features in bullet points and titles.
+
+---
+
+does leovno support AR core check and what is that ai core. lets go fo the fancy timnescale db and Tiger DAta. benjamin is using three.js core somthjing.  also anything that needs to be run on big rtx or csc lumi we need to push and viktor will runn it on lumi or rtx 5090. CXHeck what everyone has pushed for now. And read their context before we start.  and then we start after.
+
+---
+
+the docs architecture need to go no its the one we made its wrong. oki so we use timscaledb and tiger data form. we we will use thios one the cloud too. like we have the cloud maine system, then we have the local rtx5090 lets say that sometimes can synq to cloud, and then the tablet synicing and connecting locally to rtx 5090.  Also of course it counts, tuigerd data and timescale db can be run locally, makese sense no and also on cloud too. Makes sense? for the conversation to be shared its fine this is the whole point, we share contect with Viktors info no>? follow that please.    yes build the floor map using viktors output right?
+
+---
+
+we re not using the cloud actuallyu. only tablet and local. sorry
+
+---
+
+what have we done so far and does it work what else to finish what we have done?  and ehats next?
+
+---
+
+so we need to merge for now?    and sample data we get from sasha rigth? hes not done yet. then we ask viktor after we puish to make floor on csc?
+
+---
+
+oki do all.   viktor has those done yes the 441. #
+
+---
+
+oki pr done casn you dio  the a star for now?
+
+---
+
+check all viktor has done for now  and pull. he has recreated better splats ply so we use that for now. we also need to consider that A* is 2D and we need 3D beacause we need to think of thr height too, like if theres a little coin on the floor we can walk over it its fine, you get the idea, also if we have a pipe on the ceiling and its lets say 20cm from ceiling down, and the humna is 1.80 and the ceiling is at 3 m it can easily go under it. also same with a short mini roboot lets say we need to condisider thouse.  you should do make view or somthig looking it up what viktor said. we need to remake everything I think according to new viktors things. check.
+
+---
+
+i didnt mean step overs, I think we have it more simple in a way, one robot small and one human height 1.80 or so average idk. Its just about optimising to a coin just an examnple, doesnt mean that 1x1 m square is taken, it is not, cause we cros ovber it. also the pipe from ceiling is the sam just exmaple for now. lets keep viktors routing. P-005 is a faluty pipe dont worry about it.
+
+---
+
+make sure you read the context form the others and you upodate it as we go
+
+---
+
+are we using the A* like we said 1x1 meter compute when scence is made, then when sceen edited, only compute what 1x1 has chnaged and then when asking for path the uses again for 5x5cm. whats next?   or what do we need to do now to kinda have all we need for what we have now?   I havent done anything yet
+
+---
+
+hannu has merged his, now lets connect his copilot to the api.  what is a fixture fomrat. you pick the best way.   Do the things for viktor his claude tokens are out.  lets do it for him.    aloso the 8001 not wokring?

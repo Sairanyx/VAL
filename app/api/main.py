@@ -1,4 +1,4 @@
-"""Backend API for the viewer and copilot. Route and copilot answers are placeholders for now.
+"""Backend API for the viewer and copilot. The copilot answer is a placeholder for now.
 
 make api                                      # fixture, on http://localhost:8001/docs
 SCENE_ASSETS=path/to/assets.json make api     # real objects
@@ -13,11 +13,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from app.api.store import ChangeError, SceneStore
-from app.nav.route import placeholder_route
+from app.nav.route import FloorMap, NoRoute, placeholder_route, plan_route
 
 DEFAULT_ASSETS = Path("fixtures/sample_assets.json")
 Position = Annotated[list[float], Field(min_length=3, max_length=3)]
-PROFILES = {"robot": 0.3, "person": 0.6, "carrying": 1.2}
+DEFAULT_FLOOR = Path("data/scene/equipment_room/nav_grid.npz")
 
 
 class RouteRequest(BaseModel):
@@ -37,8 +37,13 @@ class CopilotRequest(BaseModel):
     object_id: str | None = None
 
 
-def create_app(assets_path: Path | str | None = None) -> FastAPI:
+def create_app(
+    assets_path: Path | str | None = None, floor_path: Path | str | None = None
+) -> FastAPI:
     store = SceneStore(Path(assets_path or os.getenv("SCENE_ASSETS", DEFAULT_ASSETS)))
+    floor_file = Path(floor_path or os.getenv("NAV_GRID", DEFAULT_FLOOR))
+    # Without a floor map, the viewer still gets a marked placeholder route.
+    floor = FloorMap.load(floor_file) if floor_file.exists() else None
     app = FastAPI(title="Field-service copilot API")
     # The viewer is served from another port on the local network.
     app.add_middleware(
@@ -74,13 +79,19 @@ def create_app(assets_path: Path | str | None = None) -> FastAPI:
     @app.post("/api/route")
     def route(request: RouteRequest) -> dict:
         asset = require(request.object_id)
+        if floor is not None:
+            try:
+                return plan_route(
+                    floor, request.start, asset["bbox_min"], asset["bbox_max"], request.profile
+                )
+            except NoRoute as error:
+                raise HTTPException(409, str(error)) from None
         floor_y = store.scene.get("floor_y", request.start[1])
         path, length = placeholder_route(tuple(request.start), tuple(asset["center"]), floor_y)
         return {
             "path": path,
             "length": round(length, 3),
             "profile": request.profile,
-            "width": PROFILES[request.profile],
             "placeholder": True,
         }
 

@@ -1,7 +1,7 @@
 # eduard-rednic: eduard
 **Goal:** floor, routing, nearby search and backend API (`app/nav/`, `app/api/`), per docs/PLAN.md.
-**Done:** `make api` on port 8001 from the fixture or `SCENE_ASSETS`, with placeholder route and copilot; `make floor SCENE=...` builds the map with clearance per body size (`app/nav/grid.py`).
-**Verified:** `make check` passes. Floor on `Equipment Room.ply`: 33.8 m2 free, 7.6 m2 connected at 0.6 m wide. Not checked against views.
-**Next:** A* with body sizes on the grid, wire into `/api/route`, check the route reaches `P-005`; then Hannu's store and TimescaleDB.
+**Done:** `make api` on port 8001, and PR #1 is open. Local commit adds real A* with body sizes in `/api/route`, used when `NAV_GRID` or the default `nav_grid.npz` exists; otherwise the marked placeholder.
+**Verified:** `make check` passes. A* takes under 20 ms on the real map. Not yet run against real objects; floor not checked against views.
+**Next:** push A* once PR #1 merges; load `assets_final.json`, pick a reachable `P-005`; object footprints for moves; TimescaleDB.
 **Decided:** no cloud: TimescaleDB runs on the local 5090, and tablets talk only to it.
-**Blockers:** which object is `P-005`; Hannu's code isn't on main and his fixture format differs.
+**Blockers:** PR #1 review; `assets_final.json` and the `P-005` choice from Viktor; Hannu's code isn't on main and his fixture format differs.

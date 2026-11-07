@@ -34,22 +34,24 @@ The core works, so the priority is proving it on real hardware and finishing the
 Sunday 09:00, deadline 10:00, per an earlier doc: Viktor is confirming this. Current state is in
 `handoffs/` and measured numbers are in `docs/RESULTS.md`.
 
+**Roihu is closed until at least Monday,** after the deadline, because of a security issue (CSC notice, 2026-11-07). Its masks, full renders, and video frames can't be reached, and any work needing them is off. Everything the demo needs is in Release `objects-v2`. Don't try to get around the closure. The 5090 is now our only GPU, so agree who's using it.
+
 **In order:** 5090 and tablet rehearsal offline, record a safe demo video, slides, technical note, and
 README, then improve numbers if time remains.
 
 | Person | Task now |
 |---|---|
-| **Viktor** | Run the 5090 rehearsal. Ask Valmet which pump is `P-005`. Confirm the deadline. Find out why CSC SSH is unreachable |
+| **Viktor** | Run the 5090 rehearsal. Ask Valmet which pump is `P-005`. Confirm the deadline |
 | **Benjamin** | Test on a real tablet and pick its light scene. Record the video. Own the slides. Review the viewer changes |
 | **Eduard** | Set up `make db` and `make api` on the 5090, plus the router and offline network. Find a second good detour. Backend slide |
 | **Hannu** | Score the 60-question copilot test by hand. AI slide. Check the procedural links. Decide whether `skills/` belongs in this repo |
-| **Sasha** | Score the 60-object precision sample once CSC is back. Extraction slide and technical note. Retire or merge the old extraction branch |
-| **Coding agents** | Draft the README and notes from measured numbers, fix what the rehearsal finds, then run the sample, label review, grouping, and second pass when CSC returns |
+| **Sasha** | Score the 60-object precision sample, from crops rendered on the 5090. Extraction slide and technical note. Retire or merge the old extraction branch |
+| **Coding agents** | Draft the README and notes from measured numbers, fix what the rehearsal finds, and prepare what the 5090 can run |
 
-**Cut first if short of time:** voice mode, second-pass framing, pipe runs, written directions. Don't cut
+**Cut first if short of time:** voice mode, written directions. Second-pass framing and pipe runs need Roihu's data or a SAM setup on the 5090, so they're off unless someone sets that up. Don't cut
 the rehearsal, video, precision number, or copilot test.
 
-**Say this accurately:** four objects move as real splats, and the others as outlines. `P-005` on
+**Say this accurately:** three objects move as real splats, and the others as outlines. `P-005` on
 `obj-0049` is an unconfirmed pick. 29 of 30 Excel links are procedural. `P-005`'s record only has
 pressure and flow data. The floor under moved objects is copied, not scanned. Position is simulated.
 

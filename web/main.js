@@ -59,6 +59,15 @@ let selected = null;
 let boxesOn = true;
 let range = Number(params.get("range") ?? 3);
 
+const FRAME_ORDER = 5;
+const FRAME_FACES = new THREE.MeshBasicMaterial({
+  colorWrite: false,
+  transparent: true, // Drawn with the scan's pass, after it, so it can't punch holes in the scan.
+  polygonOffset: true, // Slightly behind a frame's own lines, so that they still show.
+  polygonOffsetFactor: 1,
+  polygonOffsetUnits: 1,
+});
+
 function resize() {
   const w = window.innerWidth;
   const h = window.innerHeight;
@@ -89,11 +98,17 @@ function addAsset(asset) {
   const mid = min.clone().add(max).multiplyScalar(0.5);
   const geom = new THREE.BoxGeometry(size.x, size.y, size.z);
 
+  // Frames are drawn after the scan, so splats can't dim them. The invisible faces come first, and
+  // hide lines behind them: a frame's own back edges, and any frame further away.
   const box = new THREE.LineSegments(
     new THREE.EdgesGeometry(geom),
-    new THREE.LineBasicMaterial({ color: COLORS[kind(asset)] }),
+    new THREE.LineBasicMaterial({ color: COLORS[kind(asset)], transparent: true }),
   );
+  box.renderOrder = FRAME_ORDER + 1;
   box.position.copy(mid);
+  const faces = new THREE.Mesh(geom, FRAME_FACES);
+  faces.renderOrder = FRAME_ORDER;
+  box.add(faces);
   root.add(box);
 
   // Invisible solid box, so taps and the crosshair can hit the object.
@@ -159,6 +174,8 @@ function showInfo(obj) {
       ? "This is fixed, so it can't be moved."
       : "Not known to be movable, so moving is off.";
   $("route-here").hidden = !route;
+  $("split-object").hidden = !route || Boolean(m);
+  $("combine-object").hidden = !route || Boolean(m);
   $("ask").hidden = false;
   showCondition(obj);
   $("info").hidden = false;
@@ -197,6 +214,10 @@ const adder = setupAddObject({
   render: () => renderer.render(scene, camera),
   ui: {
     frame: $("select-frame"),
+    title: $("add-title"),
+    restRow: $("add-rest"),
+    restLabel: $("add-rest-label"),
+    restMobility: $("add-rest-mobility"),
     panel: $("add-panel"),
     label: $("add-label"),
     mobility: $("add-mobility"),
@@ -209,6 +230,29 @@ const adder = setupAddObject({
     cancel: $("add-cancel"),
   },
   onMessage: (message) => ($("status").textContent = message),
+  onSplit: async (parent, parts) => {
+    hideObject(parent);
+    parent.splitAway = true;
+    for (const part of parts) {
+      addAsset(part);
+      objects.at(-1).addedByOperator = true;
+    }
+    selected = objects.at(-2);
+    const names = parts.map((part) => `${part.object_id} (${part.label})`).join(" and ");
+    $("status").textContent = `Split into ${names}, not confirmed`;
+    if (route?.state.target) await route.plan(route.state.target, route.state.start);
+  },
+  onCombine: async (first, other, combined) => {
+    for (const object of [first, other]) {
+      hideObject(object);
+      object.splitAway = true;
+    }
+    addAsset(combined);
+    selected = objects.at(-1);
+    selected.addedByOperator = true;
+    $("status").textContent = `Combined into ${combined.object_id} (${combined.label}), not confirmed`;
+    if (route?.state.target) await route.plan(route.state.target, route.state.start);
+  },
   onSaved: async (asset) => {
     addAsset(asset);
     const added = objects.at(-1);
@@ -223,16 +267,36 @@ const adder = setupAddObject({
   },
 });
 $("add-object").onclick = () => adder.start();
+$("combine-object").onclick = () => {
+  if (!selected) return;
+  $("info").hidden = true;
+  adder.startCombine(selected);
+};
+$("split-object").onclick = () => {
+  if (!selected) return;
+  $("info").hidden = true;
+  adder.startSplit(selected);
+};
+
+function hideObject(object) {
+  object.gone = true;
+  object.box.visible = false;
+  object.pick.layers.disable(0);
+  object.label.style.display = "none";
+}
 
 // Undo removes operator-added objects too, because the backend's reset forgets them.
 function removeAdded() {
   for (const object of objects) {
-    if (!object.addedByOperator) continue;
-    object.addedByOperator = false;
-    object.gone = true;
-    object.box.visible = false;
-    object.pick.layers.disable(0);
-    object.label.style.display = "none";
+    if (object.addedByOperator) {
+      object.addedByOperator = false;
+      hideObject(object);
+    } else if (object.splitAway) {
+      // The backend's reset brings back whatever was split.
+      object.splitAway = false;
+      object.gone = false;
+      object.pick.layers.enable(0);
+    }
   }
 }
 $("go-fault").onclick = () => {
@@ -287,7 +351,8 @@ canvas.addEventListener("pointerup", (e) => {
     -(e.clientY / window.innerHeight) * 2 + 1,
   );
   const obj = hit(ndc);
-  if (obj) showInfo(obj);
+  if (obj && adder.state.combining && !adder.state.other) adder.combineWith(obj);
+  else if (obj) showInfo(obj);
 });
 
 $("mode").onclick = () => {
@@ -401,6 +466,14 @@ async function syncWithBackend() {
     return;
   }
   let changed = 0;
+  const present = new Set(current.map((asset) => asset.object_id));
+  for (const object of objects) {
+    if (!present.has(object.asset.object_id)) {
+      hideObject(object);
+      object.splitAway = true;
+      changed += 1;
+    }
+  }
   for (const asset of current) {
     const object = known.get(asset.object_id);
     if (!object) {

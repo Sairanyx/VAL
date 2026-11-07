@@ -88,7 +88,7 @@ the file `make bim` built, which has the scan meshes but none of the changes.
 4. Release to save. If a route is showing, it plans again.
    - If the spot is taken, the object and whatever's in its way turn red, and the panel says why.
    - Releasing on a red spot puts it back at the last good spot. A wall or fixed equipment blocks it too.
-5. **Done**, or Esc, finishes. **Undo changes** in **More** puts everything back.
+5. **Done**, or Esc, finishes. **Undo** in **Actions** takes back the latest change, and **Reset all** puts everything back.
 
 **Try this first:** the roll cage `obj-0067`. Plan a route with **Go to P-005** from the middle of the room,
 then drag the cage onto the route. The route bends around it. To drag from a better view without changing
@@ -130,11 +130,11 @@ Tap an object to find both buttons.
   It hides a few small boxes around the object's own splats, so most neighbours stay. Undo brings it back.
 
 ## Go back
-Esc, or the back button on a phone, goes back one step: it closes **More**, cancels a question or a selection
+Esc, or the back button on a phone, goes back one step: it closes **Actions**, cancels a question or a selection
 box, finishes a move, stops a walk, closes Val or Plan, and then deselects the object.
 
 ## Add a missed object
-1. In **More**, press **Add object**, then drag a box around it or tap it.
+1. In **Actions**, press **Add object**, then drag a box around it or tap it.
 2. Check the orange box. Use **Bigger** or **Smaller** if it's off.
 3. Check the type and whether it can move. A model suggests these if `make model` has run.
 4. Press **Save**. It blocks routes straight away and is marked "new, unconfirmed".
@@ -154,7 +154,7 @@ Set a part to movable to move it, and its real splats go with it. **Undo changes
 3. Check the type and whether it can move, then press **Save**. **Undo changes** brings the originals back.
 
 ## See the floor layout
-Press **Plan** for the room from above: walls, objects by type, the route, and an arrow showing where you are.
+Press **Map** for the room from above as a blueprint: walls, the walkable floor, equipment with an Excel record, the route, and where you are.
 Colours match BIM mode, and a dashed outline means the object can be moved.
 - **Find:** type a tag or type. `P-005` highlights one object, and `tank` highlights them all.
 - **Tap an object** to open its panel, then use **Route here**.
@@ -178,12 +178,12 @@ operate equipment. If it doesn't understand a message, it says so.
 
 ## Frame colours
 Frames are coloured by type, the same as BIM mode: pumps amber, tanks green, valves purple, pipes blue, cables
-yellow, cabinets teal, chairs and shelves pink, anything else grey, and the faulty device red. **More** has the
+yellow, cabinets teal, chairs and shelves pink, anything else grey, and the faulty device red. **Actions** has the
 full list under **Frame colours**.
 
 ## Other controls
-The main buttons are **Go to P-005**, **Plan**, **Ask Val** and **More**, with **Walk route** and **Clear route**
-while a route shows. Everything else is in **More**.
+The main buttons are **Go to P-005**, **Map**, **Ask Val** and **Actions**, with **Walk route** and **Clear route**
+while a route shows. Everything else is in **Actions**.
 
 | Control | What it does |
 |---|---|
@@ -191,7 +191,7 @@ while a route shows. Everything else is in **More**.
 | **Movement: Walk / Fly** | In **Walk** the route starts from wherever you move to. In **Fly** you can look around from anywhere, and the route keeps its start |
 | **Walk route** | Walks the route, and stops looking at the device |
 | **Route for: Person / Robot** | Changes the body size and height for routes |
-| **Plan** | Shows the floor layout from above |
+| **Map** | Shows the room from above as a blueprint, with the equipment that has a record |
 | **Range** | How far away frames and labels show |
 | **Boxes on** | Shows or hides frames |
 | **View: Scan / Both / Objects** | The real scan, fitted shapes over it, or shapes only |

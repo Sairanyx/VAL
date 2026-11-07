@@ -19,6 +19,7 @@
 <body>
   <canvas id="view"></canvas>
   <div id="labels"></div>
+  <div id="alert-badges"></div>
   <div id="crosshair"></div>
 
   <div id="loading">
@@ -38,10 +39,32 @@
     <button id="follow" hidden>Walk route</button>
     <button id="clear-route" hidden>Clear route</button>
     <button id="go-fault" hidden>Go to P-005</button>
-    <button id="open-plan">Plan</button>
+    <button id="open-list" title="Equipment by importance (L)">Objects</button>
+    <button id="open-plan">Map</button>
     <button id="open-copilot" class="primary">Ask Val</button>
-    <button id="more" aria-expanded="false">More</button>
+    <button id="more" aria-expanded="false">Actions</button>
   </div>
+
+  <aside id="object-list" hidden>
+    <div class="object-list-head">
+      <h2>Equipment</h2>
+      <button id="object-list-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="object-list-tools">
+      <input id="object-search" placeholder="Search tag, type or issue" autocomplete="off">
+      <select id="object-sort" aria-label="Sort by">
+        <option value="importance">Most important</option>
+        <option value="health">Lowest health</option>
+        <option value="name">Name</option>
+      </select>
+    </div>
+    <label class="object-list-toggle">
+      <input id="object-unlinked" type="checkbox"> Show objects without a record
+    </label>
+    <p id="object-count" class="object-list-note"></p>
+    <ol id="object-rows"></ol>
+    <p class="object-list-note">Condition from the Excel pack. Links to scanned objects are mostly procedural.</p>
+  </aside>
 
   <div id="more-menu" hidden>
     <h3>Getting around</h3>
@@ -71,7 +94,7 @@
       <button id="reset-moves" title="Put everything back as scanned">Reset all</button>
     </div>
     <p class="menu-keys">Keys: Delete removes · Ctrl+Z undo · M move (R rotate, PgUp/PgDn height, Enter done) · C copy ·
-      N name · F walk/fly · G go to P-005 · Esc back</p>
+      N name · L objects · V talk to Val · F walk/fly · G go to P-005 · Esc back</p>
   </div>
 
   <div id="info" hidden>
@@ -146,7 +169,7 @@
   <div id="plan" hidden>
     <div id="plan-bar">
       <input id="plan-search" placeholder="Find a tag or type, such as P-005" autocomplete="off">
-      <button id="plan-pipes">Show pipes</button>
+      <button id="plan-pipes" hidden>Show pipes</button>
       <a id="plan-dxf" href="/api/plan/layout.dxf" download="floor_layout.dxf" hidden>Download DXF</a>
       <button id="plan-close">Close</button>
     </div>

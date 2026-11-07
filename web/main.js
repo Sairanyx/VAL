@@ -3,6 +3,7 @@
 // both served by web/serve.py.
 import * as THREE from "three";
 import { SparkControls, SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
+import { setupAddObject } from "./addobject.js";
 import { setupCopilot } from "./copilot.js";
 import { setupObjects } from "./objects.js";
 import { setupPhone } from "./phone.js";
@@ -178,6 +179,52 @@ $("ask").onclick = () => {
   copilot.open(`Why is ${about} flagged, and what should I check first?`);
 };
 $("open-copilot").onclick = () => copilot.open();
+
+const adder = setupAddObject({
+  canvas,
+  root,
+  camera,
+  render: () => renderer.render(scene, camera),
+  ui: {
+    frame: $("select-frame"),
+    panel: $("add-panel"),
+    label: $("add-label"),
+    mobility: $("add-mobility"),
+    notes: $("add-notes"),
+    warning: $("add-warning"),
+    config: $("add-config"),
+    bigger: $("add-bigger"),
+    smaller: $("add-smaller"),
+    save: $("add-save"),
+    cancel: $("add-cancel"),
+  },
+  onMessage: (message) => ($("status").textContent = message),
+  onSaved: async (asset) => {
+    addAsset(asset);
+    const added = objects.at(-1);
+    added.addedByOperator = true;
+    selected = added;
+    const added_text = `Added ${asset.object_id}: ${asset.label}, not confirmed`;
+    $("status").textContent = added_text;
+    if (route?.state.target) {
+      await route.plan(route.state.target, route.state.start);
+      $("status").textContent = `${added_text}. ${$("status").textContent}`;
+    }
+  },
+});
+$("add-object").onclick = () => adder.start();
+
+// Undo removes operator-added objects too, because the backend's reset forgets them.
+function removeAdded() {
+  for (const object of objects) {
+    if (!object.addedByOperator) continue;
+    object.addedByOperator = false;
+    object.gone = true;
+    object.box.visible = false;
+    object.pick.layers.disable(0);
+    object.label.style.display = "none";
+  }
+}
 $("go-fault").onclick = () => {
   const fault = objects.find((o) => kind(o.asset) === "fault");
   if (fault) routeTo(fault);
@@ -253,6 +300,7 @@ const tmp = new THREE.Vector3();
 function updateLabels() {
   const visible = [];
   for (const o of objects) {
+    if (o.gone) continue;
     const world = root.localToWorld(tmp.copy(o.center));
     const dist = world.distanceTo(camera.position);
     const ndc = world.project(camera);
@@ -287,7 +335,8 @@ function animate(now) {
   lastFrame = now;
   // In phone mode the phone's rotation steers, so mouse/touch dragging must not fight it.
   const following = Boolean(route?.state.walking);
-  if (!phone.enabled && !objectLayer?.state.moving && !following) controls.update(camera);
+  const busy = objectLayer?.state.moving || adder.state.active || following;
+  if (!phone.enabled && !busy) controls.update(camera);
   objectLayer?.update(dt);
   if (following) route.update(dt);
   else phone.update(dt);
@@ -336,6 +385,7 @@ async function load() {
     floorY: data.floor_y ?? 0,
     onChange: (changes) => {
       $("status").textContent = `${changes.length} object(s) moved`;
+      if (!changes.length) removeAdded();
       route.syncChanges(changes);
     },
   });
@@ -368,7 +418,7 @@ async function load() {
     objectLayer.setApart(true);
     $("apart").textContent = "Together";
   }
-  window.plantViewer = { objects, objectLayer, camera, route, copilot, showInfo }; // For browser tests and debugging.
+  window.plantViewer = { objects, objectLayer, camera, route, copilot, showInfo, adder }; // For browser tests and debugging.
   if (params.has("camera")) {
     const [x, y, z, yaw, pitch] = params.get("camera").split(",").map(Number);
     camera.position.set(x, y, z);

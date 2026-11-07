@@ -6,6 +6,18 @@ import math
 from pathlib import Path
 
 NEW_OBJECT_SIZE = 0.5
+OPERATOR_FIELDS = {
+    "bbox_min",
+    "bbox_max",
+    "label",
+    "label_confidence",
+    "label_source",
+    "mobility",
+    "mobility_reason",
+    "reason",
+    "visible_text",
+    "possible_tag",
+}
 
 
 class ChangeError(ValueError):
@@ -31,7 +43,9 @@ class SceneStore:
         self._restore_base()
         if database:
             for change in database.load_changes(self.scene_id):
-                self._apply(change["op"], change["object_id"], change["position"])
+                self._apply(
+                    change["op"], change["object_id"], change["position"], change.get("details")
+                )
 
     def reset(self) -> None:
         """Restore the base scan's objects and forget saved changes. The file isn't overwritten."""
@@ -58,8 +72,14 @@ class SceneStore:
         close = sorted((f for f in found if f[0] <= radius), key=lambda f: f[0])
         return [{**a, "distance": round(d, 3)} for d, a in close]
 
-    def apply(self, op: str, object_id: str | None, position: list[float] | None) -> dict:
-        change = self._apply(op, object_id, position)
+    def apply(
+        self,
+        op: str,
+        object_id: str | None,
+        position: list[float] | None,
+        details: dict | None = None,
+    ) -> dict:
+        change = self._apply(op, object_id, position, details)
         if self.database:
             self.unsaved.append(change)
             self.save_pending()
@@ -70,9 +90,15 @@ class SceneStore:
         while self.unsaved and self.database.save_change(self.scene_id, self.unsaved[0]):
             self.unsaved.pop(0)
 
-    def _apply(self, op: str, object_id: str | None, position: list[float] | None) -> dict:
+    def _apply(
+        self,
+        op: str,
+        object_id: str | None,
+        position: list[float] | None,
+        details: dict | None = None,
+    ) -> dict:
         if op == "add":
-            asset = self._add(position)
+            asset = self._add(position, details)
         else:
             asset = self.assets.get(object_id or "")
             if asset is None or asset["status"] == "removed":
@@ -89,10 +115,12 @@ class SceneStore:
             "object_id": asset["object_id"],
             "position": position,
         }
+        if details:
+            change["details"] = details
         self.changes.append(change)
         return change
 
-    def _add(self, position: list[float] | None) -> dict:
+    def _add(self, position: list[float] | None, details: dict | None = None) -> dict:
         if position is None:
             raise ChangeError("add needs a position")
         half = NEW_OBJECT_SIZE / 2
@@ -110,6 +138,10 @@ class SceneStore:
             "mobility": "fixed",
             "status": "new, unconfirmed",
         }
+        if details:
+            # Only what an operator may set: identity and status never come from this.
+            asset.update({k: v for k, v in details.items() if k in OPERATOR_FIELDS})
+            asset["label_grade"] = "operator_added"
         self.assets[object_id] = asset
         return asset
 

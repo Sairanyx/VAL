@@ -61,6 +61,8 @@ Reply with JSON only:
 class Writer(Protocol):
     def write(self, prompt: str) -> str: ...
 
+    def look(self, image: Any, prompt: str) -> str: ...
+
 
 @dataclass
 class Fact:
@@ -83,7 +85,14 @@ class QwenWriter:
         self.lock = threading.Lock()
 
     def write(self, prompt: str) -> str:
-        messages = [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
+        return self._reply([{"type": "text", "text": prompt}])
+
+    def look(self, image: Any, prompt: str) -> str:
+        """Answer a question about an image."""
+        return self._reply([{"type": "image", "image": image}, {"type": "text", "text": prompt}])
+
+    def _reply(self, content: list[dict[str, Any]]) -> str:
+        messages = [{"role": "user", "content": content}]
         inputs = self.processor.apply_chat_template(
             messages,
             tokenize=True,

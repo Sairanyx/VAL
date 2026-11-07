@@ -32,6 +32,7 @@
   <div id="buttons">
     <button id="go-fault" hidden>Go to P-005</button>
     <button id="open-copilot">Copilot</button>
+    <button id="add-object">Add object</button>
     <button id="follow" hidden>Walk route</button>
     <button id="clear-route" hidden>Clear route</button>
     <button id="profile" hidden>Person</button>
@@ -41,7 +42,7 @@
     <button id="reset">Start</button>
     <button id="view-mode">Scan</button>
     <button id="apart">Apart</button>
-    <button id="reset-moves">Undo moves</button>
+    <button id="reset-moves">Undo changes</button>
   </div>
 
   <div id="info" hidden>
@@ -51,6 +52,28 @@
     <button id="ask" hidden>Ask copilot</button>
     <button id="route-here" hidden>Route here</button>
     <button id="move" hidden>Move on floor</button>
+  </div>
+
+  <div id="select-frame" hidden></div>
+
+  <div id="add-panel" hidden>
+    <h2>Add object</h2>
+    <p id="add-warning"></p>
+    <p id="add-notes"></p>
+    <label>Type <select id="add-label"></select></label>
+    <label>Can it move? <select id="add-mobility"></select></label>
+    <div class="add-row">
+      <button id="add-smaller">Smaller</button>
+      <button id="add-bigger">Bigger</button>
+    </div>
+    <details>
+      <summary>Config</summary>
+      <pre id="add-config"></pre>
+    </details>
+    <div class="add-row">
+      <button id="add-cancel">Cancel</button>
+      <button id="add-save">Save</button>
+    </div>
   </div>
 
   <div id="copilot" hidden>

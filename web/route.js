@@ -6,8 +6,8 @@ const TURN_RATE = 3; // how quickly the view turns towards where it's heading
 const LINE_RADIUS = 0.035;
 const LINE_LIFT = 0.03; // metres above the floor, so the line doesn't sink into it
 const COLOR = 0x22d3ee;
-const LIVE_STEP = 0.25; // metres moved before the route is re-planned or trimmed
-const LIVE_WAIT = 120; // milliseconds between live re-plans, so requests don't pile up
+const LIVE_STEP = 0.1; // metres moved before the route is re-planned or trimmed
+const LIVE_WAIT = 50; // milliseconds between live re-plans, so requests don't pile up
 
 async function callApi(path, body) {
   const response = await fetch(path, {

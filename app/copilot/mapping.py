@@ -37,12 +37,12 @@ LABELS = {
     "VIBRATION_SENSOR": (["sensor"], ["gauge"]),
 }
 SAME_OBJECT_M = 0.3  # a fix only applies to an object this close to where it was reviewed
-REVIEWED = "reviewed by eye"
+REVIEWED = "reviewed from screenshots"  # by a coding agent, see the labels file's "method"
 
 
 def object_labels(asset: dict) -> set[str]:
     if asset.get("label_source") == REVIEWED:
-        return {asset["label"]}  # A person looked, so the model's guesses don't count.
+        return {asset["label"]}  # Checked by looking, so the model's guesses don't count.
     return {asset.get(key) for key in ("label", "suggested_label", "sam_label")} - {None}
 
 
@@ -60,6 +60,9 @@ def apply_label_fixes(assets: list[dict], fixes: list[dict]) -> int:
         asset["label_evidence"] = fix.get("evidence", "")
         if fix.get("mobility"):
             asset["mobility"] = fix["mobility"]
+        # A reason that names the old type would now be wrong.
+        if asset.get("mobility_reason", "").startswith(f"{asset['label_was']} "):
+            asset["mobility_reason"] = f"{fix['label']}: type checked from screenshots"
         applied += 1
     return applied
 

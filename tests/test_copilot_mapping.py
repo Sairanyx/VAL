@@ -120,3 +120,9 @@ def test_a_fix_for_a_different_object_with_the_same_id_is_ignored():
     fixes = [{"object_id": "a", "center": [0.0, 0.0, 0.0], "label": "door"}]
     assert apply_label_fixes([asset], fixes) == 0
     assert asset["label"] == "object"
+
+
+def test_a_reason_naming_the_old_type_is_replaced():
+    asset = {**obj("a", "pipe"), "label": "pipe", "mobility_reason": "pipe is fixed equipment"}
+    apply_label_fixes([asset], [{"object_id": "a", "center": [0.0, 0.0, 0.0], "label": "pump"}])
+    assert "pipe" not in asset["mobility_reason"]

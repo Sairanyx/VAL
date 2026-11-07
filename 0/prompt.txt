@@ -1,0 +1,19 @@
+Lets work on the limits
+
+---
+
+Also in the view maybe there should be some kind of range limit of how many things load so it's not too cluttered
+
+---
+
+How are we handling transferability between splats, for example if we run a completely different room through the pipeline
+
+---
+
+<task-notification>
+<task-id>bkv9sdw1c</task-id>
+<tool-use-id>toolu_01EFhbyJunb67CP5GAdpUGgt</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/bkv9sdw1c.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the membership and quality job" completed (exit code 0)</summary>
+</task-notification>

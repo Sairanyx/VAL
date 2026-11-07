@@ -50,7 +50,7 @@ const phone = setupPhone({
   onMessage: (msg) => ($("status").textContent = msg),
 });
 const raycaster = new THREE.Raycaster();
-const objects = []; // { asset, box, pick, label, center }
+const objects = []; // { asset, box, pick, label, center, yaw, baseSize }
 let walk = true;
 let eyeY = EYE_HEIGHT;
 let startPos = new THREE.Vector3(0, EYE_HEIGHT, 0);
@@ -113,7 +113,16 @@ function addAsset(asset) {
   $("labels").append(label);
 
   const volume = Math.max(size.x * size.y * size.z, 1e-6);
-  objects.push({ asset, box, pick, label, volume, center: new THREE.Vector3(...asset.center) });
+  objects.push({
+    asset,
+    box,
+    pick,
+    label,
+    volume,
+    center: new THREE.Vector3(...asset.center),
+    yaw: asset.yaw ?? 0,
+    baseSize: size.clone(),
+  });
 }
 
 // Live condition from the backend, for objects linked to an Excel record.
@@ -159,7 +168,7 @@ function showInfo(obj) {
     "</dl>";
   selected = obj;
   highlight.select(obj);
-  $("move").hidden = a.mobility !== "movable" || !objectLayer;
+  $("move-actions").hidden = a.mobility !== "movable" || !objectLayer;
   $("cant-move").hidden = a.mobility === "movable";
   $("cant-move").textContent =
     a.mobility === "fixed"
@@ -170,10 +179,14 @@ function showInfo(obj) {
   showCondition(obj);
   $("info").hidden = false;
 }
-$("info-close").onclick = () => ($("info").hidden = true);
+$("info-close").onclick = () => {
+  $("info").hidden = true;
+  hideManipBar();
+};
 
 async function routeTo(obj) {
   $("info").hidden = true;
+  hideManipBar();
   $("status").textContent = `Planning a route to ${name(obj.asset)}...`;
   const found = await route.plan({ asset: obj.asset, center: obj.center, name: name(obj.asset) });
   $("follow").hidden = !found;
@@ -184,19 +197,16 @@ async function routeTo(obj) {
 }
 $("route-here").onclick = () => selected && routeTo(selected);
 const copilot = setupCopilot({
+  button: $("open-copilot"),
+  askButton: $("ask"),
   panel: $("copilot"),
   form: $("copilot-form"),
   input: $("copilot-input"),
   answer: $("copilot-answer"),
   close: $("copilot-close"),
-  getObject: () => selected,
+  getSelected: () => selected,
+  name,
 });
-$("ask").onclick = () => {
-  $("info").hidden = true;
-  const about = selected ? name(selected.asset) : "this";
-  copilot.open(`Why is ${about} flagged, and what should I check first?`);
-};
-$("open-copilot").onclick = () => copilot.open();
 
 const adder = setupAddObject({
   canvas,
@@ -204,6 +214,7 @@ const adder = setupAddObject({
   camera,
   render: () => renderer.render(scene, camera),
   ui: {
+    button: $("add-object"),
     frame: $("select-frame"),
     panel: $("add-panel"),
     label: $("add-label"),
@@ -267,11 +278,59 @@ $("clear-route").onclick = () => {
   $("follow").hidden = true;
   $("clear-route").hidden = true;
 };
+
+// Manipulation controls (Move / Rotate on floor)
+function showManipBar(mode) {
+  $("manip-bar").hidden = false;
+  $("manip-mode-move").classList.toggle("active", mode === "move");
+  $("manip-mode-rotate").classList.toggle("active", mode === "rotate");
+  $("manip-title").textContent = name(selected.asset);
+  updateStatusForMode(mode);
+}
+
+function hideManipBar() {
+  $("manip-bar").hidden = true;
+}
+
+function updateStatusForMode(mode) {
+  if (!selected) return;
+  if (mode === "rotate") {
+    $("status").textContent = `Rotate ${name(selected.asset)}: Drag across screen, tap 45°, or twist with 2 fingers`;
+  } else {
+    $("status").textContent = `Move ${name(selected.asset)}: Drag along floor · Hold Shift to rotate`;
+  }
+}
+
 $("move").onclick = () => {
   if (objectLayer?.startMove(selected)) {
     $("info").hidden = true;
-    $("status").textContent = `Drag ${name(selected.asset)} along the floor`;
+    showManipBar("move");
   }
+};
+$("rotate").onclick = () => {
+  if (objectLayer?.startRotate(selected)) {
+    $("info").hidden = true;
+    showManipBar("rotate");
+  }
+};
+$("manip-mode-move").onclick = () => {
+  objectLayer?.setMode("move");
+  showManipBar("move");
+};
+$("manip-mode-rotate").onclick = () => {
+  objectLayer?.setMode("rotate");
+  showManipBar("rotate");
+};
+$("manip-turn-left").onclick = () => {
+  objectLayer?.turnObject(-Math.PI / 4);
+};
+$("manip-turn-right").onclick = () => {
+  objectLayer?.turnObject(Math.PI / 4);
+};
+$("manip-done").onclick = () => {
+  objectLayer?.finishManipulation();
+  hideManipBar();
+  if (selected) $("status").textContent = `Saved ${name(selected.asset)}`;
 };
 
 function hit(ndc) {
@@ -296,7 +355,10 @@ canvas.addEventListener("pointerup", (e) => {
     -(e.clientY / window.innerHeight) * 2 + 1,
   );
   const obj = hit(ndc);
-  if (obj) showInfo(obj);
+  if (obj) {
+    if (selected !== obj && !objectLayer?.state.moving) hideManipBar();
+    showInfo(obj);
+  }
 });
 
 $("mode").onclick = () => {
@@ -314,32 +376,43 @@ $("range").onclick = () => {
 };
 $("reset").onclick = () => {
   camera.position.copy(startPos);
-  camera.quaternion.identity();
-  phone.recenter();
+  camera.rotation.set(0, 0, 0);
+  camera.quaternion.set(0, 0, 0, 1);
 };
 
-// Draw a label over every object in front of the camera, like detections on a camera feed.
-// Occlusion is ignored for now: an object behind a wall still gets a label.
-const tmp = new THREE.Vector3();
+const pos = new THREE.Vector3();
 function updateLabels() {
-  // Everything within range competes for a few places, so the view stays readable: the fault and
-  // the selection always show, then linked equipment, then other things, with pipes last.
-  const visible = [];
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const apart = objectLayer?.state.apart;
+  for (const o of objects) {
+    o.box.visible = false;
+    o.label.style.display = "none";
+  }
+
   const nearby = [];
-  const apart = objectLayer?.state.amount > 0;
   for (const o of objects) {
     if (o.gone) continue;
-    const world = root.localToWorld(tmp.copy(o.center));
-    const dist = world.distanceTo(camera.position);
-    const ndc = world.project(camera);
-    const onScreen = ndc.z < 1 && Math.abs(ndc.x) <= 1 && Math.abs(ndc.y) <= 1;
-    o.label.style.display = "none";
-    o.box.visible = false;
-    const pinned = kind(o.asset) === "fault" || o === selected;
-    if (!pinned && (dist > range || (apart && !o.shape))) continue;
-    const rank = pinned ? 0 : o.asset.mapping ? 1 : BACKGROUND_LABELS.has(o.asset.label) ? 3 : 2;
-    nearby.push({ o, dist, rank, pinned, onScreen, ndc: ndc.clone() });
+    pos.copy(o.center);
+    root.localToWorld(pos);
+    const dist = camera.position.distanceTo(pos);
+    if (dist > range) continue;
+    pos.project(camera);
+    const onScreen = pos.z > 0 && pos.z < 1 && Math.abs(pos.x) <= 1 && Math.abs(pos.y) <= 1;
+    // Fault and mapped objects show first, background labels last.
+    const rank =
+      kind(o.asset) === "fault" ? 0 : kind(o.asset) === "mapped" ? 1 : BACKGROUND_LABELS.has(o.asset.label) ? 3 : 2;
+    nearby.push({
+      o,
+      dist,
+      rank,
+      onScreen,
+      x: ((pos.x + 1) / 2) * w,
+      y: ((-pos.y + 1) / 2) * h,
+      pinned: kind(o.asset) === "fault",
+    });
   }
+
   nearby.sort((a, b) => a.rank - b.rank || a.dist - b.dist);
   const inView = nearby.filter((item) => item.onScreen);
   if (boxesOn && !apart) {
@@ -352,28 +425,22 @@ function updateLabels() {
   }
   for (const item of inView) {
     // Unconfirmed objects keep their frame, but don't crowd the view with a generic tag.
-    if (item.o.asset.label !== "object" || item.o.asset.mapping) visible.push(item);
+    if (item.o.asset.status === "new, unconfirmed") continue;
+    if (inView.indexOf(item) >= MAX_LABELS && !item.pinned) continue;
+    const label = item.o.label;
+    label.textContent = name(item.o.asset);
+    label.style.left = `${item.x}px`;
+    label.style.top = `${item.y}px`;
+    label.style.display = "block";
   }
-  for (const { o, dist, ndc } of visible.slice(0, MAX_LABELS)) {
-    o.label.style.display = "block";
-    o.label.style.left = `${((ndc.x + 1) / 2) * window.innerWidth}px`;
-    o.label.style.top = `${((1 - ndc.y) / 2) * window.innerHeight}px`;
-    const type = name(o.asset) === o.asset.label ? "" : `${o.asset.label} · `;
-    o.label.innerHTML = `${name(o.asset)} <small>${type}${dist.toFixed(1)} m</small>`;
-  }
-  const looking = hit(new THREE.Vector2(0, 0));
-  $("in-view").textContent =
-    `${inView.length} object(s) within ${range} m` +
-    (looking ? ` · looking at ${name(looking.asset)}` : "");
 }
 
+let lastTime = 0;
 let frames = 0;
 let lastFps = performance.now();
-let lastFrame = performance.now();
 function animate(now) {
-  const dt = Math.min((now - lastFrame) / 1000, 0.1);
-  lastFrame = now;
-  // In phone mode the phone's rotation steers, so mouse/touch dragging must not fight it.
+  const dt = lastTime ? (now - lastTime) / 1000 : 0;
+  lastTime = now;
   const following = Boolean(route?.state.walking);
   const busy = objectLayer?.state.moving || adder.state.active || following;
   if (!phone.enabled && !busy) controls.update(camera);
@@ -386,7 +453,11 @@ function animate(now) {
     const moving = objectLayer?.state.moving;
     route?.updateLive(
       moving?.dragging
-        ? { object_id: moving.object.asset.object_id, position: moving.object.center.toArray() }
+        ? {
+            object_id: moving.object.asset.object_id,
+            position: moving.object.center.toArray(),
+            yaw: moving.object.yaw || 0,
+          }
         : null,
     );
   }
@@ -428,9 +499,13 @@ async function syncWithBackend() {
       addAsset(asset);
       objects.at(-1).addedByOperator = true;
       changed += 1;
-    } else if (object.center.distanceTo(new THREE.Vector3(...asset.center)) > 0.001) {
-      objectLayer.placeAt(object, asset.center);
-      changed += 1;
+    } else {
+      const posDiff = object.center.distanceTo(new THREE.Vector3(...asset.center)) > 0.001;
+      const yawDiff = Math.abs((object.yaw || 0) - (asset.yaw || 0)) > 0.001;
+      if (posDiff || yawDiff) {
+        objectLayer.placeAt(object, asset.center, asset.yaw ?? 0);
+        changed += 1;
+      }
     }
   }
   if (changed) $("status").textContent = `Restored ${changed} saved change(s) from the backend`;
@@ -498,7 +573,10 @@ async function load() {
     objectLayer.setApart(!objectLayer.state.apart);
     $("apart").textContent = objectLayer.state.apart ? "Together" : "Apart";
   };
-  $("reset-moves").onclick = () => objectLayer.resetMoves();
+  $("reset-moves").onclick = () => {
+    hideManipBar();
+    objectLayer.resetMoves();
+  };
   // Starting states from the URL, for screenshots and rehearsals.
   if (params.has("view")) {
     objectLayer.setView(params.get("view"));

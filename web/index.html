@@ -52,8 +52,20 @@
     <p id="info-condition"></p>
     <button id="ask" hidden>Ask copilot</button>
     <button id="route-here" hidden>Route here</button>
-    <button id="move" hidden>Move on floor</button>
+    <div id="move-actions" class="action-row" hidden>
+      <button id="move">Move on floor</button>
+      <button id="rotate">Rotate on floor</button>
+    </div>
     <p id="cant-move" hidden></p>
+  </div>
+
+  <div id="manip-bar" hidden>
+    <span id="manip-title">Manipulate</span>
+    <button id="manip-mode-move" class="active">Move</button>
+    <button id="manip-mode-rotate">Rotate</button>
+    <button id="manip-turn-left" title="Turn 45° counter-clockwise">↶ 45°</button>
+    <button id="manip-turn-right" title="Turn 45° clockwise">↷ 45°</button>
+    <button id="manip-done">Done</button>
   </div>
 
   <div id="select-frame" hidden></div>

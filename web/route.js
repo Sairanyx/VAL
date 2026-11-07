@@ -99,7 +99,7 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
   };
   // Live re-planning: one request at a time, always for the newest position. `plan` and `clear`
   // bump `version`, so an older reply that arrives afterwards is dropped.
-  const live = { busy: false, version: 0, lastAt: 0, lastFrom: null, lastDrag: null };
+  const live = { busy: false, version: 0, lastAt: 0, lastFrom: null, lastDrag: null, lastDragYaw: null };
 
   function clearLine() {
     for (const child of [...group.children]) {
@@ -180,6 +180,7 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
     state.start = start;
     live.lastFrom = start.clone();
     live.lastDrag = null;
+    live.lastDragYaw = null;
     try {
       state.route = await callApi("/api/route", {
         start: start.toArray(),
@@ -209,13 +210,17 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
       drag &&
       (!live.lastDrag ||
         new THREE.Vector3(...drag.position).distanceTo(new THREE.Vector3(...live.lastDrag)) >=
-          LIVE_STEP);
+          LIVE_STEP ||
+        Math.abs((drag.yaw || 0) - (live.lastDragYaw ?? 0)) >= 0.05);
     if (!walked && !dragged) return;
     if (walked) {
       state.start = here;
       live.lastFrom = here.clone();
     }
-    if (dragged) live.lastDrag = drag.position;
+    if (dragged) {
+      live.lastDrag = drag.position;
+      live.lastDragYaw = drag.yaw || 0;
+    }
     sendLive(drag);
   }
 
@@ -238,11 +243,9 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
     } catch (error) {
       if (version !== live.version || state.walking) return;
       // The viewer can stand off the floor, so keep the last line. A drag can really block the way.
-      if (drag) {
-        state.route = null;
-        clearLine();
+      if (!error.message.startsWith("The start point")) {
+        onMessage(`No route to ${target.name}: ${error.message}`);
       }
-      onMessage(`No route to ${target.name} from here: ${error.message}`);
     } finally {
       live.busy = false;
     }
@@ -253,7 +256,7 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
     live.version += 1;
     const end = state.route.view_from ?? state.route.path.at(-1);
     const points = pathToViewPoint(state.route.path, end);
-    state.walking = { points, index: 0, along: 0, trimmed: 0 };
+    state.walking = { points, index: 0, along: 0 };
     return true;
   }
 
@@ -332,12 +335,6 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
       const b = walking.points[walking.index + 1];
       here.lerpVectors(a, b, walking.along / Math.max(a.distanceTo(b), 1e-6));
       next.copy(b);
-      // Only the part still ahead stays on the floor.
-      walking.trimmed += WALK_SPEED * dt;
-      if (walking.trimmed >= LIVE_STEP) {
-        walking.trimmed = 0;
-        draw([here, ...walking.points.slice(walking.index + 1)].map((p) => p.toArray()));
-      }
     } else {
       here.copy(walking.points[last]);
       next.copy(focus);

@@ -7,6 +7,7 @@ export function setupHighlight({ root, objectLayer, onMessage }) {
   let overlay = null;
   let request = 0;
   const home = new THREE.Vector3();
+  const yAxis = new THREE.Vector3(0, 1, 0);
   let manifests;
 
   function disposeOverlay() {
@@ -61,7 +62,10 @@ export function setupHighlight({ root, objectLayer, onMessage }) {
   function update() {
     if (!overlay || !selected) return;
     overlay.visible = objectLayer()?.state.view !== "objects" && !selected.gone;
-    overlay.position.copy(selected.center).sub(home);
+    const yaw = selected.yaw || 0;
+    overlay.quaternion.setFromAxisAngle(yAxis, yaw);
+    const rotatedHome = home.clone().applyAxisAngle(yAxis, yaw);
+    overlay.position.copy(selected.center).sub(rotatedHome);
   }
 
   return { select, update, hasSurface: (object) => selected === object && Boolean(overlay?.visible) };

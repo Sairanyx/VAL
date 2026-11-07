@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS scene_changes (
     position JSONB
 );
 ALTER TABLE scene_changes ADD COLUMN IF NOT EXISTS details JSONB;
+ALTER TABLE scene_changes ADD COLUMN IF NOT EXISTS yaw DOUBLE PRECISION;
 """
 
 
@@ -65,14 +66,15 @@ class Database:
         try:
             self._reconnect_if_needed()
             self.conn.execute(
-                "INSERT INTO scene_changes (scene_id, op, object_id, position, details) "
-                "VALUES (%s, %s, %s, %s, %s)",
+                "INSERT INTO scene_changes (scene_id, op, object_id, position, yaw, details) "
+                "VALUES (%s, %s, %s, %s, %s, %s)",
                 (
                     scene_id,
                     change["op"],
                     change["object_id"],
-                    Jsonb(change["position"]),
-                    Jsonb(change.get("details")),
+                    Jsonb(change["position"]) if change.get("position") is not None else None,
+                    change.get("yaw"),
+                    Jsonb(change.get("details")) if change.get("details") is not None else None,
                 ),
             )
             return True
@@ -82,13 +84,19 @@ class Database:
 
     def load_changes(self, scene_id: str) -> list[dict]:
         rows = self.conn.execute(
-            "SELECT op, object_id, position, details FROM scene_changes "
+            "SELECT op, object_id, position, yaw, details FROM scene_changes "
             "WHERE scene_id = %s ORDER BY change_id",
             (scene_id,),
         ).fetchall()
         return [
-            {"op": op, "object_id": obj, "position": pos, "details": details}
-            for op, obj, pos, details in rows
+            {
+                "op": op,
+                "object_id": obj,
+                "position": pos,
+                **({"yaw": yaw} if yaw is not None else {}),
+                **({"details": details} if details is not None else {}),
+            }
+            for op, obj, pos, yaw, details in rows
         ]
 
     def clear_changes(self, scene_id: str) -> bool:

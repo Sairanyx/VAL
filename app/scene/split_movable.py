@@ -32,6 +32,8 @@ SEARCH_STEP = 0.1
 RING_WIDTH = 0.15  # metres around the patch whose color the copied floor should match
 MIN_DENSITY_SHARE = 0.7  # copied floor must have this share of the floor's splats around the patch
 DISTANCE_COST = 0.03  # color difference that one metre of extra distance is worth
+LOW_PART_OPACITY = 0.3
+LOW_PART_DIFFERENCE = 2.0  # summed color difference from the floor, in stored color units
 LOW_HEIGHT = 0.6  # metres: boxes starting lower than this above the floor sit on it
 
 
@@ -49,15 +51,40 @@ def inside_box(
     return in_box & (heights > floor_height + FLOOR_MARGIN) & (heights <= top)
 
 
+def low_parts(
+    splats: Splats, asset: dict, floor_height: float, up: np.ndarray, colors: np.ndarray
+) -> np.ndarray:
+    """Return splats in the floor band under an object that don't look like the floor around it.
+
+    A chair's base lies so low that height alone can't separate it from the floor.
+    """
+    axis = int(np.argmax(np.abs(up)))
+    across = [i for i in range(3) if i != axis]
+    low, high = footprint(asset, across)
+    center, half = (low + high) / 2, (high - low) / 2
+    offsets = np.abs(splats.positions[:, across] - center)
+    on_floor = np.abs(splats.positions @ up - floor_height) <= FLOOR_BAND
+    under = on_floor & (offsets <= half + BOX_MARGIN).all(axis=1)
+    around = on_floor & (offsets <= half + RING_WIDTH).all(axis=1) & ~under
+    if not around.any():
+        return np.zeros(len(splats), dtype=bool)
+    usual = np.median(colors[around], axis=0)
+    solid = splats.opacities >= LOW_PART_OPACITY
+    return under & solid & (np.abs(colors - usual).sum(axis=1) > LOW_PART_DIFFERENCE)
+
+
 def split_movable(
     splats: Splats, assets: list[dict], floor_height: float, up: np.ndarray
 ) -> tuple[Splats, dict[str, Splats]]:
     """Return the scene without these objects, and each object's splats. First box in wins."""
     taken = np.zeros(len(splats), dtype=bool)
     pieces = {}
+    colors = np.stack([splats.data[f"f_dc_{i}"] for i in range(3)], axis=1)
     for asset in assets:
         prepared = {key: np.asarray(asset[key], dtype=np.float64) for key in BOX_KEYS}
-        members = inside_box(splats.positions, prepared, floor_height, up) & ~taken
+        members = inside_box(splats.positions, prepared, floor_height, up)
+        members |= low_parts(splats, prepared, floor_height, up, colors)
+        members &= ~taken
         taken |= members
         pieces[asset["object_id"]] = splats[members]
     return splats[~taken], pieces

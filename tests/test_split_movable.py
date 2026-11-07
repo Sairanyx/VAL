@@ -97,3 +97,14 @@ def test_no_clear_floor_leaves_the_scene_as_it_was_and_says_so():
     patched, record = patch_floor(tiny, [asset], [asset], -1.0, UP)
     assert record[0]["patched"] is False
     assert len(patched) == len(tiny)
+
+
+def test_a_low_base_unlike_the_floor_goes_with_its_object():
+    floor = floor_cloud(-2, 2, -2, 2, -1.0, count=8000)
+    floor.data["opacity"] = 5.0
+    under = (np.abs(floor.positions[:, [0, 2]]) < 0.1).all(axis=1)
+    floor.data["f_dc_0"][under] = 2.0  # A pale base, as low as the floor.
+    asset = box("chair", [-0.3, 0.2, -0.3], [0.3, 0.7, 0.3])
+    base, pieces = split_movable(floor, [asset], -1.0, UP)
+    assert len(pieces["chair"]) == int(under.sum())
+    assert len(base) == len(floor) - int(under.sum())

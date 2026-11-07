@@ -405,7 +405,7 @@ $("ask").onclick = () => {
   copilot.open(linked ? "What's wrong with it, and what should I check first?" : "What is this?");
 };
 
-// The main buttons stay few. Everything else waits behind More.
+// The main buttons stay few. Everything else waits behind Actions.
 function showMenu(open) {
   $("more-menu").hidden = !open;
   $("more").setAttribute("aria-expanded", String(open));

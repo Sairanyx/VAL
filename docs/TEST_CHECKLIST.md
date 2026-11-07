@@ -4,7 +4,7 @@ What we have, what works, what we keep, what we add, and what we must hand in. D
 10:00 Helsinki time**. Editing is allowed until then, so submit early and improve.
 
 **Run it:** `./start laptop` with no graphics card, or `./start browser` with one, then open
-http://localhost:8000/?tablet=0. Test on the real scene. Most controls are under **More**.
+http://localhost:8000/?tablet=0. Test on the real scene. Most controls are under **Actions**.
 
 **How to read a line**
 - **Tick the box** only when a person has seen it work on the real scene. Everything starts unticked.
@@ -24,7 +24,7 @@ brackets belong to that person.
 | **Viktor** | Changing objects. Plan. Setup: scene, pieces, highlights, BIM, pipeline, video to splat, updates |
 | **Sasha** | Selecting an object. BIM. Scoring: extraction. Setup: LiDAR decision |
 | **Hannu** | Val. Scoring: AI diagnostics. Setup: mapping, language models |
-| **Benjamin** | Main buttons, More menu, Tablet and speed. Scoring: demo |
+| **Benjamin** | Main buttons, Actions menu, Tablet and speed. Scoring: demo |
 | **Everyone** | `make setup`, `make gpu`, `make check` on your own machine |
 
 ## Must work: Valmet's scoring
@@ -40,11 +40,11 @@ brackets belong to that person.
 - [ ] **Go to P-005:** route to the faulty device. ✅ 🤖 KEEP
 - [ ] **Plan:** floor layout from above. ✅ 🤖 KEEP
 - [ ] **Ask Val:** opens the assistant. ✅ 🤖 KEEP
-- [ ] **More:** opens the other controls. ✅ 🤖 KEEP
+- [ ] **Actions:** opens the other controls. ✅ 🤖 KEEP
 - [ ] **Walk route:** walks the route and ends facing the device. ✅ 🤖 KEEP
 - [ ] **Clear route:** removes the route. ✅ 🤖 KEEP
 
-## More menu
+## Actions menu
 **Who: Benjamin**
 
 - [ ] **Movement, Walk or Fly:** at floor level, or free. ✅ 🤖 KEEP

@@ -87,7 +87,7 @@ the file `make bim` built, which has the scan meshes but none of the changes.
 4. Release to save. If a route is showing, it plans again.
    - If the spot is taken, the object and whatever's in its way turn red, and the panel says why.
    - Releasing on a red spot puts it back at the last good spot. A wall or fixed equipment blocks it too.
-5. **Done**, or Esc, finishes. **Undo changes** in **More** puts everything back.
+5. **Done**, or Esc, finishes. **Undo** in **Actions** takes back the latest change, and **Reset all** puts everything back.
 
 **Try this first:** the roll cage `obj-0067`. Plan a route with **Go to P-005** from the middle of the room,
 then drag the cage onto the route. The route bends around it. To drag from a better view without changing
@@ -129,11 +129,11 @@ Tap an object to find both buttons.
   **Undo changes** brings it back. It hides the object's whole box, so a neighbour inside it goes too.
 
 ## Go back
-Esc, or the back button on a phone, goes back one step: it closes **More**, cancels a question or a selection
+Esc, or the back button on a phone, goes back one step: it closes **Actions**, cancels a question or a selection
 box, finishes a move, stops a walk, closes Val or Plan, and then deselects the object.
 
 ## Add a missed object
-1. In **More**, press **Add object**, then drag a box around it or tap it.
+1. In **Actions**, press **Add object**, then drag a box around it or tap it.
 2. Check the orange box. Use **Bigger** or **Smaller** if it's off.
 3. Check the type and whether it can move. A model suggests these if `make model` has run.
 4. Press **Save**. It blocks routes straight away and is marked "new, unconfirmed".
@@ -175,8 +175,8 @@ knows** shows what's recorded, possible causes, confidence and how it was worded
 records on something, doesn't guess which device an unlinked object is, and refuses to operate equipment.
 
 ## Other controls
-The main buttons are **Go to P-005**, **Plan**, **Ask Val** and **More**, with **Walk route** and **Clear route**
-while a route shows. Everything else is in **More**.
+The main buttons are **Go to P-005**, **Plan**, **Ask Val** and **Actions**, with **Walk route** and **Clear route**
+while a route shows. Everything else is in **Actions**.
 
 | Control | What it does |
 |---|---|

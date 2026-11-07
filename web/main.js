@@ -334,6 +334,7 @@ $("split-object").onclick = () => {
 };
 
 function hideObject(object) {
+  objectLayer?.dropPiece(object);
   object.gone = true;
   object.box.visible = false;
   object.pick.layers.disable(0);
@@ -351,6 +352,7 @@ function removeAdded() {
       object.splitAway = false;
       object.gone = false;
       object.pick.layers.enable(0);
+      objectLayer?.restorePiece(object);
     }
   }
 }
@@ -614,6 +616,7 @@ async function syncWithBackend() {
       const posDiff = object.center.distanceTo(new THREE.Vector3(...asset.center)) > 0.001;
       const yawDiff = Math.abs((object.yaw || 0) - (asset.yaw || 0)) > 0.001;
       if (posDiff || yawDiff) {
+        await objectLayer.ensurePiece(object);
         objectLayer.placeAt(object, asset.center, asset.yaw ?? 0);
         changed += 1;
       }

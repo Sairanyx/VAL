@@ -31,6 +31,8 @@ export function setupHighlight({ root, objectLayer, onMessage }) {
       const manifest = await manifests;
       if (token !== request || !object) return;
       if (!manifest?.[object.asset.object_id]) {
+        // Objects made in this viewer can't have a surface exported in advance, so that's no news.
+        if (object.addedByOperator) return;
         onMessage("No segmented highlight for this object. Run make highlights; new objects need segmentation.");
         return;
       }

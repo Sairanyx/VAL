@@ -54,7 +54,7 @@
     </div>
     <h3>What you see</h3>
     <div class="menu-grid">
-      <button id="view-mode" data-label="View" data-stay>Scan</button>
+      <button id="view-mode" data-label="View" data-stay hidden>Scan</button>
       <button id="bim" hidden>BIM</button>
       <button id="boxes" data-stay>Boxes on</button>
       <button id="range" data-stay>Range 3 m</button>
@@ -63,8 +63,11 @@
     <h3>Change the room</h3>
     <div class="menu-grid">
       <button id="add-object">Add object</button>
-      <button id="reset-moves">Undo changes</button>
+      <button id="undo-last" title="Take back the latest change (Ctrl+Z)">Undo</button>
+      <button id="reset-moves" title="Put everything back as scanned">Reset all</button>
     </div>
+    <p class="menu-keys">Keys: Delete removes · Ctrl+Z undo · M move (R rotate, PgUp/PgDn height, Enter done) · C copy ·
+      N name · F walk/fly · G go to P-005 · Esc back</p>
   </div>
 
   <div id="info" hidden>
@@ -80,13 +83,13 @@
       <button id="route-here" hidden>Route here</button>
     </div>
     <div id="move-actions" class="action-row" hidden>
-      <button id="move">Move</button>
-      <button id="rotate">Rotate</button>
+      <button id="move" title="Move, turn, or raise it">Move</button>
     </div>
     <div class="action-row">
       <button id="rename-object" hidden>Name it</button>
       <button id="duplicate-object">Duplicate</button>
       <button id="delete-object" class="danger">Delete</button>
+      <button id="forget-object" title="Remove its box and data, keep it in the scan">Remove info</button>
     </div>
     <div id="delete-confirm" hidden>
       <p id="delete-question"></p>
@@ -115,6 +118,8 @@
     <button id="manip-mode-rotate">Rotate</button>
     <button id="manip-turn-left" title="Turn 45° counter-clockwise">↶ 45°</button>
     <button id="manip-turn-right" title="Turn 45° clockwise">↷ 45°</button>
+    <button id="manip-raise" title="Raise 10 cm (Page Up)">↑ Raise</button>
+    <button id="manip-lower" title="Lower 10 cm (Page Down)">↓ Lower</button>
     <button id="manip-done">Done</button>
   </div>
 

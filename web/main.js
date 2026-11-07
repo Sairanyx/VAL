@@ -14,6 +14,7 @@ import { setupObjects } from "./objects.js";
 import { setupPacing } from "./pacing.js";
 import { setupPhone } from "./phone.js";
 import { setupPlan } from "./plan.js";
+import { setupWalkable } from "./walkable.js";
 import { setupWalkXR, xrSupported } from "./xr.js";
 import { setupRoute } from "./route.js";
 
@@ -31,7 +32,7 @@ const TABLET_SPLATS = 500000;
 //   res     render resolution relative to the screen (default 1; 0.5 is about 4x fewer pixels)
 //   lod     1 = level of detail on: far-away areas use fewer, bigger splats (default 1)
 //   splats  how many splats LOD aims to draw per frame (default: Spark's choice for the device)
-//   adaptive  0 keeps the resolution fixed while moving (default 1)
+//   adaptive  1 lowers the resolution while moving, for slow devices (default 0: it flickers)
 //   debug   1 shows the frame rate and object counts
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has("debug");
@@ -44,7 +45,9 @@ document.body.classList.toggle("tablet", TABLET);
 const MAX_LABELS = TABLET ? 5 : 8;
 const RES = Number(params.get("res") ?? (TABLET ? TABLET_RES : 1));
 const LOD = params.get("lod") !== "0";
-const ADAPTIVE = params.get("adaptive") !== "0";
+// Off by default: changing the resolution resizes the canvas, which flickers on every start and
+// stop. Turn it on for a device that can't keep up.
+const ADAPTIVE = params.get("adaptive") === "1";
 const LOD_SPLATS = params.has("splats")
   ? Number(params.get("splats"))
   : TABLET
@@ -90,12 +93,17 @@ scene.add(xrOffset);
 xrOffset.add(root);
 
 const controls = new SparkControls({ canvas });
+// Spark turns the camera with Insert and Delete; Delete deletes the selected object here instead.
+delete controls.fpsMovement.keycodeRotateMapping.Delete;
+delete controls.fpsMovement.keycodeRotateMapping.Insert;
 const phone = setupPhone({
   camera,
   button: $("phone"),
   joystick: $("joystick"),
   onMessage: (msg) => ($("status").textContent = msg),
 });
+// Walk mode keeps to the walkable floor; Fly goes anywhere.
+const walkFloor = setupWalkable({ root, camera });
 const raycaster = new THREE.Raycaster();
 const objects = []; // { asset, box, pick, label, center, yaw, baseSize }
 const pacing = setupPacing({
@@ -115,6 +123,7 @@ const pacing = setupPacing({
 let walk = true;
 let eyeY = EYE_HEIGHT;
 let startPos = new THREE.Vector3(0, EYE_HEIGHT, 0);
+let startTurn = new THREE.Quaternion(); // which way you face at the start
 let objectLayer = null;
 let bim = null;
 let route = null;
@@ -327,6 +336,7 @@ async function routeTo(obj) {
 $("route-here").onclick = () => selected && routeTo(selected);
 $("duplicate-object").onclick = () => selected && duplicateObject(selected);
 $("delete-object").onclick = askToDelete;
+$("forget-object").onclick = () => selected && forgetObject(selected);
 $("rename-object").onclick = () => {
   $("rename-form").hidden = false;
   $("rename-input").value = selected?.asset.name ?? "";
@@ -537,7 +547,7 @@ function deselect() {
   copilot.refresh();
 }
 
-// Delete asks first, in the panel. Undo changes brings an object back.
+// Delete asks first, in the panel. Undo (or Ctrl+Z) brings an object back.
 async function renameObject(object, text) {
   const response = await fetch("/api/changes", {
     method: "POST",
@@ -574,7 +584,24 @@ async function deleteObject(object) {
   deselect();
   if (routed) $("clear-route").click();
   objectLayer.recordRemoval(object);
-  $("status").textContent = `Deleted ${text}. Undo changes in More brings it back.`;
+  $("status").textContent = `Deleted ${text}. Undo (Ctrl+Z) brings it back.`;
+}
+
+// Remove info only: for a junk detection, such as a stray bucket. Its box, label and data go, but
+// the scan still shows it, and a movable one still blocks routes. Undo brings the info back.
+function forgetObject(object) {
+  const text = name(object.asset);
+  const routed = route?.state.target?.asset === object.asset;
+  // Not hideObject: that drops the object's splats too, and these stay exactly where they are.
+  object.gone = true;
+  object.box.visible = false;
+  object.pick.layers.disable(0);
+  object.label.style.display = "none";
+  object.splitAway = !object.addedByOperator;
+  deselect();
+  if (routed) $("clear-route").click();
+  objectLayer.recordRemoval(object, true);
+  $("status").textContent = `Removed the info for ${text}; it stays in the scan. Ctrl+Z undoes it.`;
 }
 
 // The first free spot beside an object, as a copy mustn't land on top of anything.
@@ -638,8 +665,39 @@ function goBack() {
   else return false;
   return true;
 }
+// Keyboard shortcuts. Never while typing into Val or a name box, so letters stay letters.
+// WASD, Q/E and the arrows stay with the camera.
 window.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") goBack();
+  if (event.key === "Escape") {
+    goBack();
+    return;
+  }
+  if (isTyping() || event.altKey) return;
+  const press = (id) => {
+    const button = $(id);
+    if (!button || button.hidden || button.disabled) return false;
+    button.click();
+    return true;
+  };
+  const key = event.key.toLowerCase();
+  const command = event.ctrlKey || event.metaKey;
+  let handled = false;
+  if (command && key === "z") handled = press("undo-last");
+  else if (command) return; // leave the browser's own shortcuts alone
+  else if (key === "delete" || key === "backspace") {
+    if (selected) handled = $("delete-confirm").hidden ? press("delete-object") : press("delete-yes");
+  } else if (key === "enter") {
+    if (!$("delete-confirm").hidden) handled = press("delete-yes");
+    else if (!$("manip-bar").hidden) handled = press("manip-done");
+  } else if (key === "m" && selected) handled = press("move");
+  else if (key === "r" && !$("manip-bar").hidden) handled = press("manip-mode-rotate");
+  else if (key === "c" && selected) handled = press("duplicate-object");
+  else if (key === "n" && selected) handled = press("rename-object");
+  else if (key === "pageup" && !$("manip-bar").hidden) handled = press("manip-raise");
+  else if (key === "pagedown" && !$("manip-bar").hidden) handled = press("manip-lower");
+  else if (key === "f") handled = press("mode");
+  else if (key === "g") handled = press("go-fault");
+  if (handled) event.preventDefault();
 });
 // One spare history entry catches the back button. With nothing left to close, it leaves the page.
 history.pushState({ viewer: true }, "");
@@ -701,12 +759,19 @@ $("move").onclick = () => {
     showManipBar("move");
   }
 };
-$("rotate").onclick = () => {
-  if (objectLayer?.startRotate(selected)) {
-    $("info").hidden = true;
-    showManipBar("rotate");
-  }
-};
+// Height: 10 cm a press. The object being moved, or the selected one.
+const RAISE_STEP = 0.1;
+async function raiseObject(metres) {
+  const object = objectLayer?.state.moving?.object ?? selected;
+  if (!object) return;
+  const result = await objectLayer.raise(object, metres);
+  $("status").textContent = result.ok
+    ? `${name(object.asset)} ${metres > 0 ? "raised" : "lowered"} ${Math.abs(metres) * 100} cm`
+    : result.message;
+}
+$("manip-raise").onclick = () => raiseObject(RAISE_STEP);
+$("manip-lower").onclick = () => raiseObject(-RAISE_STEP);
+
 $("manip-mode-move").onclick = () => {
   objectLayer?.setMode("move");
   showManipBar("move");
@@ -845,9 +910,9 @@ $("track").onclick = async () => {
 
 $("reset").onclick = () => {
   if (tracking.state.active) return tracking.recenter();
+  walkFloor.forget();
   camera.position.copy(startPos);
-  camera.rotation.set(0, 0, 0);
-  camera.quaternion.set(0, 0, 0, 1);
+  camera.quaternion.copy(startTurn);
 };
 
 const pos = new THREE.Vector3();
@@ -930,6 +995,12 @@ function chooseLabels() {
 }
 
 let lastTime = 0;
+
+// True while a text box, such as Val's chat, has the keyboard.
+function isTyping() {
+  const element = document.activeElement;
+  return Boolean(element?.matches?.("input, textarea, select, [contenteditable='true']"));
+}
 let lastStep = 0;
 let frames = 0;
 let lastFps = performance.now();
@@ -939,12 +1010,15 @@ function animate(now) {
   // Typing in the Plan screen's search box shouldn't walk the viewer around. While tracking, the
   // device's own movement moves the camera, so the other controls stay out.
   const tracked = tracking.state.active;
-  if (!phone.enabled && !busy && !tracked && !plan?.state.open) controls.update(camera);
+  // Keys typed into Val or a name box are for that box, not for walking.
+  const typingNow = isTyping();
+  if (!phone.enabled && !busy && !tracked && !plan?.state.open && !typingNow) controls.update(camera);
   const stepTime = lastStep ? (now - lastStep) / 1000 : 0;
   lastStep = now;
   if (following && !tracked) route.update(stepTime);
   else if (!tracked) phone.update(stepTime);
   if (walk && !tracked) camera.position.y = eyeY;
+  if (walk && !tracked && !following) walkFloor.keepOnFloor(now);
   const hoverDue = now - lastHoverCheck > HOVER_EVERY;
   if (hoverDue && (hoverChanged || (hoverAt && pacing.isMoving()))) {
     hoverChanged = false;
@@ -975,7 +1049,7 @@ function animate(now) {
   const followText = following ? "Stop" : "Walk route";
   if ($("follow").textContent !== followText) $("follow").textContent = followText;
   if (plan?.state.open) {
-    plan.draw(); // The room is covered, so there's no need to draw it as well.
+    plan.draw(now); // The room is covered, so there's no need to draw it as well.
   } else {
     renderer.render(scene, camera);
     tracking.update();
@@ -1021,7 +1095,9 @@ async function syncWithBackend() {
     .then((response) => response.json())
     .catch(() => ({ changes: [] }));
   const removedIds = new Set(
-    saved.changes.filter((change) => change.op === "remove").map((change) => change.object_id),
+    saved.changes
+      .filter((change) => change.op === "remove" && !change.details?.keep_splats)
+      .map((change) => change.object_id),
   );
   for (const object of objects) {
     if (!present.has(object.asset.object_id)) {
@@ -1041,6 +1117,14 @@ async function syncWithBackend() {
       objects.at(-1).addedByOperator = true;
       if (asset.duplicated_from) objectLayer.addCopy(objects.at(-1));
       changed += 1;
+    } else if (object.gone && object.splitAway) {
+      // Back again, such as after Undo took back a delete, split or combine.
+      object.splitAway = false;
+      object.gone = false;
+      object.pick.layers.enable(0);
+      objectLayer.unerase(object);
+      objectLayer.restorePiece(object);
+      changed += 1;
     } else if (object !== dragged) {
       object.asset.name = asset.name;
       const posDiff = object.center.distanceTo(new THREE.Vector3(...asset.center)) > 0.001;
@@ -1053,6 +1137,48 @@ async function syncWithBackend() {
     }
   }
   if (changed) $("status").textContent = `Restored ${changed} saved change(s) from the backend`;
+}
+
+// Start just inside the door, facing into the room, the way a technician arrives. Uses the detected
+// door, so it follows the extraction. Without one, or with ?start=centre, the scan's own start.
+const DOOR_STEP_IN = 1.2; // metres into the room from the door's middle
+function doorStart(data) {
+  if (["centre", "center"].includes(params.get("start"))) return null;
+  const door = data.assets.find((asset) => asset.label === "door");
+  if (!door) return null;
+  const middle = new THREE.Vector3(...(data.start ?? [0, 0, 0])); // the room's middle, roughly
+  const at = new THREE.Vector3(...door.center);
+  const inward = middle.sub(at).setY(0);
+  if (inward.lengthSq() < 1e-6) return null;
+  inward.normalize();
+  const point = at.clone().addScaledVector(inward, DOOR_STEP_IN);
+  point.y = data.floor_y ?? 0;
+  return { point, inward };
+}
+
+// Take back the latest change: the backend replays the others, and the viewer catches up.
+async function undoLast() {
+  hideManipBar();
+  let reply;
+  try {
+    const response = await fetch("/api/changes/undo", { method: "POST" });
+    reply = await response.json();
+    if (!response.ok) throw new Error(reply.detail ?? `error ${response.status}`);
+  } catch (error) {
+    $("status").textContent = `Nothing undone: ${error.message}`;
+    return;
+  }
+  // The viewer keeps its own list of what it has sent; drop the change it just lost.
+  const sent = objectLayer.state.changes;
+  const last = sent.at(-1);
+  if (last && last.op === reply.undone.op && last.object_id === reply.undone.object_id) {
+    sent.pop();
+    route.state.posted = Math.min(route.state.posted, sent.length);
+  }
+  await syncWithBackend();
+  if (route.state.target) await route.plan(route.state.target, route.state.start);
+  const what = { remove: "delete", move: "move", rotate: "turn" }[reply.undone.op] ?? reply.undone.op;
+  $("status").textContent = `Undid the ${what} of ${reply.undone.object_id ?? "an object"}`;
 }
 
 // Ask the backend whether an object can stand here. Without a backend, nothing can be saved anyway.
@@ -1135,7 +1261,10 @@ function commandHandlers() {
       return objectLayer.moveTo(object, undefined, (object.yaw || 0) + (degrees * Math.PI) / 180);
     },
     start_move: ({ object_id }) => open(object_id, "move"),
-    start_rotate: ({ object_id }) => open(object_id, "rotate"),
+    start_rotate: ({ object_id }) => {
+      open(object_id, "move"); // Rotate is a mode of Move now
+      $("manip-mode-rotate").click();
+    },
     finish_moving: press("manip-done"),
     undo_changes: press("reset-moves"),
     duplicate_object: ({ object_id }) => duplicateObject(objects.find((o) => o.asset.object_id === object_id)),
@@ -1166,10 +1295,17 @@ async function load() {
   // Floor and start are in scene coordinates; convert to the upright world.
   const floor = root.localToWorld(new THREE.Vector3(0, data.floor_y ?? 0, 0)).y;
   eyeY = floor + EYE_HEIGHT;
-  const start = data.start ?? [0, data.floor_y ?? 0, 0];
+  root.updateMatrixWorld(true);
+  const door = doorStart(data);
+  const start = door ? door.point.toArray() : (data.start ?? [0, data.floor_y ?? 0, 0]);
   startPos = root.localToWorld(new THREE.Vector3(...start));
   startPos.y = eyeY;
   camera.position.copy(startPos);
+  if (door) {
+    const ahead = door.inward.clone().transformDirection(root.matrixWorld).setY(0).normalize();
+    camera.lookAt(startPos.clone().add(ahead));
+  }
+  startTurn = camera.quaternion.clone();
 
   const sceneFile = await pickScene();
   const splat = new SplatMesh({
@@ -1268,6 +1404,7 @@ async function load() {
     hideManipBar();
     objectLayer.resetMoves();
   };
+  $("undo-last").onclick = undoLast;
   bim = await setupBim({
     root,
     renderer,

@@ -5,7 +5,7 @@ measured numbers from `docs/RESULTS.md`.
 
 1. **Problem:** a 3D scan looks real but knows nothing. Field-service staff and robots still have to
    piece together location, equipment condition, and documentation from separate places.
-2. **Solution:** turn a scan into a navigable digital twin, on a tablet, running entirely on site.
+2. **Solution:** turn a scan into a navigable digital twin, on a laptop or tablet, running entirely on site.
 3. **Live demo:** press **Demo**, or go from darkness through the views to the real room, tap an object,
    watch the worker walk to `P-005` with nearby assets framed, and get a cited diagnosis on arrival.
    Keep a recorded backup ready.

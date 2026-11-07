@@ -23,6 +23,8 @@ Run these with internet. The demo itself needs none.
 
 ## Run it on someone else's laptop
 `make bundle` builds `dist/val-demo.zip`, about 520 MB. It holds Valmet's data, so it stays out of git.
+It uses what these make, so run them first: `make voice-model VOICE_MODEL=base.en`, `make bim`, `make highlights`,
+and `make pieces PIECES_FROM=data/scene/equipment_room/light_full.ply PIECES_DIR=data/scene/equipment_room/cut_light`.
 To point it at other files, see `python scripts/make_bundle.py --help`.
 
 On the laptop: unzip it, double-click `START-WINDOWS.bat` or `START-MAC.command`, or run
@@ -129,7 +131,7 @@ Route showing?        web/route.js: POST /api/route. While dragging it previews 
                       A refused drop plans again, so the route never bends around a spot it didn't reach
                       app/nav/route.py: the moved box now blocks the map, so it plans around it
 Reload the page       web/main.js: GET /api/assets, and restores saved moves on screen
-Undo changes          web/route.js: POST /api/changes/reset
+Reset all          web/route.js: POST /api/changes/reset
 ```
 The floor map never changes. Movable objects aren't in it: they're added on top for each route. Other open
 screens only pick up changes when reloaded.
@@ -158,26 +160,26 @@ box, finishes a move, stops a walk, closes Val or Plan, and then deselects the o
 2. Drag a box around one part. Orange is what you selected, and blue is the rest.
 3. Check the type and whether each can move, then press **Save**. Both are marked "new, unconfirmed".
 
-Split or combine before moving: a moved object has to be put back first, with **Undo changes**.
+Split or combine before moving: a moved object has to be put back first, with **Reset all**.
 
-Set a part to movable to move it, and its real splats go with it. **Undo changes** brings the original back.
+Set a part to movable to move it, and its real splats go with it. **Reset all** brings the original back.
 
 ## Combine objects that are really one thing
 1. Tap the first object, and under **Fix this object** press **Combine with...**. Objects linked to a record can't be combined.
 2. Tap the second object. An orange box appears around both.
-3. Check the type and whether it can move, then press **Save**. **Undo changes** brings the originals back.
+3. Check the type and whether it can move, then press **Save**. **Reset all** brings the originals back.
 
 ## See the floor layout
 On a computer, a see-through minimap sits in the top-left corner: walls, fixed equipment, the target, the route,
 and where you are. On a phone or tablet, **Map** shows it. **Map** or **×** hides it, and clicking it, or **⛶**, opens the
 full map. Pipes, cables, lights and movable things stay in the 3D view, unless a filter or search asks for them.
-Colours match BIM mode, and a dashed outline means the object can be moved.
+Red is the target, and a dashed outline means the object can be moved.
 - **Find:** type a tag or type. `P-005` highlights one object, and `tank` highlights them all.
 - **Tap an object** to open its panel, then use **Route here**.
 - **Download DXF** saves the layout for CAD tools, with objects where they stand now.
 
 It's generated from the scan, not surveyed: objects are boxes, and the scale hasn't been checked on site. A name
-with no room to show stays hidden until you find or tap its object. Needs `make api` and `Equipment Room.ply`.
+with no room to show stays hidden until you find or tap its object. The map needs `make bim`, and DXF needs `make api`.
 
 ## Ask Val
 Val is the field-service assistant. Press **Ask Val**, with or without an object selected, then talk, type or tap a
@@ -260,8 +262,8 @@ On a laptop, use `./start laptop`: objects are cut from the light scene, which `
 | "Couldn't save the move, so it went back" | The backend refused it, so the object returned to where the backend has it | The message says why. Try another spot |
 | "Couldn't save the change, trying again" | The backend can't be reached. Routes ignore the change until it's saved | Start `make api`. The viewer sends it once it's back |
 | "Couldn't add an object: Selecting needs the scene" | `Equipment Room.ply` is missing | Put it in `data/scene/equipment_room/` |
-| "No route to..." | Something blocks the way | That can be correct. **Undo changes** if you caused it |
-| "The backend lost saved moves" | `make api` restarted with no database, which it does whenever a `.py` file in the repo changes. Or someone pressed **Undo changes** on another screen | Run `make db` before `make api` to keep moves across restarts |
+| "No route to..." | Something blocks the way | That can be correct. **Reset all** if you caused it |
+| "The backend lost saved moves" | `make api` restarted with no database, which it does whenever a `.py` file in the repo changes. Or someone pressed **Reset all** on another screen | Run `make db` before `make api` to keep moves across restarts |
 | Blurry or slow | Heavy scene on a weak GPU | Try a lighter scene, or `?res=0.5` |
 | Viewer shows a small test scene | `make web` had no `SCENE=` | Use the full line above |
 | Old object IDs, such as `obj-0046` for P-005 | Old data | Run `make scene mapping pieces highlights` again |

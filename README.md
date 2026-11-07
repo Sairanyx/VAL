@@ -6,7 +6,7 @@ Built for Valmet's Industrial Metaverse challenge. It turns a Gaussian splat sca
 labelled assets linked to device data, routes a worker around obstacles to a faulty device, and
 gives AI guidance with cited evidence. Runs on one laptop with no internet, in a browser.
 
-**Status:** the whole brief works end to end. Tested on Linux with integrated graphics; the zip is not
+**Status:** the demo the brief asks for works end to end. Tested on Linux with integrated graphics; the zip is not
 yet tested on Windows or a Mac.
 **[How to run and use it](docs/USAGE.md)** · [How it was built](docs/DEVLOG.md) · [Current tasks](docs/PLAN.md#now) · [Plan](docs/PLAN.md) · [Challenge](docs/CHALLENGE.md) ·
 [Results](docs/RESULTS.md)

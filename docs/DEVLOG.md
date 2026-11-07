@@ -13,13 +13,13 @@ We wrote down how people and agents share the repo (`AGENTS.md`, a handoff file 
 the brief closely. Two things shaped everything after:
 - Valmet's supplied `Industrial Boiler Room.ply` was damaged: 67% of its records look like random
   bytes. Valmet's replacement, `Equipment Room.ply`, is the one we use.
-- The demo must work on site with no internet, because plant data shouldn't leave the plant. So no
-  cloud APIs at runtime, ever.
+- We chose to make the demo work on site with no internet, because plant data shouldn't leave the
+  plant. The brief doesn't ask for this. So no cloud APIs at runtime.
 
 By midnight we could load the scene and render views from it, and Benjamin had a first-person web
 viewer running offline with three.js and Spark.
 
-## Saturday night: from a scan to something that knows things (7 Nov, 00:00 to 07:00)
+## Overnight into Saturday: from a scan to something that knows things (7 Nov, 00:00 to 07:00)
 Everything had to exist at once, so we built the pieces side by side against a shared fixture.
 - **Extraction (Viktor, Sasha):** SAM 3 and SAM 2 masks on rendered views, lifted to 3D. First run:
   441 objects, but weak labels, with 251 "pipe" and 0 "pump". Better labels came from vision models.
@@ -34,7 +34,7 @@ line up well enough at object scale, so we removed it. We trained our own splat 
 and compared it by eye: Valmet's looked better, so that's what we show.
 
 **The copilot's rule.** Local models word the answer, but code checks every fact against the records.
-We measured each prompt change, and reverted one that lowered accuracy.
+We measured prompt changes, and reverted one that lowered accuracy.
 
 ## Saturday morning: objects you can actually move (09:00 to 14:00)
 Valmet's engineer said objects you can pull out and move would earn extra credit, so we made it real:
@@ -50,9 +50,10 @@ and scan meshes. Viktor added a floor plan and DXF export, and IFC with the oper
 Eduard added commands for every viewer action, a tablet mode, and one-command start scripts.
 
 ## Saturday evening: making it usable (17:30 to 21:00)
-We showed it to the engineer, and the message was clear: too slow and too hard to use. So:
+We showed it to the engineer. The viewer needed heavy optimization and a better UI, and Val's
+functionality was heavily emphasized. So:
 - **Speed:** stop redrawing when nothing changes, a light scene without a graphics card, and pieces
-  cut in advance. On this laptop's integrated graphics: about 59 frames a second standing still.
+  cut in advance. On a ThinkPad with integrated graphics: 16 frames a second turning, 59 standing still.
 - **Simpler:** the copilot became Val, and talks like a person. Buttons moved into one menu. Benjamin
   added keyboard shortcuts, undo, and an Objects panel listing equipment by importance.
 - **Voice:** Eduard added local Whisper, so you can talk to Val and it can run viewer commands, with
@@ -72,7 +73,7 @@ cloud and the real view. A guided demo button, arrow keys for moving objects, an
 it needs bash and make, installs the training stack, and doesn't allow a Mac. So `make bundle` builds a
 zip with its own uv and a light environment: unzip, double-click, and it opens. Testing it from an empty
 folder caught a missing package that our own machines were hiding. Weak graphics get a one-way
-drop in resolution, which took turning on this laptop from about 14 to about 50 frames a second.
+drop in resolution, which took turning on that ThinkPad from about 14 to about 50 frames a second.
 
 ## Still open at the time of writing
 See "How we cover the brief" in [CHALLENGE.md](CHALLENGE.md) and the [checklist](TEST_CHECKLIST.md).

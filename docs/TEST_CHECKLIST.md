@@ -58,7 +58,7 @@ brackets belong to that person.
 - [ ] **Range:** 2, 3, 5 or 10 m for frames and labels. ✅ 🤖 KEEP
 - [ ] **Apart:** pulls objects apart, Valmet's extra credit. ✅ 🤖 KEEP
 - [ ] **Add object:** draw a box around something missed. ✅ 🤖 KEEP
-- [ ] **Undo changes:** back to the original scan. ✅ 🤖 KEEP
+- [ ] **Reset all:** back to the original scan. ✅ 🤖 KEEP
 
 ## Selecting an object
 **Who: Sasha**
@@ -125,7 +125,6 @@ brackets belong to that person.
 - [ ] (Sasha) **Leaving BIM is clean:** no ghosts or leftovers. ✅ 🤖 KEEP
 - [ ] (Viktor) **Plan search:** `P-005` or `tank`. ✅ 🤖 KEEP
 - [ ] (Viktor) **Plan tap:** opens the object. ✅ 🤖 KEEP
-- [ ] (Viktor) **Show pipes:** ✅ 🤖 KEEP
 - [ ] (Viktor) **Download DXF:** not opened in a real CAD tool. ✅ 🤖 KEEP
 - [ ] (Viktor) **Plan's scale:** not checked on site. 🟡 ❌ KEEP. Say it's generated
 
@@ -181,7 +180,7 @@ brackets belong to that person.
 - [ ] (Everyone) `make check`: 267 passed on main. ✅ 🤖 KEEP
 - [ ] (Eduard) `make nav-check`: ✅ 🤖 KEEP
 - [ ] (Eduard) `./start browser`, `laptop`, `tablet`: ✅ 🤖 KEEP
-- [ ] (Viktor) `make pipeline`, for real on the 5090: 🟡 ❌ KEEP. Masks need a SAM setup, as Roihu is closed
+- [ ] (Viktor) `make pipeline`, for real on a GPU machine: 🟡 ❌ KEEP. Masks need a SAM setup, as Roihu is closed
 - [ ] (Viktor) **Video to splat:** frames, COLMAP, training. By hand. 🟡 🤖 KEEP for new rooms only
 - [ ] (Sasha) **LiDAR input:** ❌ ❌ DECIDE. Pitch it as future work
 - [ ] (Viktor) **Update by short clip, or by rescan:** ❌ ❌ Pitch as future work

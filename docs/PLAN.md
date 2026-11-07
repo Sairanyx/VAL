@@ -64,7 +64,7 @@ make api
 make web SCENE=data/scene/equipment_room/cut/base.ply ASSETS=data/scene/equipment_room/assets_mapped.json SHAPES=data/scene/equipment_room/shapes.json PIECES=data/scene/equipment_room/cut
 ```
 Demo move: plan to `P-005` from the room centre, then drag the roll cage `obj-0067` onto the route near
-(-1.46, -1.75). The route goes from 4.3 to 5.6 m. **Undo changes** restores it.
+(-1.46, -1.75). The route goes from 4.3 to 5.6 m. **Reset all** restores it.
 
 ## Pipeline
 ```text
@@ -234,9 +234,9 @@ Plant data never leaves the site, which is a key selling point. The brief doesn'
 directly, so pitch it as innovation and real-world fit.
 
 - **Nothing external at runtime:** no cloud APIs, hosted models, CDN scripts, or web fonts.
-- **Copilot:** use a local LLM and local embeddings, sharing the 5090's memory with everything else.
-- **Tablet connection:** bring our own router, and don't rely on venue Wi-Fi.
-- **Roihu:** for experiments only. The final pipeline must also run on the 5090.
+- **Copilot:** answers from the records with no model, or a small local model if the laptop has one.
+- **Tablet connection, if used:** bring our own router, and don't rely on venue Wi-Fi.
+- **Roihu:** for experiments only. The final pipeline must also run on a local GPU machine, such as the 5090.
 
 ### Compute estimates
 Replace these with measured numbers in `docs/RESULTS.md`.
@@ -245,7 +245,7 @@ Replace these with measured numbers in `docs/RESULTS.md`.
 |---|---|---|---|
 | Offline on a provided splat | 5090 | 1-2.5 hours, or 30-60 minutes without a VLM | Up to 20 GB VRAM per step |
 | Building our own splat | CPU and 5090 | 1.5-3 hours more | About 8 GB RAM measured for COLMAP so far, up to 16 GB VRAM for 3DGS |
-| Live demo | 5090 | Continuous | 10-25 GB of 32 GB VRAM |
+| Live demo | A laptop | Continuous | The browser's graphics draw it. Memory not measured |
 
 ### Deployment at a plant (future)
 **Suggested spec:** one 24-32 GB GPU, at least 16 CPU cores, 64 GB RAM, about 100 GB of disk per site,

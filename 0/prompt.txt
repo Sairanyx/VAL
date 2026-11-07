@@ -1,0 +1,5 @@
+Is our backend tied to roihu right now?
+
+---
+
+But lets say when I move an object in the frontend how does it get updated, cause right now Sasha is testing it and it isnt working - give me the full process and maybe make a usage guide in read me or somewhere

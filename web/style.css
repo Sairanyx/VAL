@@ -274,7 +274,14 @@ details summary {
 #info .action-row[hidden],
 #info-fix[hidden],
 #info button[hidden] { display: none; }
-#info .action-row button { flex: 1 1 40%; min-width: 0; padding: 0 6px; }
+/* Each button starts as wide as its label and never breaks inside it; a full row wraps onto the
+   next line, and the buttons stretch to fill it. Equal shares squeezed long labels like
+   "Duplicate" into two lines in the 320 px panel. */
+#info .action-row button {
+  flex: 1 1 auto;
+  white-space: nowrap;
+  padding: 0 12px;
+}
 #info-close {
   position: absolute;
   top: 4px;

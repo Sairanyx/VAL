@@ -67,7 +67,7 @@ def asset_geometry(asset: dict, shape: dict | None) -> tuple[dict, str]:
     return box_from_bounds(asset["bbox_min"], asset["bbox_max"]), "axis-aligned bounding box"
 
 
-def asset_element(scene_id: str, asset: dict, shape: dict | None) -> dict:
+def asset_element(scene_id: str, asset: dict, shape: dict | None, mesh: dict | None = None) -> dict:
     label = asset.get("label", "object")
     ifc_class, predefined = IFC_CLASSES.get(label, PROXY)
     mapping = asset.get("mapping")
@@ -84,7 +84,8 @@ def asset_element(scene_id: str, asset: dict, shape: dict | None) -> dict:
             "IdentityConfirmed": identity_confirmed(mapping),
         },
         "Valmet_Geometry": {
-            "Source": source,
+            "Source": f"scan surface mesh, {mesh['voxel'] * 100:.1f} cm voxels" if mesh else source,
+            "Simplified": source,
             "FitScore": shape.get("score") if shape and shape.get("use_shape") else None,
             "SplatCount": asset.get("splats"),
             "ViewCount": asset.get("views"),
@@ -172,11 +173,17 @@ def room_elements(scene_id: str, room: dict) -> list[dict]:
     return elements
 
 
-def build_model(assets_file: dict, shapes: dict, room: dict) -> dict:
+def build_model(
+    assets_file: dict, shapes: dict, room: dict, meshes: dict[str, dict] | None = None
+) -> dict:
+    """Meshes, keyed by object ID, replace an element's simplified shape where they exist."""
     scene_id = assets_file.get("scene_id", "scene")
+    meshes = meshes or {}
     elements = room_elements(scene_id, room)
     for asset in assets_file["assets"]:
-        elements.append(asset_element(scene_id, asset, shapes.get(asset["object_id"])))
+        object_id = asset["object_id"]
+        mesh = meshes.get(object_id)
+        elements.append(asset_element(scene_id, asset, shapes.get(object_id), mesh))
     return {
         "scene_id": scene_id,
         "units": assets_file.get("units", "metres"),

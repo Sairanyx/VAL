@@ -47,16 +47,20 @@ For a different scene, pass its own `HIGHLIGHTS=path/to/highlights`, or disable 
 
 ## BIM mode
 Run `make bim`, then restart your viewer and press **BIM**. The scan is replaced by a simulated
-model: estimated walls and floor, plus one IFC element per detected object, coloured by class.
+model: estimated walls and floor, plus one IFC element per detected object. **Look** switches between:
+- **Real**: each object's own scanned splats, in true colour and full detail, in the clean room.
+- **Model**: a mesh built from those same splats, coloured by IFC class. This is also the shape in
+  `model.ifc`, so it follows the real object instead of a box.
 - **Tap an element** to see its IFC class, GlobalId and properties. Equipment also opens the normal
   panel, so **Ask copilot**, **Route here** and **Move on floor** still work, and moves show in BIM.
 - **Class boxes** hide or show element types. **Isolate** keeps only the selection, walls and floor.
-- **Section** cuts everything above a height, like a floor plan. **Download IFC** saves `model.ifc`
+- **Section** cuts everything above a height, like a floor plan. It switches to the Model look. **Download IFC** saves `model.ifc`
   (IFC4), which opens in BIM tools such as Bonsai.
 
-It is a simulation, not a survey. Solid elements have a fitted shape; see-through ones only have
-a bounding box, so pipes often look too big. Walls are the scan's outermost dense bands, and doors
-or openings aren't modelled. Tags made by rule or by eye show as `P-005?` and
+It is a simulation, not a survey. Shapes only cover what the scan and the object detection saw:
+hidden sides stay open, and a detection that caught only part of an object gives only that part.
+Meshes are smoothed 2-4 cm voxels, so thin parts can look bumpy. Walls are the scan's outermost
+dense bands, and doors or openings aren't modelled. Tags made by rule or by eye show as `P-005?` and
 `IdentityConfirmed: no`. Operator-added objects aren't in the model until `make bim` runs again.
 
 ## Move an object

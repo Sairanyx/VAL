@@ -172,3 +172,69 @@ def test_ifc_validates_and_places_geometry(tmp_path):
     np.testing.assert_allclose((lo[:2] + hi[:2]) / 2, [2.0, 2.0], atol=1e-3)
     pump = f.by_type("IfcPump")[0]
     assert ifcopenshell.util.element.get_psets(pump)["Valmet_Mapping"]["Tag"] == "P-005"
+
+
+def cube_surface(n=4000, side=0.4):
+    """Points on the surface of a cube from 0 to `side`."""
+    rng = np.random.default_rng(1)
+    pts = rng.uniform(0, side, (n, 3))
+    axis = rng.integers(0, 3, n)
+    pts[np.arange(n), axis] = rng.choice([0.0, side], n)
+    return pts
+
+
+def test_scan_mesh_follows_the_surface_and_faces_outwards():
+    from app.bim.shapes import object_mesh
+
+    mesh = object_mesh(cube_surface())
+    v, f = mesh["vertices"].astype(np.float64), mesh["faces"]
+    assert (v.min(0) > -0.05).all() and (v.max(0) < 0.45).all()
+    assert (v.max(0) - v.min(0) > 0.35).all()
+    signed = np.einsum("ij,ij->i", v[f[:, 0]], np.cross(v[f[:, 1]], v[f[:, 2]])).sum() / 6
+    assert signed > 0  # outward faces give a positive volume
+    assert object_mesh(np.zeros((3, 3))) is None
+
+
+def test_object_splats_use_labels_and_prefer_cut_pieces():
+    from app.bim.__main__ import object_splats
+    from app.scene.load import Splats
+
+    data = np.zeros(4, dtype=[("x", "<f4"), ("y", "<f4"), ("z", "<f4")])
+    data["x"] = [0, 1, 2, 3]
+    scene = Splats(data)
+    assets = [{"object_id": "a", "splats": 2}, {"object_id": "b", "splats": 1}]
+    piece = Splats(data[:1])
+    out = object_splats(scene, np.array([0, -1, 1, 0]), assets, {"b": piece})
+    assert out["a"].positions[:, 0].tolist() == [0, 3]
+    assert out["b"] is piece
+    with pytest.raises(ValueError, match="counts differ"):
+        object_splats(scene, np.array([0, 0, 0, 0]), assets, {})
+
+
+def test_ifc_writes_scan_meshes_as_triangles(tmp_path):
+    from app.bim.shapes import object_mesh
+
+    # A 0.4 m cube surface standing on the floor (y = 1 is the floor, +y down) around the pump.
+    points = cube_surface() - [0.2, 0.4, 0.2] + [0.0, 1.0, 0.0]
+    meshes = {"obj-1": object_mesh(points)}
+    m = build_model(assets_file(), SHAPES, model()["room"], meshes)
+    pump = next(e for e in m["elements"] if e["object_id"] == "obj-1")
+    assert pump["psets"]["Valmet_Geometry"]["Source"].startswith("scan surface mesh")
+    path = tmp_path / "model.ifc"
+    write_ifc(m, path, meshes=meshes)
+    assert path.read_text().count("IFCTRIANGULATEDFACESET(") == 1
+    pytest.importorskip("ifcopenshell")
+    import ifcopenshell.geom
+    import ifcopenshell.validate
+
+    f = ifcopenshell.open(str(path))
+    log = ifcopenshell.validate.json_logger()
+    ifcopenshell.validate.validate(f, log)
+    assert log.statements == []
+    settings = ifcopenshell.geom.settings()
+    settings.set("use-world-coords", True)
+    shape = ifcopenshell.geom.create_shape(settings, f.by_type("IfcPump")[0])
+    verts = np.array(shape.geometry.verts).reshape(-1, 3)
+    # Z is height above the floor: the cube spans 0 to 0.4 m, within a voxel.
+    assert verts[:, 2].min() == pytest.approx(0.0, abs=0.05)
+    assert verts[:, 2].max() == pytest.approx(0.4, abs=0.05)

@@ -1,6 +1,6 @@
 # yasasha: yasasha/bim
-**Goal:** BIM mode: a simulated, interactive BIM model of the room, plus an IFC export.
-**Done:** app/bim/ (room walls from scan density, IFC4 writer with no new dependency, bim.json), web/bim.js (BIM button, class filters, IFC properties, isolate, section cut, IFC download; moves and routes still work), `make bim`, `--bim` in serve.py, docs/USAGE.md.
-**Verified:** make check; tests/test_bim.py with IfcOpenShell: 0 schema issues on real model.ifc, 445 elements, geometry placed correctly. Chromium: enter/exit, tap P-005 (IfcPump), move follows, section, isolate, download.
-**Next:** Thin pipe shapes instead of bounding boxes; doors/openings; rebuild after operator edits.
-**Blockers:** none. Earlier: surface highlights merged in #19.
+**Goal:** BIM mode: a simulated, interactive BIM model of the room close to the real objects, plus IFC.
+**Done:** app/bim/ (room from scan density; per-object scan meshes and true-colour splats in shapes.py and __main__.py; IFC4 with triangulated meshes), web/bim.js (BIM button, Real/Model look, class filters, IFC properties, isolate, section, IFC download; moves follow), `make bim`, serve.py `--bim`, docs/USAGE.md.
+**Verified:** make check 223 passed. IfcOpenShell on real model.ifc: 0 schema issues, 445 elements built. Chromium (software GL): enter/exit, P-005 picked via its mesh, cart mesh and splats follow a move, section, isolate, download.
+**Next:** Check frame rate on a real GPU and tablet; merge partial detections (pallet jack) for fuller shapes.
+**Blockers:** none. web/ is Benjamin's area: ask him before merging.

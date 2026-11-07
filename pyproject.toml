@@ -19,6 +19,8 @@ dependencies = [
     "scikit-learn>=1.5",
     "matplotlib>=3.9",
     "tqdm>=4.66",
+    "fastapi>=0.162.0",
+    "uvicorn[standard]>=0.54.0",
 ]
 
 [dependency-groups]
@@ -26,6 +28,7 @@ dev = [
     "ruff>=0.7",
     "ipykernel>=6",
     "pytest>=8",
+    "httpx>=0.28.1",
 ]
 
 [tool.uv]

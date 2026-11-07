@@ -1,0 +1,13 @@
+What can we work on
+
+---
+
+When we view the rendered map in the viewer it looks really bad - is it a GPU issue or how does it work?
+
+---
+
+This is what it looks like right now
+
+---
+
+Do all of that and take a look at the original splat they gave us in the viewer why does it look so different

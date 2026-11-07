@@ -32,6 +32,7 @@ SEARCH_STEP = 0.1
 RING_WIDTH = 0.15  # metres around the patch whose color the copied floor should match
 MIN_DENSITY_SHARE = 0.7  # copied floor must have this share of the floor's splats around the patch
 DISTANCE_COST = 0.03  # color difference that one metre of extra distance is worth
+MATCH_DISTANCE = 1e-4  # metres: the same splat in another copy of the scene
 LOW_PART_OPACITY = 0.3
 LOW_PART_DIFFERENCE = 2.0  # summed color difference from the floor, in stored color units
 LOW_HEIGHT = 0.6  # metres: boxes starting lower than this above the floor sit on it
@@ -87,6 +88,28 @@ def split_movable(
         members &= ~taken
         taken |= members
         pieces[asset["object_id"]] = splats[members]
+    return splats[~taken], pieces
+
+
+def split_by_members(
+    splats: Splats, members: dict[str, np.ndarray]
+) -> tuple[Splats, dict[str, Splats]]:
+    """Split using saved member positions, from `app.scene.movable_members`.
+
+    Matching by position lets one set of members work on the full scene and on lighter copies.
+    """
+    from scipy.spatial import cKDTree
+
+    tree = cKDTree(splats.positions)
+    taken = np.zeros(len(splats), dtype=bool)
+    pieces = {}
+    for object_id, points in members.items():
+        distances, found = tree.query(points, distance_upper_bound=MATCH_DISTANCE)
+        mask = np.zeros(len(splats), dtype=bool)
+        mask[found[np.isfinite(distances)]] = True
+        mask &= ~taken
+        taken |= mask
+        pieces[object_id] = splats[mask]
     return splats[~taken], pieces
 
 
@@ -198,6 +221,7 @@ def main() -> None:
     parser.add_argument("assets", type=Path)
     parser.add_argument("out", type=Path)
     parser.add_argument("--objects", nargs="+", required=True)
+    parser.add_argument("--members", type=Path, help="members.npz, for cleaner cuts than a box")
     parser.add_argument("--up", type=float, nargs=3, default=(0.0, -1.0, 0.0))
     args = parser.parse_args()
     document = json.loads(args.assets.read_text())
@@ -208,7 +232,13 @@ def main() -> None:
     up = np.asarray(args.up, dtype=np.float64)
     floor_height = float(document["floor_y"]) * float(up @ np.array([0.0, 1.0, 0.0]))
     chosen = [by_id[i] for i in args.objects]
-    base, pieces = split_movable(read_splats(args.scene), chosen, floor_height, up)
+    scene = read_splats(args.scene)
+    if args.members:
+        with np.load(args.members) as saved:
+            members = {object_id: saved[object_id] for object_id in args.objects}
+        base, pieces = split_by_members(scene, members)
+    else:
+        base, pieces = split_movable(scene, chosen, floor_height, up)
     base, patches = patch_floor(base, chosen, document["assets"], floor_height, up)
     (args.out / "pieces").mkdir(parents=True, exist_ok=True)
     write_splats(base, args.out / "base.ply")

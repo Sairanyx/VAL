@@ -3,7 +3,12 @@ import pytest
 np = pytest.importorskip("numpy")
 
 from app.scene.load import Splats  # noqa: E402
-from app.scene.split_movable import find_clear_floor, patch_floor, split_movable  # noqa: E402
+from app.scene.split_movable import (  # noqa: E402
+    find_clear_floor,
+    patch_floor,
+    split_by_members,
+    split_movable,
+)
 
 UP = np.array([0.0, -1.0, 0.0])  # The scene's +y points down, with the floor at y = 1.
 
@@ -108,3 +113,12 @@ def test_a_low_base_unlike_the_floor_goes_with_its_object():
     base, pieces = split_movable(floor, [asset], -1.0, UP)
     assert len(pieces["chair"]) == int(under.sum())
     assert len(base) == len(floor) - int(under.sum())
+
+
+def test_members_are_found_by_position_even_in_a_lighter_copy():
+    pytest.importorskip("scipy")
+    light_copy = scene([[0.0, 0.5, 0.0], [3.0, 0.5, 0.0]])
+    members = {"cart": np.array([[0.0, 0.5, 0.0], [9.0, 9.0, 9.0]], dtype=np.float32)}
+    base, pieces = split_by_members(light_copy, members)
+    assert pieces["cart"].positions[:, 0].tolist() == [0.0]  # The missing splat is skipped.
+    assert base.positions[:, 0].tolist() == [3.0]

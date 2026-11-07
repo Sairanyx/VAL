@@ -299,6 +299,7 @@ export function setupPlan({
     const byTag = here.filter(
       (object) =>
         (object.asset.mapping?.tag ?? "").toLowerCase().includes(wanted) ||
+        (object.asset.name ?? "").toLowerCase().includes(wanted) ||
         object.asset.object_id.toLowerCase() === wanted,
     );
     const singular = wanted.replace(/s$/, "");

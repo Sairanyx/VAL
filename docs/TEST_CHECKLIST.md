@@ -20,10 +20,10 @@ brackets belong to that person.
 
 | Person | Parts up to and including Setup and pipeline |
 |---|---|
-| **Eduard** | Routes and nearby, Saving, Backend commands. Scoring: navigation, backend. Setup: database, nav-check, `./start` |
+| **Eduard** | Val. Scoring: navigation, backend. Setup: database, nav-check, `./start` |
 | **Viktor** | Changing objects. Plan. Setup: scene, pieces, highlights, BIM, pipeline, video to splat, updates |
 | **Sasha** | Selecting an object. BIM. Scoring: extraction. Setup: LiDAR decision |
-| **Hannu** | Val. Scoring: AI diagnostics. Setup: mapping, language models |
+| **Hannu** | Routes and nearby, Saving, Backend commands. Scoring: AI diagnostics. Setup: mapping, language models |
 | **Benjamin** | Main buttons, More menu, Tablet and speed. Scoring: demo |
 | **Everyone** | `make setup`, `make gpu`, `make check` on your own machine |
 
@@ -74,7 +74,7 @@ brackets belong to that person.
 - [ ] **Esc or phone back:** goes back one step. ✅ 🤖 KEEP
 
 ## Routes and nearby
-**Who: Eduard**
+**Who: Hannu**
 
 - [ ] **Route avoids obstacles:** never through walls or equipment. ✅ 🤖 KEEP. 383 of 384 passed
 - [ ] **Live updates while walking:** every 0.1 m. ✅ 🤖 KEEP. Check it isn't jumpy
@@ -104,7 +104,7 @@ brackets belong to that person.
 - [ ] **Old spot unblocks after a move:** known issue, it can stay blocked. 🟡 ❌ ADD a fix
 
 ## Saving
-**Who: Eduard**
+**Who: Hannu**
 
 - [ ] **Saved at once:** about 14 ms when you let go. ✅ 🤖 KEEP
 - [ ] **Survives a restart:** API and database. ✅ 🤖 KEEP
@@ -130,25 +130,28 @@ brackets belong to that person.
 - [ ] (Viktor) **Plan's scale:** not checked on site. 🟡 ❌ KEEP. Say it's generated
 
 ## Val
-**Who: Hannu**
+**Who: Eduard**
 
-- [ ] **Instant answer from records:** ✅ 🤖 KEEP
-- [ ] **"In plain words":** model summary, about 10 s on a ThinkPad. ✅ 👤 KEEP. Gemma's answers are terse
-- [ ] **What needs attention:** ranks devices. ✅ 🤖 KEEP
-- [ ] **What's wrong, what to check, last service:** with sources. ✅ 🤖 KEEP
-- [ ] **Take me there:** draws the route. ✅ 🤖 KEEP
-- [ ] **Follow-up questions:** "it" stays on the same machine. ✅ 🤖 KEEP
-- [ ] **Suggestions:** fit what's selected. ✅ 🤖 KEEP
-- [ ] **How Val knows:** evidence, causes, confidence. ✅ 🤖 KEEP
-- [ ] **Doesn't guess:** no records means it says so. ✅ 🤖 KEEP
-- [ ] **Safety refusal:** Hannu's rule. Misses "Shut down", "Close CV-003", "Isolate". 🟡 🤖 Hannu to DECIDE
-- [ ] **Safety refusal, false alarms:** refuses "What does drain mean?". 🟡 🤖 Hannu to DECIDE
-- [ ] **Gemma on a ThinkPad:** `./start laptop`. ✅ 👤 KEEP
+- [x] **Instant answer from records:** ✅ 🤖 KEEP
+- [x] **"In plain words":** model summary, about 10 s on a ThinkPad. ✅ 👤 KEEP. Gemma's answers are terse
+- [ ] **What needs attention:** ranks devices. Not confirmed yet: check the ranking makes sense. ✅ 🤖 KEEP
+- [x] **What's wrong, what to check, last service:** with sources. ✅ 🤖 KEEP
+- [x] **Take me there:** draws the route. ✅ 🤖 KEEP
+- [ ] **Rename "Take me there":** call it "Make path" or similar. It only draws the route and doesn't move you there. ❌ ❌ ADD
+- [x] **Follow-up questions:** "it" stays on the same machine. ✅ 🤖 KEEP
+- [x] **Suggestions:** fit what's selected. ✅ 🤖 KEEP
+- [x] **How Val knows:** evidence, causes, confidence. ✅ 🤖 KEEP
+- [x] **Doesn't guess:** no records means it says so. ✅ 🤖 KEEP
+- [ ] **Safety refusal:** not working. Misses "Shut down", "Close CV-003", "Isolate". It must reply "I can't do that". 🟡 🤖 Hannu to DECIDE
+- [ ] **Safety refusal, false alarms:** not working. "What does drain mean?" gets refused and repeats the previous message. Val must give its own reply. 🟡 🤖 Hannu to DECIDE
+- [ ] **Unclear or off-topic messages:** for vague or unrelated messages, Val says it doesn't understand. ❌ ❌ ADD
+- [ ] **Typing in Val's chat:** W, A, S and D move the view while typing. Keys must only go to the chat while it's in use. ❌ 👤 ADD
+- [x] **Gemma on a ThinkPad:** `./start laptop`. ✅ 👤 KEEP
 - [ ] **Qwen on the 5090:** `make model`. ✅ ❌ KEEP. Test the 9B beside the viewer
-- [ ] **60-question copilot test:** ❌ ❌ ADD. Must not be cut
-- [ ] **Answers read aloud:** Voice on or off. May need `speech-dispatcher`. ✅ 👤 KEEP if it works
-- [ ] **Speaking to Val:** ❌ ❌ DECIDE. Needs offline speech-to-text. First to cut
-- [ ] **Val doing actions by voice:** commands exist, with nothing connecting speech. 🟡 ❌ DECIDE
+- [ ] **60-question copilot test:** not done. ❌ ❌ ADD. Must not be cut
+- [ ] **Answers read aloud:** we don't need Val to talk. ✅ 👤 CUT
+- [ ] **Speaking to Val:** to do. Needs offline speech-to-text. ❌ ❌ ADD. First to cut
+- [ ] **Val doing actions:** to do. Link every button to phrases that trigger it. The target comes from the device named in the sentence, or from what's selected. If it's unclear, Val asks. Commands exist, with nothing connecting them. 🟡 ❌ ADD
 
 ## Tablet and speed
 **Who: Benjamin**
@@ -164,7 +167,7 @@ brackets belong to that person.
 - [ ] **Pre-made 3D models for nearby objects:** ❌ ❌ DECIDE. Parked, with the VR mode
 
 ## Backend commands
-**Who: Eduard**
+**Who: Hannu**
 
 - [ ] **Every viewer action as a command:** `POST /api/viewer/commands`. ✅ 🤖 KEEP
 - [ ] **Action list:** `GET /api/viewer/actions`. ✅ 🤖 KEEP

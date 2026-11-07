@@ -19,7 +19,11 @@ make model      # optional, about 20 GB: the copilot's language model
 Run these with internet. The demo itself needs none.
 
 ## Run it
-Use two terminals. **Both must run, and both must use the same objects.**
+**The short way:** `./start browser` on a laptop or PC, or `./start tablet` for the Lenovo. Each starts the
+database, API, and viewer, and prints the address to open. Ctrl+C stops it. `make start-browser` and
+`make start-tablet` do the same.
+
+**Step by step:** Use two terminals. **Both must run, and both must use the same objects.**
 ```bash
 make api
 make web SCENE=data/scene/equipment_room/cut/base.ply ASSETS=data/scene/equipment_room/assets_mapped.json SHAPES=data/scene/equipment_room/shapes.json PIECES=data/scene/equipment_room/cut

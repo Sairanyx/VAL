@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Start the whole demo with one command. Ctrl+C stops it.
+#
+#   ./start browser    Laptop or PC: full-quality scene, mouse layout
+#   ./start tablet     Lenovo tablet: lighter scene, touch layout, prints the address to open
+#
+# Add --https to the tablet for motion sensors. It shows a certificate warning once.
+set -euo pipefail
+cd "$(dirname "$0")"
+
+usage() {
+  sed -n '4,5p;7p' "$0" | sed 's/^# \?//'
+  exit 1
+}
+
+VERSION="${1:-}"
+[[ "$VERSION" == "browser" || "$VERSION" == "tablet" ]] || usage
+HTTPS_FLAG=""
+[[ "${2:-}" == "--https" ]] && HTTPS_FLAG="HTTPS=1"
+
+SCENE_DIR="data/scene/equipment_room"
+ASSETS="$SCENE_DIR/assets_mapped.json"
+for needed in "$ASSETS" "$SCENE_DIR/nav_grid.npz" "$SCENE_DIR/cut/base.ply"; do
+  if [[ ! -f "$needed" ]]; then
+    echo "Missing $needed. Run this once, with internet: make scene mapping pieces highlights"
+    exit 1
+  fi
+done
+
+for port in 8000 8001; do
+  if ss -ltn 2>/dev/null | grep -q ":$port "; then
+    echo "Port $port is in use, so the demo may already be running. Stop that first."
+    exit 1
+  fi
+done
+
+if [[ "$VERSION" == "tablet" ]]; then
+  CUT="$SCENE_DIR/cut_light"
+  if [[ ! -f "$CUT/base.ply" ]]; then
+    echo "Cutting a lighter scene for the tablet, once..."
+    make pieces PIECES_FROM="$SCENE_DIR/light_full.ply" PIECES_DIR="$CUT"
+  fi
+else
+  CUT="$SCENE_DIR/cut"
+fi
+
+# Saves changes across restarts. The demo still runs without it.
+make db || echo "No database, so changes last until the API stops."
+
+# Stops the API and viewer together, including on Ctrl+C.
+trap 'trap - EXIT TERM INT; kill 0 2>/dev/null || true' EXIT TERM INT
+make api &
+
+SCHEME="http"
+[[ -n "$HTTPS_FLAG" ]] && SCHEME="https"
+echo
+if [[ "$VERSION" == "tablet" ]]; then
+  ADDRESS="$(ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p')"
+  echo "Tablet: open $SCHEME://${ADDRESS:-THIS-MACHINE-IP}:8000 on the same network."
+  echo "If it can't connect, allow the ports: sudo ufw allow 8000/tcp"
+else
+  echo "Browser: open $SCHEME://localhost:8000"
+fi
+echo
+
+make web SCENE="$CUT/base.ply" ASSETS="$ASSETS" SHAPES="$SCENE_DIR/shapes.json" PIECES="$CUT" $HTTPS_FLAG

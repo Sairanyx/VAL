@@ -1,0 +1,75 @@
+{
+  "cli_version": "0.13.1",
+  "checkpoint_id": "01M6VV1CVX87TSPT1TSM0KHVBQ",
+  "strategy": "manual-commit",
+  "branch": "viktor/laptop-demo",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".gitignore",
+    "AGENTS.md",
+    "Makefile",
+    "README.md",
+    "app/api/commands.py",
+    "app/copilot/viewer_actions.py",
+    "docs/ARCHITECTURE.md",
+    "docs/CHALLENGE.md",
+    "docs/DEVLOG.md",
+    "docs/PITCH.md",
+    "docs/PLAN.md",
+    "docs/RESULTS.md",
+    "docs/TEST_CHECKLIST.md",
+    "docs/USAGE.md",
+    "handoffs/viktortrilar.md",
+    "scripts/laptop/README.txt",
+    "scripts/laptop/START-LINUX.sh",
+    "scripts/laptop/START-MAC.command",
+    "scripts/laptop/START-WINDOWS.bat",
+    "scripts/laptop/requirements-export.in",
+    "scripts/laptop/requirements-voice.in",
+    "scripts/laptop/requirements.in",
+    "scripts/laptop/run_demo.py",
+    "scripts/make_bundle.py",
+    "tests/test_copilot_voice.py",
+    "tests/test_laptop_bundle.py",
+    "web/avatar.js",
+    "web/bim.js",
+    "web/index.html",
+    "web/main.js",
+    "web/pacing.js",
+    "web/route.js",
+    "web/serve.py",
+    "web/style.css",
+    "web/tour.js",
+    "web/views.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 60,
+    "cache_creation_tokens": 141676,
+    "cache_read_tokens": 6883963,
+    "output_tokens": 81586,
+    "api_call_count": 27
+  },
+  "redaction": {
+    "replacements": 201,
+    "layers": {
+      "betterleaks": 21,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 18,
+      "credentialed_uri": 4,
+      "entropy": 28,
+      "key_context": 148,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

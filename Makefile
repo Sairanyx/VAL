@@ -21,7 +21,7 @@ tb:      ## training graphs at http://localhost:6006
 	uv run tensorboard --logdir runs
 SCENE ?= data/scene/sample/scene.ply
 web:     ## web viewer on port 8000, SCENE= picks the splat, HTTPS=1 for phone sensors
-	uv run python web/serve.py --scene "$(SCENE)" $(if $(HTTPS),--https)
+	uv run python web/serve.py --scene "$(SCENE)" $(if $(HTTPS),--https) $(if $(ASSETS),--assets "$(ASSETS)") $(if $(SHAPES),--shapes "$(SHAPES)")
 fmt:     ## tidy code style and auto-fix lint
 	uv run --only-group dev ruff format .
 	uv run --only-group dev ruff check --fix .

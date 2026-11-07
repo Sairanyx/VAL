@@ -9,7 +9,8 @@ numbers feed the scene comparison, slides, and technical note, so only record wh
 | Assets framed | Not run | Not built |
 | Junk boxes, out of 30 sampled | Not run | Not built |
 | Route reaches `P-005` without clipping | Not run | Not built |
-| Floor area connected | Not run | Not built |
+| Floor area connected | Not run | Not run |
+| Held-out views, 40 frames, against real photos (Valmet aligned by ICP, which may lower its score) | 11.82 dB | 26.57 dB, and clearly better by eye |
 
 ## Runs
 | Date | Owner | Step | Scene or input | Settings | Result | Time | Peak memory | Machine |
@@ -25,6 +26,7 @@ numbers feed the scene comparison, slides, and technical note, so only record wh
 | 2026-11-07 | Viktor | Qwen3.5-4B labels on single-view crops | 60 crops from 20 views | Fixed label list, masked crop | 28 unknown. Finds real motors and tanks, but the "pump" labels I checked were wrong. Confidence is only ever 0 or 0.9 | 0.94 s per crop | 9.4 GB VRAM | Roihu L40 |
 | 2026-11-07 | Viktor | Object label benchmark, 48 random objects, rough hand labels | `lift_v1` objects | Compared with SAM labels at 54% exact | Qwen3.5-4B: 1 view 52%, 3 views 62%, 5 views 65%. Qwen3.5-9B 3 views 54%, with 22 wrong claims vs 15. Equipment accuracy not checked | Full run about 6 min | | Roihu L40 |
 | 2026-11-07 | Viktor | Labels against an AI visual review of the 210 largest objects (not human-verified) | `lift_v1` objects | SAM, Qwen3.5-4B with 5 views, graded rule | Named labels agreeing with the review: SAM 52%, Qwen 59%, graded 78% (94 of 210 named). Qwen said pump 17 times; only about 2 matched | | | Roihu L40 |
+| 2026-11-07 | Viktor | Own 3DGS (`app/scene/train_splat.py`) | COLMAP cameras, 1,179 frames | 30,000 steps, gsplat | 3,184,658 splats, 752 MB, held-out 26.41 dB on 187 frames | 25 min | 5.9 GB VRAM | Roihu L40 |
 | 2026-11-07 | Viktor | COLMAP, 1,500 frames | `Industrial Boiler Room` video | OPENCV, sequential, loop detection | 1,496 frames in one model, 252,645 points, 1.06 px. Job crashed on exit, output complete | About 4.5 h | 8.6 GB RAM | Roihu, 32 CPUs |
 | 2026-11-07 | Viktor | Labelling by matching image features, held out, against an AI review of 441 objects (not human-verified) | 362 named objects | 5-nearest neighbours | CLIP B/16 62%, L/14 63%, DINOv2 B 61%, L 57%, vs Qwen 54%, SAM 52%. Finds tanks and pipes; no feature set found valves, and at most 1 of 4 pumps | Minutes | | Roihu L40 |
 | 2026-11-07 | Viktor | Object look: meshes vs fitted shapes | `lift_v1` objects | Depth-fused meshes on 10 objects, and cylinders and boxes on tanks, buckets, boxes, cabinets | Meshes are bumpy, thin parts break up, pumps look like rocks. Shapes look clean: 48 of 60 fit above score 0.5, 18 cylinders, 30 boxes. Some tanks score low | Seconds locally | | ThinkPad, Roihu CPU |

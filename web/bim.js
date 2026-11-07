@@ -1,7 +1,8 @@
 // BIM mode: a simulated model of the room instead of the scan. Data: /bim.json from app/bim, with
 // meshes.bin (scan surface meshes) and bim/splats/ (each object's own scanned splats).
-// Two looks: "real" shows the objects' true-colour splats in the estimated room, "model" shows
-// their meshes coloured by IFC class. Meshes are also what taps hit, in both looks.
+// Three looks: "real" shows the objects' true-colour splats in the estimated room, "mesh" shows
+// meshes built from those splats, and "box" the simple shapes: fitted boxes and cylinders, or
+// bounding boxes. All but "real" are coloured by IFC class. Taps hit the mesh, or the box in "box".
 // Everything is in scene coordinates inside `root`, like the scan, so moves and routes line up.
 import * as THREE from "three";
 import { SplatMesh } from "@sparkjsdev/spark";
@@ -58,24 +59,28 @@ export async function setupBim({
   const items = model.elements.map((element) => {
     const object = element.object_id ? byId.get(element.object_id) : null;
     const fault = element.psets.Valmet_Mapping?.Tag === faultTag;
-    const mesh = makeMesh(element, fault, section, meshData);
-    group.add(mesh);
-    return {
-      element,
-      object,
-      mesh,
-      fault,
-      home: mesh.position.clone(),
-      volume: volume(element.geometry),
-      solid: !mesh.material.transparent,
-      splats: null,
-    };
+    const scan = element.mesh && meshData ? makeMesh(element, fault, section, meshData) : null;
+    const box = makeMesh(element, fault, section, null);
+    const item = { element, object, fault, scan, box, mesh: scan ?? box, splats: null };
+    for (const mesh of [scan, box].filter(Boolean)) {
+      mesh.userData.item = item;
+      mesh.userData.home = mesh.position.clone();
+      const { transparent, opacity, depthWrite } = mesh.material;
+      mesh.userData.base = { transparent, opacity, depthWrite };
+      mesh.visible = mesh === item.mesh;
+      group.add(mesh);
+    }
+    item.volume = volume(element.geometry);
+    return item;
   });
 
   const hasSplats = items.some((item) => item.element.splats);
+  const hasScan = items.some((item) => item.scan);
+  const looks = [hasSplats && "real", hasScan && "mesh", "box"].filter(Boolean);
+  const LOOK_NAMES = { real: "Real", mesh: "Mesh", box: "Box" };
   const state = {
     active: false,
-    look: hasSplats ? "real" : "model",
+    look: looks[0],
     selected: null,
     isolated: false,
     hidden: new Set(),
@@ -113,7 +118,7 @@ export async function setupBim({
 
   function wireControls() {
     document.getElementById("bim-look").onclick = () =>
-      setLook(state.look === "real" ? "model" : "real");
+      setLook(looks[(looks.indexOf(state.look) + 1) % looks.length]);
     document.getElementById("bim-isolate").onclick = () => {
       state.isolated = !state.isolated && Boolean(state.selected);
       if (state.isolated) ownSplats(state.selected);
@@ -125,8 +130,8 @@ export async function setupBim({
     slider.oninput = () => {
       const height = Number(slider.value);
       state.cut = height >= max ? null : height;
-      // Splats can't be cut, so a section switches to the model look.
-      if (state.cut !== null && state.look === "real") setLook("model");
+      // Splats can't be cut, so a section switches to the next look.
+      if (state.cut !== null && state.look === "real") setLook(looks[1]);
       text.textContent = state.cut === null ? "off" : `${height.toFixed(1)} m`;
     };
   }
@@ -158,11 +163,16 @@ export async function setupBim({
   }
 
   function setLook(look) {
-    state.look = look === "real" && hasSplats ? "real" : "model";
+    state.look = looks.includes(look) ? look : looks[0];
     if (state.look === "real") loadSplats();
-    document.getElementById("bim-look").textContent =
-      state.look === "real" ? "Look: Real" : "Look: Model";
-    for (const item of items) styleItem(item);
+    document.getElementById("bim-look").textContent = `Look: ${LOOK_NAMES[state.look]}`;
+    for (const item of items) {
+      const previous = item.mesh;
+      item.mesh = state.look === "box" ? item.box : (item.scan ?? item.box);
+      if (previous !== item.mesh) previous.visible = false;
+      item.mesh.visible = visible(item);
+      styleItem(item);
+    }
   }
 
   function setActive(on) {
@@ -180,7 +190,9 @@ export async function setupBim({
 
   // In the real look, meshes stay as invisible tap targets, except the selection, tinted.
   function styleItem(item) {
-    const material = item.mesh.material;
+    const mesh = item.mesh;
+    const material = mesh.material;
+    const base = mesh.userData.base;
     const real = state.look === "real" && Boolean(item.element.splats);
     const selected = item === state.selected;
     material.visible = !real || selected;
@@ -192,9 +204,9 @@ export async function setupBim({
       material.emissive.setHex(0x000000);
     } else {
       material.color.setHex(item.fault ? FAULT_COLOR : (CLASS_COLORS[item.element.ifc_class] ?? 0x9ca3af));
-      material.transparent = item.baseTransparent;
-      material.opacity = item.baseOpacity;
-      material.depthWrite = item.baseDepthWrite;
+      material.transparent = base.transparent;
+      material.opacity = base.opacity;
+      material.depthWrite = base.depthWrite;
       material.emissive.setHex(selected ? SELECTED_GLOW : 0x000000);
     }
     material.needsUpdate = true;
@@ -209,7 +221,13 @@ export async function setupBim({
   function select(item, notify = true) {
     const previous = state.selected;
     state.selected = item;
-    if (previous) styleItem(previous);
+    if (previous) {
+      // The shape not on show may still carry an old selection glow.
+      for (const mesh of [previous.scan, previous.box].filter(Boolean)) {
+        mesh.material.emissive.setHex(0x000000);
+      }
+      styleItem(previous);
+    }
     if (!item) {
       props.replaceChildren();
       return;
@@ -252,7 +270,9 @@ export async function setupBim({
       item.mesh.visible = visible(item);
       if (item.object) {
         offset.set(...item.object.asset.center);
-        item.mesh.position.copy(item.home).add(item.object.center).sub(offset);
+        for (const mesh of [item.scan, item.box].filter(Boolean)) {
+          mesh.position.copy(mesh.userData.home).add(item.object.center).sub(offset);
+        }
         if (item.splats) {
           item.splats.position.copy(item.object.center).sub(offset);
           // Class files hold this object too, so its own file only shows on its own when isolated.
@@ -284,7 +304,7 @@ export async function setupBim({
     for (const item of hits) {
       if (ROOM.has(item.element.ifc_class)) continue;
       equipment.push(item);
-      if (item.solid) break;
+      if (!item.mesh.userData.base.transparent) break;
     }
     const pool = equipment.length ? equipment : hits.slice(0, 1);
     const item = pool.length ? pool.reduce((a, b) => (b.volume < a.volume ? b : a)) : null;
@@ -292,13 +312,7 @@ export async function setupBim({
     return item;
   }
 
-  for (const item of items) {
-    item.mesh.userData.item = item;
-    item.baseTransparent = item.mesh.material.transparent;
-    item.baseOpacity = item.mesh.material.opacity;
-    item.baseDepthWrite = item.mesh.material.depthWrite;
-  }
-  document.getElementById("bim-look").hidden = !hasSplats;
+  document.getElementById("bim-look").hidden = looks.length < 2;
   return {
     state,
     setActive,

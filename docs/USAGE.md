@@ -47,14 +47,16 @@ For a different scene, pass its own `HIGHLIGHTS=path/to/highlights`, or disable 
 
 ## BIM mode
 Run `make bim`, then restart your viewer and press **BIM**. The scan is replaced by a simulated
-model: estimated walls and floor, plus one IFC element per detected object. **Look** switches between:
+model: estimated walls and floor, plus one IFC element per detected object. **Look** cycles through:
 - **Real**: each object's own scanned splats, in true colour and full detail, in the clean room.
-- **Model**: a mesh built from those same splats, coloured by IFC class. This is also the shape in
+- **Mesh**: a mesh built from those same splats, coloured by IFC class. This is also the shape in
   `model.ifc`, so it follows the real object instead of a box.
+- **Box**: simple shapes, coloured by IFC class: fitted boxes and cylinders, or see-through
+  bounding boxes where no shape was fitted.
 - **Tap an element** to see its IFC class, GlobalId and properties. Equipment also opens the normal
   panel, so **Ask copilot**, **Route here** and **Move on floor** still work, and moves show in BIM.
 - **Class boxes** hide or show element types. **Isolate** keeps only the selection, walls and floor.
-- **Section** cuts everything above a height, like a floor plan. It switches to the Model look. **Download IFC** saves `model.ifc`
+- **Section** cuts everything above a height, like a floor plan. It switches to the Mesh look. **Download IFC** saves `model.ifc`
   (IFC4), which opens in BIM tools such as Bonsai.
 
 It is a simulation, not a survey. Shapes only cover what the scan and the object detection saw:

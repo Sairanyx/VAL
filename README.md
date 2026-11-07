@@ -19,6 +19,7 @@ Should end by printing your GPU name.
 ## Commands
 | Command | What it does |
 |---|---|
+| `make db` | Start local TimescaleDB and load the Excel telemetry |
 | `make train` | Train a model |
 | `make tb` | Training graphs at http://localhost:6006 |
 | `make fmt` | Tidy code style and auto-fix lint |

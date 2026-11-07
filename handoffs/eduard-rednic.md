@@ -1,7 +1,7 @@
-# eduard-rednic: eduard-height
+# eduard-rednic: eduard-timescale
 **Goal:** floor, routing, nearby search and backend API (`app/nav/`, `app/api/`), per docs/PLAN.md.
-**Done:** merged Viktor's PR #3 work and Hannu's copilot with main. `app/api/copilot_link.py` connects `/api/copilot/query` and asset details to the Excel store. Routes use `robot` or `person`. `/` redirects to `/docs`.
-**Verified:** `make check` passes. Live on `splat_v2` with the Excel pack: `P-005` diagnosis, service history, route, nearby. Excel pack goes in `data/`.
-**Next:** only `obj-0048` has an Excel record, so map more objects (Hannu, 30% score); Benjamin draws routes; TimescaleDB on the 5090; changes are still in memory.
-**Decided:** `fixtures/sample_assets.json` uses the real `assets.json` format. Hannu's old fixture is `fixtures/copilot_assets.json`, for his tests only.
-**Blockers:** none. Open: whether scene units are truly metres; a person confirming `P-005`.
+**Done:** `make db` starts local TimescaleDB and loads Excel telemetry (`app/api/db.py`). Scene changes survive a restart, asset details read telemetry from the database, and `GET /api/health` shows what's connected. `add_telemetry` takes a `source`, ready for simulated data.
+**Verified:** `make check` passes, 135 tests. Live: 4,320 rows, move survives restart, reset clears it, API runs with the database stopped.
+**Next:** simulated machine data and diagnostics; viewer uses `assets_mapped.json` and draws routes (Benjamin).
+**Hannu:** the copilot still reads telemetry from Excel, so simulated data needs his side too. Leave his rules to him.
+**Blockers:** none. Open: if the database drops while the API runs, saving a change errors; whether self-hosted counts for the Tiger Data prize; scene units; a person confirming `P-005`.

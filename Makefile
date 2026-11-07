@@ -1,11 +1,12 @@
 VIEWS_TAG ?= views-v1
 VIEWS_FILE ?= equipment_room_views_v1.tar
+DATABASE_URL ?= postgresql://copilot:copilot@127.0.0.1:5433/copilot
 SCENE_TAG ?= scene-v2
 SCENE_FILE ?= scene_v2.tar
 SCENE_DIR ?= data/scene/splat_v2
 SCENE_FULL ?= clean.ply
 
-.PHONY: setup entire views scene scene-full gpu train tb web fmt lint test check up api floor
+.PHONY: setup entire views scene scene-full gpu train tb web fmt lint test check up api floor mapping db
 
 setup:   ## install everything
 	uv sync
@@ -32,10 +33,16 @@ scene-full: ## get the full-quality scene (513 MB), for the viewer on a PC and r
 	@echo "Viewer: make web SCENE=$(SCENE_DIR)/$(SCENE_FULL) ASSETS=$(SCENE_DIR)/assets_viewer.json SHAPES=$(SCENE_DIR)/shapes.json"
 gpu:     ## check the GPU works
 	uv run python -m app.gpu_check
+db:      ## start local TimescaleDB and load the Excel telemetry
+	docker compose up -d --wait db
+	DATABASE_URL=$(DATABASE_URL) uv run python -m app.api.db
 api:     ## backend API at http://localhost:8001/docs
+	DATABASE_URL=$(DATABASE_URL) \
 	uv run uvicorn app.api.main:app --host 0.0.0.0 --port 8001 --reload
 floor:   ## floor map: make floor SCENE="path/to/Equipment Room.ply"
 	uv run python -m app.nav.grid "$(SCENE)" --out data/scene/equipment_room/nav_grid.npz --preview runs/floor.png
+mapping: ## link Excel records to objects, marking them procedural
+	uv run python -m app.copilot.mapping $(SCENE_DIR)
 train:   ## train a model
 	uv run python -m app.train
 tb:      ## training graphs at http://localhost:6006

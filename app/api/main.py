@@ -16,6 +16,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from app.api.copilot_link import ask, condition, details, load_engine
+from app.api.db import open_database
 from app.api.store import ChangeError, SceneStore
 from app.nav.grid import NavGrid, load_grid
 from app.nav.route import BODIES, NoRoute, placeholder_route, plan_route
@@ -56,9 +57,11 @@ def create_app(
     assets_path: Path | str | None = None,
     grid: NavGrid | Path | str | None = None,
     engine=None,
+    database=None,
 ) -> FastAPI:
     engine = engine or load_engine()
-    store = SceneStore(Path(assets_path or os.getenv("SCENE_ASSETS", DEFAULT_ASSETS)))
+    database = database or open_database()
+    store = SceneStore(Path(assets_path or os.getenv("SCENE_ASSETS", DEFAULT_ASSETS)), database)
     grid = grid or os.getenv("SCENE_GRID")
     if isinstance(grid, str | Path):
         grid = load_grid(Path(grid))
@@ -81,6 +84,15 @@ def create_app(
     def home() -> RedirectResponse:
         return RedirectResponse("/docs")
 
+    @app.get("/api/health")
+    def health() -> dict:
+        return {
+            "database": database is not None,
+            "copilot": engine is not None,
+            "floor_map": grid is not None,
+            "objects": len(store.visible()),
+        }
+
     @app.get("/api/assets")
     def list_assets() -> dict:
         return {
@@ -94,7 +106,11 @@ def create_app(
     def get_asset(object_id: str) -> dict:
         asset = with_condition(require(object_id))
         if engine:
-            return {**asset, **details(asset, engine.store)}
+            found = {**asset, **details(asset, engine.store)}
+            asset_id = (asset.get("mapping") or {}).get("asset_id")
+            if database and asset_id:
+                found["telemetry"] = database.telemetry(asset_id)
+            return found
         return {**asset, "telemetry": [], "events": [], "maintenance": [], "documents": []}
 
     @app.get("/api/nearby")

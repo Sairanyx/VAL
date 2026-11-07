@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bu8b30pru</task-id>
+<tool-use-id>toolu_01XLVDaKnXBpL24ickQU8qQ9</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/bu8b30pru.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the evaluation to finish" completed (exit code 0)</summary>
+</task-notification>

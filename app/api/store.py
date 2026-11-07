@@ -22,13 +22,23 @@ def box_distance(asset: dict, point: tuple[float, float, float]) -> float:
 
 
 class SceneStore:
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, database=None):
         self.path = Path(path)
         self.scene = json.loads(self.path.read_text())
-        self.reset()
+        self.database = database
+        self.scene_id = str(self.scene.get("scene_id", self.path.stem))
+        self._restore_base()
+        if database:
+            for change in database.load_changes(self.scene_id):
+                self._apply(change["op"], change["object_id"], change["position"])
 
     def reset(self) -> None:
-        """Restore the base scan's objects. The file itself is never overwritten."""
+        """Restore the base scan's objects and forget saved changes. The file isn't overwritten."""
+        self._restore_base()
+        if self.database:
+            self.database.clear_changes(self.scene_id)
+
+    def _restore_base(self) -> None:
         self.assets = {a["object_id"]: copy.deepcopy(a) for a in self.scene["assets"]}
         for asset in self.assets.values():
             asset.setdefault("mobility", "unsure")
@@ -47,6 +57,12 @@ class SceneStore:
         return [{**a, "distance": round(d, 3)} for d, a in close]
 
     def apply(self, op: str, object_id: str | None, position: list[float] | None) -> dict:
+        change = self._apply(op, object_id, position)
+        if self.database:
+            self.database.save_change(self.scene_id, change)
+        return change
+
+    def _apply(self, op: str, object_id: str | None, position: list[float] | None) -> dict:
         if op == "add":
             asset = self._add(position)
         else:

@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from app.api.copilot_link import ask, condition, details, load_engine
 from app.api.db import open_database
 from app.api.store import ChangeError, SceneStore
+from app.copilot.llm import load_writer
 from app.nav.grid import NavGrid, load_grid
 from app.nav.route import BODIES, NoRoute, placeholder_route, plan_route
 
@@ -60,6 +61,7 @@ def create_app(
     database=None,
 ) -> FastAPI:
     engine = engine or load_engine()
+    writer = load_writer() if engine else None
     database = database or open_database()
     store = SceneStore(Path(assets_path or os.getenv("SCENE_ASSETS", DEFAULT_ASSETS)), database)
     grid = grid or os.getenv("SCENE_GRID")
@@ -161,7 +163,7 @@ def create_app(
         if request.object_id:
             require(request.object_id)
         if engine:
-            answer = ask(engine, store.visible(), request.question, request.object_id)
+            answer = ask(engine, store.visible(), request.question, request.object_id, writer)
             return {**answer, "placeholder": False}
         return {
             "answer": "The copilot isn't connected yet.",

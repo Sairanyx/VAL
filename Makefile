@@ -6,8 +6,10 @@ SCENE_TAG ?= objects-v2
 SCENE_FILE ?= objects_v2.tar
 SCENE_DIR ?= data/scene/equipment_room
 SCENE_FULL ?= clean.ply
+MODEL ?= Qwen3.5-9B
+MODEL_DIR ?= data/models/$(MODEL)
 
-.PHONY: setup entire views scene scene-full gpu train tb web fmt lint test check up api floor mapping db nav-check
+.PHONY: setup entire views scene scene-full model gpu train tb web fmt lint test check up api floor mapping db nav-check
 
 setup:   ## install everything
 	uv sync
@@ -33,13 +35,15 @@ scene-full: ## get our own full-quality splat (513 MB). The demo uses the origin
 	mkdir -p $(SCENE_DIR)
 	gh release download scene-v2 --pattern $(SCENE_FULL) --dir data/scene/splat_v2 --clobber
 	@echo "Viewer: make web SCENE=data/scene/splat_v2/$(SCENE_FULL) ASSETS=$(SCENE_DIR)/assets_viewer.json SHAPES=$(SCENE_DIR)/shapes.json"
+model:   ## download the copilot's language model once, before going offline (about 20 GB)
+	uv run python -c "from huggingface_hub import snapshot_download as s; s('Qwen/$(MODEL)', local_dir='$(MODEL_DIR)', allow_patterns=['*.safetensors', '*.json', '*.txt', '*.jinja', 'merges*', 'vocab*'])"
 gpu:     ## check the GPU works
 	uv run python -m app.gpu_check
 db:      ## start local TimescaleDB and load the Excel telemetry
 	docker compose up -d --wait db
 	DATABASE_URL=$(DATABASE_URL) uv run python -m app.api.db
-api:     ## backend API at http://localhost:8001/docs
-	DATABASE_URL=$(DATABASE_URL) SCENE_ASSETS=$(SCENE_DIR)/assets_mapped.json SCENE_GRID=$(SCENE_DIR)/nav_grid.npz \
+api:     ## backend API at http://localhost:8001/docs. Uses the language model if make model has run
+	$(if $(wildcard $(MODEL_DIR)/config.json),COPILOT_MODEL=$(MODEL_DIR)) DATABASE_URL=$(DATABASE_URL) SCENE_ASSETS=$(SCENE_DIR)/assets_mapped.json SCENE_GRID=$(SCENE_DIR)/nav_grid.npz \
 	uv run uvicorn app.api.main:app --host 0.0.0.0 --port 8001 --reload
 floor:   ## rebuild the floor map (make scene includes one), needs "Equipment Room.ply" in SCENE_DIR. Pass VIEWS=, or floaters block aisles
 	uv run python -m app.nav.grid "$(FLOOR_SCENE)" $(if $(VIEWS),--views $(VIEWS)) $(if $(wildcard $(SCENE_DIR)/walked.npy),--walked $(SCENE_DIR)/walked.npy) --labels $(SCENE_DIR)/splat_labels.npy --assets $(SCENE_DIR)/assets_final.json --out $(SCENE_DIR)/nav_grid.npz --preview runs/floor.png

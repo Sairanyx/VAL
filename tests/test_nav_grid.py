@@ -3,7 +3,7 @@ import pytest
 np = pytest.importorskip("numpy")
 pytest.importorskip("scipy")
 
-from app.nav.grid import build_nav_grid, largest_region  # noqa: E402
+from app.nav.grid import build_nav_grid, largest_region, vacate  # noqa: E402
 
 
 def room():
@@ -86,3 +86,41 @@ def test_grid_round_trips_through_a_file(tmp_path):
     assert loaded.axes == grid.axes
     assert loaded.cell == pytest.approx(grid.cell)
     np.testing.assert_array_equal(loaded.free, grid.free)
+
+
+def moved_away():
+    """A cart stood at x and z from 0.8 to 1.4, hiding the floor under it. A cabinet overlaps its
+    box, from x 1.3 to 1.6."""
+    rng = np.random.default_rng(1)
+    floor = rng.uniform([0, 0, 0], [4, 0, 4], (60000, 3))
+    under = (floor[:, 0] > 0.8) & (floor[:, 0] < 1.4) & (floor[:, 2] > 0.8) & (floor[:, 2] < 1.4)
+    floor = floor[~under]
+    cart = rng.uniform([0.8, -1.0, 0.8], [1.4, -0.2, 1.4], (6000, 3))
+    cabinet = rng.uniform([1.3, -1.8, 0.8], [1.6, -0.2, 1.4], (6000, 3))
+    points = np.concatenate([floor, cart, cabinet])
+    own = np.zeros(len(points), dtype=bool)
+    own[len(floor) : len(floor) + len(cart)] = True
+    return points, np.ones(len(points)), own
+
+
+def test_a_moved_objects_old_spot_opens_but_what_else_stood_there_still_blocks():
+    points, opacity, own = moved_away()
+    grid = build_nav_grid(points, opacity, (0, -1, 0), floor_height=0.0)
+
+    def cell(x, z):
+        return tuple(((np.array([x, z]) - grid.origin) / grid.cell).astype(int))
+
+    assert not grid.free[cell(1.0, 1.1)]
+    opened = vacate(grid, points, opacity, own, [([0.8, -1.0, 0.8], [1.4, -0.2, 1.4])])
+    assert opened.free[cell(1.0, 1.1)]  # unseen floor, but the cart stood on it
+    assert opened.clearance_low[cell(1.0, 1.1)] > 0
+    assert not opened.free[cell(1.35, 1.1)]  # the cabinet, inside the cart's old box
+    assert not opened.free[cell(1.5, 1.1)]
+    assert opened.free.sum() > grid.free.sum()
+    assert opened.clearance[cell(1.0, 1.1)] > 0
+
+
+def test_nothing_left_keeps_the_map():
+    points, opacity, own = moved_away()
+    grid = build_nav_grid(points, opacity, (0, -1, 0), floor_height=0.0)
+    assert vacate(grid, points, opacity, own, []) is grid

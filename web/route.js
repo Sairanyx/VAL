@@ -3,6 +3,10 @@ import * as THREE from "three";
 
 const WALK_SPEED = 1.2; // metres per second
 const TURN_RATE = 3; // how quickly the view turns towards where it's heading
+const MAX_TURN_SPEED = Math.PI; // radians a second, so a big first turn doesn't look like a spin
+// The planner starts a route at the nearest open floor, which can be a step away. Within this, a
+// walk glides there from where the viewer stands. Further, as in Fly mode, it starts on the route.
+const GLIDE_TO_START = 2; // metres
 const LINE_RADIUS = 0.02; // faint guide line under the arrows
 const LINE_LIFT = 0.03; // metres above the floor, so the line doesn't sink into it
 const COLOR = 0x22d3ee;
@@ -286,6 +290,10 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage, onOutOfSt
     live.version += 1;
     const end = state.route.view_from ?? state.route.path.at(-1);
     const points = pathToViewPoint(state.route.path, end);
+    const here = root.worldToLocal(camera.position.clone());
+    here.y = points[0].y;
+    const gap = here.distanceTo(points[0]);
+    if (gap > 0.02 && gap <= GLIDE_TO_START) points.unshift(here);
     state.walking = { points, index: 0, along: 0 };
     return true;
   }
@@ -358,7 +366,9 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage, onOutOfSt
   function faceTowards(point, dt) {
     look.lookAt(camera.position, point, camera.up);
     wanted.setFromRotationMatrix(look);
-    camera.quaternion.slerp(wanted, 1 - Math.exp(-TURN_RATE * dt));
+    const angle = camera.quaternion.angleTo(wanted);
+    const step = Math.min(1 - Math.exp(-TURN_RATE * dt), (MAX_TURN_SPEED * dt) / Math.max(angle, 1e-6));
+    camera.quaternion.slerp(wanted, step);
     camera.quaternion.normalize();
     return camera.quaternion.angleTo(wanted);
   }

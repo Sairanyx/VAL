@@ -177,6 +177,65 @@ def test_real_route_reroutes_when_a_movable_object_is_moved(tmp_path):
     assert route.json()["stop_distance"] < 0.8
 
 
+def test_a_moved_objects_old_spot_no_longer_blocks_routes(tmp_path, monkeypatch):
+    """The cart's splats are part of the scan, so the permanent map counts them as an obstacle.
+    Once it's moved away, routes may pass where it stood."""
+    np = pytest.importorskip("numpy")
+    pytest.importorskip("scipy")
+    from app.nav.grid import build_nav_grid
+    from app.scene.load import Splats, write_splats
+
+    rng = np.random.default_rng(0)
+    floor = rng.uniform([0, 0, 0], [6, 0, 6], (120000, 3))
+    wall = rng.uniform([2.95, -1.8, 0], [3.05, -0.2, 4.6], (40000, 3))
+    cart = rng.uniform([2.5, -1.0, 4.6], [3.5, -0.2, 6.0], (30000, 3))  # fills the only gap
+    points = np.concatenate([floor, wall, cart])
+    grid = build_nav_grid(points, np.ones(len(points)), (0, -1, 0), floor_height=0.0)
+    data = np.zeros(
+        len(points), dtype=[("x", "<f4"), ("y", "<f4"), ("z", "<f4"), ("opacity", "<f4")]
+    )
+    data["x"], data["y"], data["z"] = points.T
+    data["opacity"] = 5.0  # a logit: nearly opaque
+    write_splats(Splats(data), tmp_path / "scene.ply")
+    monkeypatch.setenv("SCENE_PLY", str(tmp_path / "scene.ply"))
+
+    common = {"label_confidence": 0.5, "mapping": None}
+    assets = [
+        {
+            **common,
+            "object_id": "pump",
+            "label": "pump",
+            "center": [5.2, -0.5, 1.2],
+            "bbox_min": [5.0, 0.0, 1.0],
+            "bbox_max": [5.4, -1.0, 1.4],
+            "mobility": "fixed",
+        },
+        {
+            **common,
+            "object_id": "cart",
+            "label": "cart",
+            "center": [3.0, -0.5, 5.3],
+            "bbox_min": [2.5, 0.0, 4.6],
+            "bbox_max": [3.5, -1.0, 6.0],
+            "mobility": "movable",
+        },
+    ]
+    path = tmp_path / "assets.json"
+    path.write_text(json.dumps({"scene_id": "t", "floor_y": 0.0, "assets": assets}))
+    client = TestClient(create_app(path, grid=grid))
+    request = {"start": [1.0, 0.0, 1.0], "object_id": "pump"}
+    assert client.post("/api/route", json=request).status_code == 409
+    moved = client.post(
+        "/api/changes", json={"op": "move", "object_id": "cart", "position": [0.8, -0.6, 5.3]}
+    )
+    assert moved.status_code == 200
+    route = client.post("/api/route", json=request)
+    assert route.status_code == 200, route.json()
+    assert route.json()["stop_distance"] < 0.8
+    client.post("/api/changes/reset")
+    assert client.post("/api/route", json=request).status_code == 409
+
+
 class FakeResponse:
     def __init__(self, question):
         self.question = question

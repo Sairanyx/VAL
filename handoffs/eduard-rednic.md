@@ -1,6 +1,6 @@
 # eduard-rednic: eduard
-**Goal:** agree the architecture for Valmet's field-service copilot.
-**Done:** wrote `docs/ARCHITECTURE.md`, mapped to the Word brief and Excel pack.
-**Verified:** docs only, no code changed. `Equipment Room.ply` data checked: 100% valid. Boiler Room copy: 66.6% corrupt.
-**Next:** team agrees scope and owners, confirm the Lenovo model, then start Gate 1.
-**Blockers:** ask Valmet about the scene file, full telemetry CSV, 38 RAG docs and how much the tablet app counts.
+**Goal:** floor, routing, nearby search and backend API (`app/nav/`, `app/api/`), per docs/PLAN.md.
+**Done:** `make api` runs on port 8001, loading the fixture or `SCENE_ASSETS`: assets, details, nearby, changes with reset, plus placeholder route and copilot (marked `placeholder: true`).
+**Verified:** `make check` passes, 62 tests; route and assets checked live with curl. Changes are in memory only.
+**Next:** floor map and clearance from `Equipment Room.ply`, then A*; connect Hannu's store; add TimescaleDB.
+**Blockers:** Hannu's code isn't on main; his fixture uses a different format.

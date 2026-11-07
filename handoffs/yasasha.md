@@ -1,6 +1,6 @@
-# yasasha: yasasha/object-highlight
-**Goal:** Highlight selected scanned surfaces, not bounding boxes.
-**Done:** Added app/scene/highlights.py, web/highlight.js, serving routes, selection wiring, Makefile target, tests and usage docs. Exported 440 local highlights; cut movable objects use their whole piece (cart obj-0067: 1,091 -> 31,852 splats); private data stays out of git.
-**Verified:** make check: 197 passed. Chromium checked real PLY loading, movement, undo, visibility, deletion, rapid selection and missing segmentation. Actual viewer selection hid the selected box; Boxes toggle preserved the surface. Cyan rendering passed without browser errors.
-**Next:** Restart viewer after make highlights; review segmentation on the full room.
-**Blockers:** Fragmented objects remain separate; highlights cannot recover missing surfaces or confirm equipment identity.
+# yasasha: yasasha/bim
+**Goal:** BIM mode: a simulated, interactive BIM model of the room, plus an IFC export.
+**Done:** app/bim/ (room walls from scan density, IFC4 writer with no new dependency, bim.json), web/bim.js (BIM button, class filters, IFC properties, isolate, section cut, IFC download; moves and routes still work), `make bim`, `--bim` in serve.py, docs/USAGE.md.
+**Verified:** make check; tests/test_bim.py with IfcOpenShell: 0 schema issues on real model.ifc, 445 elements, geometry placed correctly. Chromium: enter/exit, tap P-005 (IfcPump), move follows, section, isolate, download.
+**Next:** Thin pipe shapes instead of bounding boxes; doors/openings; rebuild after operator edits.
+**Blockers:** none. Earlier: surface highlights merged in #19.

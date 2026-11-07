@@ -295,3 +295,32 @@ button {
   color: #38bdf8;
   font-size: 13px;
 }
+
+/* Anchored above the buttons, so the status box at the top stays readable when it grows. */
+#bim-panel {
+  position: fixed;
+  bottom: 68px;
+  left: 12px;
+  width: min(380px, calc(100vw - 24px));
+  max-height: calc(100vh - 210px);
+  overflow-y: auto;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--panel);
+}
+#bim-panel h2 { margin: 0 0 4px; font-size: 16px; }
+#bim-panel h2 small, .bim-note { color: var(--muted); font-size: 12px; font-weight: normal; }
+.bim-note { margin: 0 0 8px; }
+#bim-classes { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; font-size: 12px; }
+#bim-classes label { overflow-wrap: anywhere; }
+#bim-classes label { display: flex; align-items: center; gap: 4px; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+.bim-section { display: flex; align-items: center; gap: 6px; margin: 8px 0; font-size: 13px; }
+.bim-section input { flex: 1; }
+.bim-actions { display: flex; align-items: center; gap: 10px; }
+#bim-download { color: inherit; }
+#bim-props h3 { margin: 10px 0 4px; font-size: 14px; }
+#bim-props h4 { margin: 8px 0 2px; font-size: 12px; color: var(--muted); }
+#bim-props dl { display: grid; grid-template-columns: auto 1fr; gap: 1px 8px; margin: 0; font-size: 12px; }
+#bim-props dt { color: var(--muted); }
+#bim-props dd { margin: 0; overflow-wrap: anywhere; }

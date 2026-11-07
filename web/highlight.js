@@ -62,7 +62,8 @@ export function setupHighlight({ root, objectLayer, onMessage }) {
 
   function update() {
     if (!overlay || !selected) return;
-    overlay.visible = objectLayer()?.state.view !== "objects" && !selected.gone;
+    const view = objectLayer()?.state.view;
+    overlay.visible = view !== "objects" && view !== "bim" && !selected.gone;
     overlay.position.copy(selected.center).sub(home);
   }
 

@@ -1,6 +1,6 @@
-# viktortrilar: viktor/move-any-object
-**Goal:** let operators correct objects: move safely, split, combine, and see frames clearly, working with the team's highlights and live routes
-**Done:** collision check, Split, Combine, frames that hide what's behind them. Fixed clashes with live routes and highlights: routes only follow the camera in walk mode, a refused drop re-plans, collision warnings aren't overwritten
-**Verified:** lint; 213 tests passed, 2 skipped. Full flow in a headless browser with pieces, highlights and live routes: refused drop, demo move 4.31 to 5.56 m, split, combine, reload, undo, no page errors. Slow software rendering, light scene. Not tested: 5090, tablet, real model in the browser panel
-**Next:** rehearse on the 5090. Build the precision sample from crops rendered on the 5090, as Roihu's masks are out of reach. A person confirms P-005 on obj-0049
-**Blockers:** Roihu closed until at least Monday (CSC security notice). Objects cut on demand take neighbours in their box along, and leave marks. Local branch viktor/viewer-objects holds an unused merge: don't merge it
+# viktortrilar: viktor/bim-model-fixes
+**Goal:** merge Sasha's BIM mode with fixes for what checking it found, keeping Sasha's commit as is
+**Done:** merged `yasasha/bim`. app/extract/primitives.py rejects cylinders from nearly flat arcs, and `make shapes` applies that to the Release's copy (`make bim` runs it). web/bim.js shows objects made in the viewer as plain boxes. USAGE says what the IFC leaves out
+**Verified:** 223 tests passed, 2 skipped, lint clean. Real data: only `obj-0144` changes (now a box), 0 IFC schema issues. Headless browser: split parts show in BIM mode at the right places, undo removes them, no page errors. Not tested: a real BIM tool, 5090, tablet
+**Next:** rebase `viktor/bim` on this: Plan screen and DXF only, Sasha's wall estimate, Plan screen fixes, IFC download that includes operator changes
+**Blockers:** an agent is fixing routes that ignore moved objects on `viktor/route-keeps-moved-objects`, not finished. Roihu closed until at least Monday. Local branch viktor/viewer-objects holds an unused merge: don't merge it

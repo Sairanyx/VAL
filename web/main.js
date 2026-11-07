@@ -9,6 +9,7 @@ import { setupCopilot } from "./copilot.js";
 import { setupHighlight } from "./highlight.js";
 import { setupObjects } from "./objects.js";
 import { setupPhone } from "./phone.js";
+import { setupWalkXR, xrSupported } from "./xr.js";
 import { setupRoute } from "./route.js";
 
 let faultTag = "P-005"; // the pre-chosen faulty device, unless the scene's file names another
@@ -65,7 +66,11 @@ scene.add(new SparkRenderer({ renderer, lodSplatCount: LOD_SPLATS }));
 // file coordinates can be used as they are. Scenes name their up direction in the assets file.
 const root = new THREE.Group();
 root.rotation.x = Math.PI; // Equipment Room's +y points down, the default until the file loads.
-scene.add(root);
+// Tracking (xr.js) moves the whole map through this group, so the device's real position lands
+// in the right place. Without tracking it stays at identity.
+const xrOffset = new THREE.Group();
+scene.add(xrOffset);
+xrOffset.add(root);
 
 const controls = new SparkControls({ canvas });
 const phone = setupPhone({
@@ -484,7 +489,26 @@ $("range").onclick = () => {
   range = RANGES[(RANGES.indexOf(range) + 1) % RANGES.length];
   $("range").textContent = `Range ${range} m`;
 };
+const tracking = setupWalkXR({
+  renderer,
+  scene,
+  camera,
+  offset: xrOffset,
+  getStart: () => ({ position: startPos, floorY: eyeY - EYE_HEIGHT }),
+  onMessage: (message) => ($("status").textContent = message),
+});
+xrSupported().then((ok) => ($("track").hidden = !ok));
+$("track").onclick = async () => {
+  if (tracking.state.active) return tracking.stop();
+  try {
+    await tracking.start();
+  } catch (error) {
+    $("status").textContent = `Tracking failed: ${error.message}`;
+  }
+};
+
 $("reset").onclick = () => {
+  if (tracking.state.active) return tracking.recenter();
   camera.position.copy(startPos);
   camera.rotation.set(0, 0, 0);
   camera.quaternion.set(0, 0, 0, 1);
@@ -555,11 +579,13 @@ function animate(now) {
   lastTime = now;
   const following = Boolean(route?.state.walking);
   const busy = objectLayer?.state.moving || adder.state.active || following;
-  if (!phone.enabled && !busy) controls.update(camera);
+  // While tracking, the device's own movement moves the camera, so the other controls stay out.
+  const tracked = tracking.state.active;
+  if (!phone.enabled && !busy && !tracked) controls.update(camera);
   objectLayer?.update(dt);
   highlight.update();
-  if (following) route.update(dt);
-  else phone.update(dt);
+  if (following && !tracked) route.update(dt);
+  else if (!tracked) phone.update(dt);
   route?.animate(dt);
   if (!following && !adder.state.active) {
     const moving = objectLayer?.state.moving;
@@ -575,8 +601,9 @@ function animate(now) {
     );
   }
   $("follow").textContent = following ? "Stop" : "Walk route";
-  if (walk) camera.position.y = eyeY;
+  if (walk && !tracked) camera.position.y = eyeY;
   renderer.render(scene, camera);
+  tracking.update();
   updateLabels();
   frames++;
   if (now - lastFps > 1000) {

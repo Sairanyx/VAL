@@ -389,3 +389,11 @@ button {
 .tablet #view {
   touch-action: none;
 }
+
+/* Tracking (xr.js): the page becomes an overlay on the tracked view, so it must be see-through. */
+body.xr {
+  background: transparent !important;
+}
+body.xr #view {
+  visibility: hidden;
+}

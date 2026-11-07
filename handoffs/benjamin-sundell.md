@@ -1,6 +1,6 @@
 # benjamin-sundell: benjamin/webviewer
 **Goal:** web viewer for the tablet demo (`web/`), per docs/PLAN.md
-**Done:** merged Eduard's `eduard` branch (tablet mode, rotation, viewer commands) into mine and kept one tablet mode: his `TABLET` flag (touch screens, `?tablet=1|0`) now also loads `light_full.ply` via my `pickScene` (`?scene=full|light` overrides). Removed my separate TOUCH check. docs/USAGE.md updated
-**Verified:** `make check` passes (225). Not tried on a device
-**Next:** try on a tablet with up-to-date Chrome (89+; the test tablet had Chrome 81); then render-on-demand, label throttling, merged boxes for phone fps
+**Done:** "Track" button (`web/xr.js`): WebXR + ARCore track the device on Android Chrome and the whole map moves with it via an `xrOffset` group above `root` (main.js); start point and facing calibrate on start, Start re-calibrates; map drawn opaque; other controls off while tracking. Button only shows where immersive-ar is supported (HTTPS). Earlier: one tablet mode (Eduard's TABLET flag + light scene)
+**Verified:** `make check` passes. Tracking NOT tested: needs an ARCore Android device with Chrome 89+, so Spark rendering inside WebXR is unverified
+**Next:** test Track on an ARCore Android device over HTTPS; check scale (are scene units metres?) by walking a known distance; then render-on-demand and label throttling for phone fps
 **Blockers:** test tablet's Chrome 81 can't run the viewer (no import maps)

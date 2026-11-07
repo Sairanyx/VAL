@@ -1,0 +1,210 @@
+Copies should be same object but not same ID if that makes sense - the operator can name it if needed
+
+---
+
+Merge and push to main after it is ready
+
+---
+
+Check if there is anything to pull and merge from other users and combine everything into main so we check it with the team
+
+---
+
+Speed up the merge so others can use it we can improve later
+
+---
+
+Run everything so I fire it up in my browser
+
+---
+
+Read the checklist and go over everything that is assigned to me
+
+---
+
+Close the site meanwhile
+
+---
+
+First merge pull Benjamins  bugfixes. Start on those two then lets tackle the floor and wall being clickable in all the modes since they shouldn't be interactable, when isolating an object in BIM there is a bug where other object labels show up without reason (ss attached). CVal instructions still seem weird so keep stress testing it with different prompts an we make Val more human like/less chatbot style? We should also have colored bounding boxes depending on the groups (you can use the filtering that BIM views use) and you can decide the colors (so lets say pipes are 1 color, pumps are color 2 etc etc.) How are we handling new objects adding - do we need to shoot a video and resplat that specific area/ add the splats in there? If so how are we handling that? Regarding voice mode how heavy would be whisper/another TTS- STT model on top of our current deployment? How are we handling demo deployment - the deliverables allows us to submit a demo site (probably github.io, but that means we would need to use one computer as the server and if multiple people would check the demo it would explode?) what do you suggest?
+
+---
+
+Alright let's adopt Whisper into this then (check eddies stuff first) and make it work with Val (so Val can take voice commands). We have access to Google AI lab API from the hackathon so we could deploy there? Also how feasible and how big of an improvement is converting the backend to rust?
+
+---
+
+We can use ElevenLabs for voice sims
+
+---
+
+Merge ASAP so the others start working on the presentation while we will continue with optimization and bugfixing
+
+---
+
+Check newest commits first and merge sashas dashboard stuff, then I have another list of fixes. We are focusing on making the system robust and bug free. First off the map/plan it's way too cluttered - maybe we display only the walls and non movable objects - and the current target we want to go to and where we are. Second Benjamins attention required labels now appear on objects but they look way too AI sloppy so tone that down to be more simple and there should be a toggle depending on severity etc, we should have really good filtering for everything since that enhances operator workflow. All these features should ideally work with Val voice commands too. Read and update all the documents we have then compare the whole project to the required project brief to see if we cover everything.
+
+---
+
+The map/plan should be game - minimap style on web browser (right or left top corner) and a toggle for it on the phone
+
+---
+
+Sasha branch should be visible now
+
+---
+
+More requests -"Focus" capability - when we click on an object in the object list on the side of the screen it brings us to it's best view.  Right now severity labels persist when swiching to BIM view. Can we make a demo mode/button that goes through the viewer and showcases everything?
+
+---
+
+Have the minimap a bit more transparent/better looking right now it stands out too much
+
+---
+
+So how are we handling the deployment of this? How long does everything take to build etc etc
+
+---
+
+Ignore the 5090 right now this is supposed to run as a demo on a judges laptop etc we need to make it work
+
+---
+
+Can we use docker/something similar? We can use cloud computing in a pinch - or we can host the viewer on our laptop and that is the demo?
+
+---
+
+For the demo we want to toggle from complete darkness through all the views (so lets say darkness, simple BIM, blob BIM, point cloud, real view)
+
+---
+
+Push and merge when ready, suggest when it's a good stopping point but the others are working on the demo planning etc, i think we should have some kind of devlog that goes through the process (you can use the commit history to compile that), also we can probably nuke half the codebase and only keep whatever is needed for demoing (what do you think) that should also make it leaner for deployment somewhat
+
+---
+
+Regarding hotkeys lets use arrow keys to move the selected object in xyz and same for rotation (in those modes specifically not at all times) and there should be some usage instructions somewhere unless the demo button already handles that
+
+---
+
+What are the "?"  In the labels and machine IDs etc
+
+---
+
+Use agents to speed all this up
+
+---
+
+<task-notification>
+<task-id>a4377feb4a83c7bac</task-id>
+<tool-use-id>toolu_012XuxnPNDgYaaca7XB4gVsK</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/a4377feb4a83c7bac.output</output-file>
+<status>completed</status>
+<summary>Agent "Fact-check the devlog and docs" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Task: read-only fact-check of the new docs on `viktor/laptop-demo`. All 15 quoted phrases that go through `match_action` trigger the right action. Corrections are below, most important first.
+
+**docs/DEVLOG.md** (otherwise right: who did what, times, 441, 251 "pipe", 0 "pump", 3,184,658 splats, 25 min, 67%, 29 of 30)
+1. **Line 53:** says the engineer's message was "too slow and too hard to use". It should say: "We showed it to the engineer. The viewer needed heavy optimization and a better UI, and Val's functionality was heavily emphasized." Evidence: Viktor's message says exactly that. "Janky" and "more user friendly" were Viktor's own words in a later message, not the engineer's.
+2. **The heading "Saturday night: from a scan..." (00:00 to 07:00):** this is the night into Saturday, and a later heading is also "Saturday night". Change it to "Overnight into Saturday". Evidence: 6 Nov is a Friday (8 Nov is Sunday), and the commits run 00:20 to 07:04 on 11-07.
+3. **"about 59 frames a second standing still":** this flatters us, because turning is the slow case. Add it: "16 turning, 59 still". "This laptop" should also be "a ThinkPad with integrated graphics". The same applies to "about 14 to about 50" at the end. Evidence: `docs/RESULTS.md:27`.
+4. **"We measured each prompt change":** nothing shows every change was measured. Change it to "We measured prompt changes, and reverted one that lowered accuracy". Evidence: commit 07:02 and `docs/RESULTS.md:68`.
+5. **"read the brief closely. Two things shaped everything":** the no-internet rule is the team's choice, not the brief's. Say so. Evidence: `docs/PLAN.md:233` says "The brief doesn't score privacy directly".
+
+**docs/USAGE.md** (the new sections on the zip, demo, views, filters, Focus, arrow keys and quality are right; `?demo=1` and `?res=1` match the code)
+6. **"`make bundle` builds `dist/val-demo.zip`" (new section), also README and AGENTS:** it fails with the default paths on a normal setup.
+   - `--whisper` defaults to `data/models/whisper-base.en`, but `make voice-model` only makes `whisper-small.en` (`Makefile:22`).
+   - `--pieces` defaults to `cut_light`, which only exists after `./start laptop` or the `make pieces PIECES_FROM=...` step.
+   - The only builds so far used explicit paths.
+   - Fix the default, or document the steps: `make voice-model VOICE_MODEL=base.en`, plus the pieces command.
+7. **Line 174, "Colours match BIM mode":** this is out of date. `plan.js` no longer uses `CLASS_COLORS`, only target, found, matched and faint. Change it to "Red is the target, and a dashed outline means the object can be moved."
+8. **Line 180, "Needs `make api` and `Equipment Room.ply`":** the map's walls come from `bim.json` (`web/plan.js:333`), so it should say "The map needs `make bim`. DXF needs `make api`."
+9. **Lines 132, 161, 163, 168, 263, "Undo changes":** that button no longer exists. Line 132 sits in the code-flow block and names the button that calls `/api/changes/reset`. The button is now **Reset all** (`web/index.html:164`), so replace the name throughout. Also at `docs/PLAN.md:67` and `docs/TEST_CHECKLIST.md:61`. These were already out of date before today.
+
+**docs/TEST_CHECKLIST.md**
+10. **Line 128, "Show pipes":** the button is hidden and no longer does anything (`plan-pipes hidden`). Remove the line.
+11. **Line 184, "`make pipeline`, for real on the 5090":** change to "on a GPU machine".
+
+**docs/PLAN.md** (still says the demo runs on the 5090)
+12. **Lines 237-239:** "sharing the 5090's memory" and "must also run on the 5090". **Line 248:** "Live demo | 5090 | 10-25 GB of 32 GB VRAM". Change these to a laptop, with Val answering from records or a small model. The VRAM row isn't valid for this setup, and the laptop's memory use hasn't been measured. Rows 246-247 are offline pipeline work, so they can stay.
+
+**docs/PITCH.md**
+13. **Line 8, "on a tablet":** change to "on a laptop or tablet".
+
+**README.md**
+14. **"the whole brief works end to end":** this is too strong, because slides, video and technical note aren't done. Change it to "The demo the brief asks for works end to end." Everything else checks out, including the make targets. `&lt;team name&gt;` is still a placeholder, which `CHALLENGE.md` already notes.
+
+**docs/CHALLENGE.md, "How we cover the brief"**
+15. **"Highlight frames and Excel metadata nearby: Done":** this overstates it, so it should be "Partly".
+    - Labels show only the name (`web/main.js:1155`).
+    - Status text appears only for conditions in **Alerts nearby**: by default attention required, not degraded or healthy.
+    - The "Nearby" line (`main.js:1650`) has the same limit.
+    - The full record needs a tap.
+    
+    This is scored at 25%, so it's a real gap to mention, not just wording.
+16. **Everything else in the table is right.** The 410 without records is correct (440 − 30), and the 30 split into 16 + 13 procedural + 1 manual. `mapping.py` and `pipeline.py` exist, and Val shows confidence (`web/copilot.js:167`).
+
+**web/index.html help panel: right.** Every key matches the handler in `web/main.js`. "Take me to P-005" and the two questions correctly skip `match_action` and go to Val, and "Take me to P-005" is covered by `test_make_path_draws_the_route`. "Press again to send" matches the mic's "Stop and send" state.
+
+**"Show pipes" and "walkable floor":** no other doc still mentions them, apart from correction 10.</result>
+<usage><subagent_tokens>346571</subagent_tokens><tool_uses>3</tool_uses><duration_ms>120057</duration_ms></usage>
+</task-notification>
+
+---
+
+Sasha said that branch should be available
+
+---
+
+<task-notification>
+<task-id>a062e74b933b9f970</task-id>
+<tool-use-id>toolu_01RsGVVcupuPiMB28ceeCQHA</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/a062e74b933b9f970.output</output-file>
+<status>completed</status>
+<summary>Agent "Triage viewer regression failures" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Task: triage the fix_test, name_test and polish failures (real bug or stale test), and check that combine, split, delete, duplicate and naming still work.
+
+**Result:** none of the failures came from today's commits. I found one real bug, which was already on main, and fixed it.
+
+**Per failure**
+1. **fix_test: stale state, no code bug.** The "Box look" failure and the `piece` TypeError came from backend changes left by the aborted `go.py` run. After `POST /api/changes/reset`, the same script passes 28 of 28 with no page errors.
+2. **name_test: mostly a stale test, plus the real bug.**
+   - The 170 s timeout had two test causes. The script ran on swiftshader, and it pressed `open-plan`, which now toggles the map, so `plan-search` was hidden when it tried to fill it. I patched my copy to use the real GPU and `plan.expand()`.
+   - That exposed the bug: the map search no longer finds objects by name. `git show b5eaf55:web/plan.js` shows main already lacks name matching. `git log -S` points to Benjamin's blueprint rewrite `a9582b2`, not today's work.
+   - After the fix it passes 13 of 13.
+3. **polish: stale.** The only cause was the check for the removed `#copilot-speak`. With that line removed from my copy, it passes 11 of 11.
+
+**Commit**
+- `1775401`, `web/plan.js`: "Find objects by their given name on the map again". Local only, not pushed.
+- Your `e8e1814` landed on the branch while I worked; I didn't touch it. The working tree is clean.
+
+**Runs on the real GPU** (Vulkan, viewer 8124, API 8001)
+
+| Script | Passed | Covers |
+|---|---|---|
+| `$S/f/reg_fix_test.py` | 28 of 28 | Combine in all three looks, moving the combined chair, delete and undo, duplicate in scan and BIM, a copy surviving a reload |
+| `$S/f/reg_name_test.py` | 13 of 13 | Naming in scan and BIM, name in the IFC, name after a reload |
+| `$S/f/reg_polish.py` | 11 of 11 | Frame colours, refused turn, delete, walls and floor unpickable, isolate, Val refusing |
+| `$S/f/split_bim.py` (new) | 18 of 18 | See below |
+
+`split_bim.py` covers:
+- split, with both parts appearing in BIM
+- filters in the Real, Mesh and Box looks: only 14 tanks show, none of the other objects' splats appear, and clearing brings back 441 items
+- a combined chair under a filter still showing as its parts
+- duplicate, name and delete with a filter on
+- map search by name
+- undo back to 440 objects
+
+No page errors in any script. The backend is reset to 440 assets.
+
+**Not verified**
+- `$S/mine/go.py` was not repaired or rerun. It's stale: it clicks a Rotate button Benjamin moved under Move.
+- `$S/route_fix/verify.py` (the 66 route checks) was not rerun. Today's route coverage is only the walk and tour tests.
+- `scripts/` and `tests/` were not rerun after `1775401`, which only changes `web/plan.js`.
+- `val-demo.zip` predates this commit and has to be rebuilt to include it.</result>
+<usage><subagent_tokens>357479</subagent_tokens><tool_uses>12</tool_uses><duration_ms>634457</duration_ms></usage>
+</task-notification>
+
+---
+
+I think we should implement a scale so we can tell Val to move an object 5 metres left or as close as possible to the other chair for example. Also there seems to have been a lot functionality lost between versions (blinking bounding box of p-005 requiring attention, and we can revert the label change), sweep for bugs I think there are still a bunch of bugs regarding movement and rotation, and routing in the help screen let's have the keys actually have their graphic key (W,A,S,D etc etc.)  Delete the stickman (the POV of the camera should be what the operator sees and where it is so we don't need to have a stickman).Use agents if needed

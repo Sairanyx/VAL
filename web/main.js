@@ -123,6 +123,7 @@ const pacing = setupPacing({
 let walk = true;
 let eyeY = EYE_HEIGHT;
 let startPos = new THREE.Vector3(0, EYE_HEIGHT, 0);
+let startTurn = new THREE.Quaternion(); // which way you face at the start
 let objectLayer = null;
 let bim = null;
 let route = null;
@@ -911,8 +912,7 @@ $("reset").onclick = () => {
   if (tracking.state.active) return tracking.recenter();
   walkFloor.forget();
   camera.position.copy(startPos);
-  camera.rotation.set(0, 0, 0);
-  camera.quaternion.set(0, 0, 0, 1);
+  camera.quaternion.copy(startTurn);
 };
 
 const pos = new THREE.Vector3();
@@ -1139,6 +1139,23 @@ async function syncWithBackend() {
   if (changed) $("status").textContent = `Restored ${changed} saved change(s) from the backend`;
 }
 
+// Start just inside the door, facing into the room, the way a technician arrives. Uses the detected
+// door, so it follows the extraction. Without one, or with ?start=centre, the scan's own start.
+const DOOR_STEP_IN = 1.2; // metres into the room from the door's middle
+function doorStart(data) {
+  if (["centre", "center"].includes(params.get("start"))) return null;
+  const door = data.assets.find((asset) => asset.label === "door");
+  if (!door) return null;
+  const middle = new THREE.Vector3(...(data.start ?? [0, 0, 0])); // the room's middle, roughly
+  const at = new THREE.Vector3(...door.center);
+  const inward = middle.sub(at).setY(0);
+  if (inward.lengthSq() < 1e-6) return null;
+  inward.normalize();
+  const point = at.clone().addScaledVector(inward, DOOR_STEP_IN);
+  point.y = data.floor_y ?? 0;
+  return { point, inward };
+}
+
 // Take back the latest change: the backend replays the others, and the viewer catches up.
 async function undoLast() {
   hideManipBar();
@@ -1278,10 +1295,17 @@ async function load() {
   // Floor and start are in scene coordinates; convert to the upright world.
   const floor = root.localToWorld(new THREE.Vector3(0, data.floor_y ?? 0, 0)).y;
   eyeY = floor + EYE_HEIGHT;
-  const start = data.start ?? [0, data.floor_y ?? 0, 0];
+  root.updateMatrixWorld(true);
+  const door = doorStart(data);
+  const start = door ? door.point.toArray() : (data.start ?? [0, data.floor_y ?? 0, 0]);
   startPos = root.localToWorld(new THREE.Vector3(...start));
   startPos.y = eyeY;
   camera.position.copy(startPos);
+  if (door) {
+    const ahead = door.inward.clone().transformDirection(root.matrixWorld).setY(0).normalize();
+    camera.lookAt(startPos.clone().add(ahead));
+  }
+  startTurn = camera.quaternion.clone();
 
   const sceneFile = await pickScene();
   const splat = new SplatMesh({

@@ -133,9 +133,9 @@ def clean_mask(
 
     Isolated means sharing a voxel with too few other splats, which catches most floaters.
 
-    Don't raise `min_opacity` for a scene people will look at. Faint splats stack up to form
-    surfaces such as floors and doors: dropping those below 0.05 cost 30% of the splats and left
-    black holes.
+    For analysis only, such as floor maps. Never use this on a scene people will look at or that
+    views are rendered from: a few large or lone splats cover floors and walls, so removing 3% of
+    them took a test scene from 22.32 to 16.59 dB and left black holes.
     """
     mask = valid_mask(splats)
     with np.errstate(over="ignore", invalid="ignore"):

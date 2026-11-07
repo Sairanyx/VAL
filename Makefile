@@ -2,8 +2,8 @@ VIEWS_TAG ?= views-v1
 VIEWS_FILE ?= equipment_room_views_v1.tar
 DATABASE_URL ?= postgresql://copilot:copilot@127.0.0.1:5433/copilot
 FLOOR_SCENE ?= $(SCENE_DIR)/Equipment Room.ply
-SCENE_TAG ?= objects-v1
-SCENE_FILE ?= objects_v1.tar
+SCENE_TAG ?= objects-v2
+SCENE_FILE ?= objects_v2.tar
 SCENE_DIR ?= data/scene/equipment_room
 SCENE_FULL ?= clean.ply
 
@@ -26,8 +26,9 @@ ifndef ARCHIVE
 endif
 	mkdir -p $(SCENE_DIR)
 	tar -xf $(or $(ARCHIVE),data/scene/$(SCENE_FILE)) -C $(SCENE_DIR)
-	@echo "Next: put 'Equipment Room.ply' in $(SCENE_DIR) and the Excel pack in data/, then: make floor mapping db api"
-	@echo "Viewer: make web SCENE=$(SCENE_DIR)/light_full.ply ASSETS=$(SCENE_DIR)/assets_mapped.json SHAPES=$(SCENE_DIR)/shapes.json"
+	@echo "Next: put 'Equipment Room.ply' in $(SCENE_DIR) and the Excel pack in data/, then: make mapping db api"
+	@echo "Viewer on a PC: make web SCENE=\"$(SCENE_DIR)/Equipment Room.ply\" ASSETS=$(SCENE_DIR)/assets_mapped.json SHAPES=$(SCENE_DIR)/shapes.json"
+	@echo "Viewer on a tablet: use SCENE=$(SCENE_DIR)/light_full.ply, or light_400k.ply if it's slow"
 scene-full: ## get our own full-quality splat (513 MB). The demo uses the original scene instead
 	mkdir -p $(SCENE_DIR)
 	gh release download scene-v2 --pattern $(SCENE_FULL) --dir data/scene/splat_v2 --clobber
@@ -40,7 +41,7 @@ db:      ## start local TimescaleDB and load the Excel telemetry
 api:     ## backend API at http://localhost:8001/docs
 	DATABASE_URL=$(DATABASE_URL) SCENE_ASSETS=$(SCENE_DIR)/assets_mapped.json SCENE_GRID=$(SCENE_DIR)/nav_grid.npz \
 	uv run uvicorn app.api.main:app --host 0.0.0.0 --port 8001 --reload
-floor:   ## build the floor map, needs "Equipment Room.ply" in SCENE_DIR. VIEWS= is optional
+floor:   ## rebuild the floor map (make scene includes one), needs "Equipment Room.ply" in SCENE_DIR. Pass VIEWS=, or floaters block aisles
 	uv run python -m app.nav.grid "$(FLOOR_SCENE)" $(if $(VIEWS),--views $(VIEWS)) $(if $(wildcard $(SCENE_DIR)/walked.npy),--walked $(SCENE_DIR)/walked.npy) --labels $(SCENE_DIR)/splat_labels.npy --assets $(SCENE_DIR)/assets_final.json --out $(SCENE_DIR)/nav_grid.npz --preview runs/floor.png
 nav-check: ## test floor map, routes, mapping and API together, and draw runs/nav_check.png
 	uv run python -m app.nav.check $(SCENE_DIR)

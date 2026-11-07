@@ -278,17 +278,20 @@ async function routeTo(obj) {
 }
 $("route-here").onclick = () => selected && routeTo(selected);
 const copilot = setupCopilot({
-  button: $("open-copilot"),
-  askButton: $("ask"),
   panel: $("copilot"),
   form: $("copilot-form"),
   input: $("copilot-input"),
   answer: $("copilot-answer"),
   close: $("copilot-close"),
   speakButton: $("copilot-speak"),
-  getSelected: () => selected,
-  name,
+  getObject: () => selected,
 });
+$("open-copilot").onclick = () => copilot.open();
+$("ask").onclick = () => {
+  $("info").hidden = true;
+  const about = selected?.asset.mapping?.tag ?? "this";
+  copilot.open(`Why is ${about} flagged, and what should I check first?`);
+};
 
 const adder = setupAddObject({
   canvas,

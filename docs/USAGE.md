@@ -13,6 +13,7 @@ make scene      # objects, floor map, and light scenes
 make mapping    # links Excel records to objects, writes assets_mapped.json
 make pieces     # cuts movable objects out of the scene
 make highlights # exports cyan segmented surfaces for object selection
+make bim        # simulated BIM model for BIM mode, plus model.ifc
 make db         # optional, needs Docker: keeps changes after a restart
 make model      # optional, about 20 GB: the copilot's language model
 ```
@@ -43,6 +44,20 @@ Generate highlights from the original PLY, not `cut/base.ply` or a reduced scene
 original scene. Generated highlights are loaded automatically for scenes under `SCENE_DIR`.
 For a different scene, pass its own `HIGHLIGHTS=path/to/highlights`, or disable loading with
 `HIGHLIGHTS=`.
+
+## BIM mode
+Run `make bim`, then restart your viewer and press **BIM**. The scan is replaced by a simulated
+model: estimated walls and floor, plus one IFC element per detected object, coloured by class.
+- **Tap an element** to see its IFC class, GlobalId and properties. Equipment also opens the normal
+  panel, so **Ask copilot**, **Route here** and **Move on floor** still work, and moves show in BIM.
+- **Class boxes** hide or show element types. **Isolate** keeps only the selection, walls and floor.
+- **Section** cuts everything above a height, like a floor plan. **Download IFC** saves `model.ifc`
+  (IFC4), which opens in BIM tools such as Bonsai.
+
+It is a simulation, not a survey. Solid elements have a fitted shape; see-through ones only have
+a bounding box, so pipes often look too big. Walls are the scan's outermost dense bands, and doors
+or openings aren't modelled. Tags made by rule or by eye show as `P-005?` and
+`IdentityConfirmed: no`. Operator-added objects aren't in the model until `make bim` runs again.
 
 ## Move an object
 1. Tap the object. The smallest box under your finger is selected.
@@ -117,6 +132,7 @@ model worded it or it's a fixed template. Unsafe requests are refused.
 | **Range** | How far away frames and labels show |
 | **Boxes on** | Shows or hides frames |
 | **Scan / Both / Objects** | The real scan, fitted shapes over it, or shapes only |
+| **BIM** | Simulated BIM model of the room, with IFC properties. Needs `make bim` |
 | **Apart** | Pulls objects apart to show them separately |
 | **Phone** | Turn the device to look, and walk to move. Needs `make web HTTPS=1` |
 

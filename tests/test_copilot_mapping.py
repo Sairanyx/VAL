@@ -62,10 +62,20 @@ def test_exact_label_beats_similar_and_similar_is_marked():
 
 def test_movable_and_unreachable_objects_are_skipped():
     assets = [obj("cart", "valve", mobility="movable"), obj("high", "valve"), obj("ok", "valve")]
+    stops = {"high": None, "ok": 1.5}
     links = build_mapping(
-        assets, [record("V1", "CONTROL_VALVE")], reachable=lambda a: a["object_id"] != "high"
+        assets, [record("V1", "CONTROL_VALVE")], stop_distance=lambda a: stops[a["object_id"]]
     )
     assert links[0]["object_id"] == "ok"
+
+
+def test_close_object_beats_better_label_further_away():
+    assets = [obj("far", "valve"), obj("near", "pipe fitting")]
+    stops = {"far": 1.8, "near": 0.5}
+    links = build_mapping(
+        assets, [record("V1", "CONTROL_VALVE")], stop_distance=lambda a: stops[a["object_id"]]
+    )
+    assert links[0]["object_id"] == "near"
 
 
 def test_no_suitable_object_means_no_link():

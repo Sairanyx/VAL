@@ -80,7 +80,7 @@ LIVE, in use
 Tablet viewer ⇄ Backend API ⇄ routing, device data, change log, local AI copilot
 ```
 
-**Choose the scene (Viktor):** `Equipment Room.ply` is the default. Our own splat (video, sharp frames,
+**Scene decided:** the demo uses the original `Equipment Room.ply`, because our own splat has holes in the floor. It was the default. Our own splat (video, sharp frames,
 COLMAP, 3DGS) is confirmed as allowed. Run the pipeline on both, and keep the one with better boxes and
 routes. Pipeline code must work with either.
 

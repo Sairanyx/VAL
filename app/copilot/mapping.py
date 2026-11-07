@@ -2,7 +2,8 @@
 
     uv run python -m app.copilot.mapping data/scene/splat_v2
 
-Reads `assets_viewer.json`, and uses `nav_grid.npz` and `walked.npy` if present. Writes
+Reads `assets_viewer.json`, and uses `nav_grid.npz`, plus the scene's `start` or `walked.npy`.
+Writes
 `mapping.json` and `assets_mapped.json`, the same objects with `mapping` filled in, for the API and
 viewer.
 
@@ -22,7 +23,7 @@ from app.copilot.store import DataStore
 
 EXACT_CONFIDENCE = 0.3
 SIMILAR_CONFIDENCE = 0.15
-MAX_STOP = 1.0  # metres: a person must be able to get this close
+CLOSE_STOP = 1.0  # metres: prefer objects a person can get this close to
 LABELS = {
     "CONTROL_VALVE": (["valve"], ["pipe fitting"]),
     "PROCESS_PUMP": (["pump"], ["motor", "appliance"]),
@@ -65,13 +66,14 @@ def build_mapping(
     assets: list[dict],
     records: list[dict],
     route: list[list[float]] | None = None,
-    reachable=None,
+    stop_distance=None,
     axes: tuple[int, int] = (0, 2),
 ) -> list[dict]:
     """Return one link per record that has a suitable object.
 
-    `records` hold `asset_id`, `tag`, `asset_class`, and `condition_state`. `reachable` is an
-    optional function that says whether a person can get to an object.
+    `records` hold `asset_id`, `tag`, `asset_class`, and `condition_state`. `stop_distance` is an
+    optional function giving how close a person can get to an object, or None if they can't reach
+    it. Objects within CLOSE_STOP come first, ahead of a better label further away.
     """
     links = [
         {**asset["mapping"], "object_id": asset["object_id"]}
@@ -96,11 +98,12 @@ def build_mapping(
             fit = rank(asset, record["asset_class"])
             if fit is None or asset["object_id"] in used_objects:
                 continue
-            options.append((fit, route_distance(asset["center"], route, axes), asset["object_id"]))
-        for fit, _, object_id in sorted(options):
-            asset = next(a for a in candidates if a["object_id"] == object_id)
-            if reachable is not None and not reachable(asset):
+            gap = stop_distance(asset) if stop_distance else 0.0
+            if gap is None:
                 continue
+            route_gap = route_distance(asset["center"], route, axes)
+            options.append((gap > CLOSE_STOP, fit, route_gap, asset["object_id"]))
+        for _, fit, _, object_id in sorted(options)[:1]:
             used_objects.add(object_id)
             links.append(
                 {
@@ -112,7 +115,6 @@ def build_mapping(
                     "note": "Assigned by class for the demo, not a confirmed identity.",
                 }
             )
-            break
     return links
 
 
@@ -139,35 +141,30 @@ def main() -> None:
     args = parser.parse_args()
     scene = json.loads((args.scene / args.assets).read_text())
     assets = scene["assets"]
-    route, reachable, axes = [], None, (0, 2)
+    route, stop_distance, axes = [], None, (0, 2)
     grid_file, walked_file = args.scene / "nav_grid.npz", args.scene / "walked.npy"
-    if grid_file.exists() and walked_file.exists():
+    if grid_file.exists() and (walked_file.exists() or scene.get("start")):
         from app.nav.grid import load_grid
         from app.nav.route import NoRoute, plan_route
 
         grid = load_grid(grid_file)
         axes = grid.axes
-        start = tuple(float(v) for v in np.load(walked_file)[0])
+        first = np.load(walked_file)[0] if walked_file.exists() else scene["start"]
+        start = tuple(float(v) for v in first)
 
-        def reachable(asset: dict) -> bool:
+        def stop_distance(asset: dict) -> float | None:
             try:
-                found = plan_route(
-                    grid,
-                    start,
-                    tuple(asset["bbox_min"]),
-                    tuple(asset["bbox_max"]),
-                    max_stop_distance=MAX_STOP,
-                )
+                low, high = tuple(asset["bbox_min"]), tuple(asset["bbox_max"])
+                return plan_route(grid, start, low, high).stop_distance
             except NoRoute:
-                return False
-            return found.stop_distance <= MAX_STOP
+                return None
 
         target = next((a for a in assets if a.get("mapping")), None)
         if target is not None:
             found = plan_route(grid, start, tuple(target["bbox_min"]), tuple(target["bbox_max"]))
             route = [list(point) for point in found.path]
     store = DataStore.load(args.workbook)
-    links = build_mapping(assets, load_records(store), route, reachable, axes)
+    links = build_mapping(assets, load_records(store), route, stop_distance, axes)
     (args.scene / "mapping.json").write_text(json.dumps({"mappings": links}, indent=2))
     by_object = {link["object_id"]: link for link in links}
     for asset in assets:

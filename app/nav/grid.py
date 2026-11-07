@@ -229,7 +229,10 @@ def main() -> None:
         assets = json.loads(args.assets.read_text())["assets"]
         floor = estimate_floor(splats.positions, up)
         direction = np.asarray(up, dtype=np.float64)
-        not_obstacles = removable_splats(np.load(args.labels)[keep], assets, direction, floor)
+        labels = np.load(args.labels)
+        # Labels may follow the original file's order, or the cleaned scene's.
+        labels = labels if len(labels) == len(splats) else labels[keep]
+        not_obstacles = removable_splats(labels, assets, direction, floor)
         print(f"{int(not_obstacles.sum())} splats left out of the permanent map")
     if args.views:
         floor = estimate_floor(splats.positions, up)

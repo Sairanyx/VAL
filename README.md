@@ -14,7 +14,7 @@ yet tested on Windows or a Mac.
 ## Run the demo on any laptop
 Unzip `val-demo.zip` (built with `make bundle`, and shared separately because it holds Valmet's data),
 then double-click `START-WINDOWS.bat`, or `START-MAC.command`, or run `sh START-LINUX.sh`. The first
-run sets itself up inside that folder and needs internet once. Then press **Demo** under **Actions**.
+run sets itself up inside that folder and needs internet once. It offers a tutorial the first time: **Watch** shows everything, and **Try it myself** walks you through.
 
 ## Setup for development (once)
 Needs: `git`, `make`, NVIDIA driver. One line (Linux) — installs uv, clones, sets up, checks GPU:

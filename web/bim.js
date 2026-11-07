@@ -285,12 +285,71 @@ export async function setupBim({
     material.needsUpdate = true;
   }
 
-  // The backend's copy shows the model as it stands now. Without one, there's still the built file.
+  // Downloads match what's on show: the selected object alone, or what the type, filter, and
+  // isolate settings leave in view. The backend writes the model as it stands now, moves included;
+  // without one, there's only the built file of the whole room.
+  let backend = false;
+  const allLink = document.getElementById("bim-download");
+  const oneLink = document.getElementById("bim-download-selected");
   async function chooseDownload() {
     // The health check is cheap; /api/plan would build the whole floor layout just to answer.
     const reply = await fetch("/api/health").catch(() => null);
-    document.getElementById("bim-download").href = reply?.ok ? "/api/plan/model.ifc" : "model.ifc";
+    backend = Boolean(reply?.ok);
+    allLink.href = backend ? "/api/plan/model.ifc" : "model.ifc";
+    describeDownloads();
   }
+
+  function narrowed() {
+    return state.hidden.size > 0 || Boolean(isFiltering?.()) || (state.isolated && Boolean(state.selected));
+  }
+
+  function shownForExport() {
+    const ids = new Set();
+    let room = false;
+    for (const item of items) {
+      if (!visible(item)) continue;
+      const owner = ownerOf(item);
+      if (owner) ids.add(owner.asset.object_id);
+      else if (!item.object) room = true;
+    }
+    return { ids: [...ids], room };
+  }
+
+  // Cheap enough for every frame: it only touches the page when something changed.
+  function describeDownloads() {
+    const allText = backend && narrowed() ? "Download shown" : "Download IFC";
+    if (allLink.textContent !== allText) allLink.textContent = allText;
+    const hidden = !backend || !(state.selected && ownerOf(state.selected));
+    if (oneLink.hidden !== hidden) oneLink.hidden = hidden;
+  }
+
+  allLink.onclick = (event) => {
+    if (!backend) return; // the built file
+    if (!narrowed()) {
+      allLink.href = "/api/plan/model.ifc";
+      onMessage?.("Downloading the whole BIM model as it stands now");
+      return;
+    }
+    const { ids, room } = shownForExport();
+    if (!ids.length) {
+      event.preventDefault();
+      onMessage?.("No equipment is shown to export. Show some types or clear the filters.");
+      return;
+    }
+    allLink.href = `/api/plan/model.ifc?ids=${encodeURIComponent(ids.join(","))}&room=${room}`;
+    const count = ids.length === 1 ? "1 object" : `${ids.length} objects`;
+    onMessage?.(`Downloading the ${count} shown${room ? ", with the walls and floor" : ""}`);
+  };
+
+  oneLink.onclick = (event) => {
+    const owner = state.selected && ownerOf(state.selected);
+    if (!backend || !owner) {
+      event.preventDefault();
+      return;
+    }
+    oneLink.href = `/api/plan/model.ifc?ids=${encodeURIComponent(owner.asset.object_id)}`;
+    onMessage?.(`Downloading ${state.selected.element.name} on its own`);
+  };
 
   // Selecting from the scan side (panel, route, copilot) keeps the BIM selection in step.
   function selectObject(object) {
@@ -366,6 +425,7 @@ export async function setupBim({
   function update() {
     if (!state.active) return;
     addMissing();
+    describeDownloads();
     const real = state.look === "real";
     for (const item of items) {
       item.mesh.visible = visible(item);

@@ -52,7 +52,7 @@
       <h2>How to use this</h2>
       <button id="help-close" aria-label="Close">&times;</button>
     </div>
-    <p>New here? Open <b>Actions</b> and press <b>Demo</b> for a guided tour.</p>
+    <p>New here? <button id="help-tutorial" class="primary">Start the tutorial</button> It shows each feature, and you can watch it or try each step.</p>
     <h3>Getting around</h3>
     <dl>
       <dt><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd><br><kbd>↑</kbd> <kbd>←</kbd> <kbd>↓</kbd> <kbd>→</kbd></dt><dd>Walk. On a touch screen, use the joystick</dd>
@@ -80,7 +80,7 @@
     <dl>
       <dt><kbd>V</kbd> or the mic</dt><dd>Talk to Val, or type. Press again to send</dd>
       <dt>Ask</dt><dd>"Why is P-005 at attention required?", "What should I check first?"</dd>
-      <dt>Tell</dt><dd>"Show only pumps", "Show the point cloud", "Take me to P-005", "Move it 2 metres left", "Move it next to the other chair", "Start the demo"</dd>
+      <dt>Tell</dt><dd>"Show only pumps", "Show the point cloud", "Take me to P-005", "Move it 2 metres left", "Move it next to the other chair", "Start the tutorial"</dd>
     </dl>
     <p class="menu-keys"><kbd>Esc</kbd> goes one step back. <kbd>?</kbd> opens this. Distances are in scan units, which are close to metres but not checked on site.</p>
   </div>
@@ -88,13 +88,20 @@
   <div id="tour" hidden role="status">
     <h2 id="tour-title"></h2>
     <p id="tour-text"></p>
+    <p id="tour-how"></p>
+    <div id="tour-choice" class="tour-choice" hidden>
+      <button id="tour-watch" class="primary">Watch</button>
+      <button id="tour-try">Try it myself</button>
+    </div>
     <div class="tour-foot">
       <span id="tour-count"></span>
+      <button id="tour-show" hidden>Show me</button>
       <button id="tour-pause">Pause</button>
       <button id="tour-next">Next</button>
-      <button id="tour-stop">Stop</button>
+      <button id="tour-stop">Close</button>
     </div>
   </div>
+  <div id="tour-spot" hidden></div>
 
   <div id="filter-panel" hidden>
     <div class="filter-head">
@@ -139,7 +146,7 @@
     <div class="menu-grid">
       <button id="mode" data-label="Movement" data-stay>Walk</button>
       <button id="reset">Back to start</button>
-      <button id="start-tour" title="A guided run through everything">Demo</button>
+      <button id="start-tour" title="A guided tour of every feature: watch it, or try each step">Tutorial</button>
       <button id="profile" data-label="Route for" data-stay hidden>Person</button>
       <button id="phone" data-stay>Phone</button>
       <button id="track" hidden>Track</button>
@@ -233,7 +240,8 @@
     <div class="bim-actions">
       <button id="bim-look" hidden>Look: Real</button>
       <button id="bim-isolate">Isolate</button>
-      <a id="bim-download" href="model.ifc" download="model.ifc">Download IFC</a>
+      <a id="bim-download" href="model.ifc" download="model.ifc" title="Everything shown now: hide types, filter, or isolate to export less">Download IFC</a>
+      <a id="bim-download-selected" href="model.ifc" download="selected.ifc" title="Only the selected object" hidden>Download selected</a>
     </div>
     <p class="bim-note">Solid shapes come from the scan. See-through boxes are rough. Walls are estimates.</p>
     <details>

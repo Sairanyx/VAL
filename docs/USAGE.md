@@ -214,11 +214,19 @@ Frames are coloured by type, the same as BIM mode: pumps amber, tanks green, val
 yellow, cabinets teal, chairs and shelves pink, anything else grey, and the faulty device red. **Actions** has the
 full list under **Frame colours**.
 
-## Run the guided demo
-**Actions**, then **Demo**, or say "Start the demo". It goes from darkness up to the real room, then
-filters, the list, a route, a move, the walk, Val and the safety rules, in about a minute and a half.
-**Pause**, **Next** and **Stop** are on its caption, and Esc stops it. It puts everything back afterwards.
-Add `?demo=1` to the address to start it on opening. **?** or the **?** key lists every control.
+## Run the tutorial
+The first time in a browser, it offers itself. Later: **Actions**, then **Tutorial**, **Start the tutorial** in Help,
+or say "Start the tutorial". **Watch** plays all 17 steps by itself, from darkness to the real room, then objects,
+filters, alerts, the map, a route, a move, the walk, Val, safety and BIM, in about 2.5 minutes. It's built for the
+video. **Try it myself** points at each control and waits for you to use it, and **Show me** does it for you.
+**Pause**, **Next** and **Close** are on its caption, and Esc stops it. It puts everything back afterwards, but never
+undoes changes made before it started. `?demo=1` starts Watch on opening, and `?notour` skips the offer.
+
+## Download IFC of part of the model
+In BIM mode, **Download IFC** saves the whole model as it stands now. When types, Filters or Isolate narrow the
+view, it becomes **Download shown**, with only what's on screen, plus the walls and floor if they show.
+**Download selected** saves just the selected object, named after it, such as `P-005.ifc`. These need the backend:
+`GET /api/plan/model.ifc?ids=a,b&room=true`.
 
 ## Choose how the room is shown
 **View** under **Actions**, or the **B** key, goes round: darkness, simple BIM, blob BIM, point cloud,

@@ -150,7 +150,7 @@ export function setupTour({ ui, handlers, press, view }) {
           view.objectList.open();
           await wait(3000);
           const first = view.objects.find(
-            (o) => o !== fault && !o.gone && o.condition === "attention_required",
+            (o) => o !== fault && !o.gone && o.condition?.condition_state === "attention_required",
           );
           if (first) await view.goLookAt(first);
           await wait(5000);

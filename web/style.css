@@ -994,3 +994,29 @@ body[data-view="dark"] #buttons { opacity: 0.25; }
 #open-help { min-width: 44px; padding: 0 10px; }
 /* The tour shows the model, not its property sheet. */
 body:has(#tour:not([hidden])) #bim-panel { display: none; }
+/* Charts of the selected object's record, drawn by the backend (app/dashboard.py). */
+#dashboard {
+  position: fixed;
+  inset: 12px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #11161c;
+  overflow: auto;
+}
+#dashboard[hidden] { display: none; }
+#dashboard-image { max-width: 100%; max-height: 100%; object-fit: contain; }
+#dashboard-status { position: absolute; color: var(--muted); }
+#dashboard-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: 26px;
+}

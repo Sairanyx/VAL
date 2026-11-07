@@ -167,6 +167,12 @@
       ? help · B next view · N name · T filters · L objects · V talk to Val · F walk/fly · G go to P-005 · Esc back</p>
   </div>
 
+  <div id="dashboard" hidden>
+    <button id="dashboard-close" aria-label="Close">&times;</button>
+    <p id="dashboard-status"></p>
+    <img id="dashboard-image" alt="Equipment dashboard">
+  </div>
+
   <div id="info" hidden>
     <button id="info-close" aria-label="Close">&times;</button>
     <div id="info-head"></div>
@@ -179,6 +185,7 @@
       <button id="ask" class="primary" hidden>Ask Val</button>
       <button id="focus-object">Focus</button>
       <button id="route-here" hidden>Route here</button>
+      <button id="open-dashboard" hidden>Dashboard</button>
     </div>
     <div id="move-actions" class="action-row" hidden>
       <button id="move" title="Move, turn, or raise it">Move</button>

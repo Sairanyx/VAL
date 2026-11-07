@@ -67,6 +67,7 @@ brackets belong to that person.
 - [ ] **Hover outline:** shows what a click would pick, with a mouse. ✅ 🤖 KEEP. Check the frame rate
 - [ ] **Cyan highlight:** the selected object's surface lights up. ✅ 🤖 KEEP
 - [ ] **Details panel:** type, status, telemetry, alarms, documents. ✅ 🤖 KEEP
+- [ ] **Dashboard:** charts for a linked object, e.g. P-005. Esc closes it. ✅ 🤖 KEEP
 - [ ] **Procedural label:** guessed Excel links are marked. ✅ 🤖 KEEP
 - [ ] **No invented IDs:** objects with no record say so. ✅ 🤖 KEEP
 - [ ] **Ask Val** in the panel: asks about this object. ✅ 🤖 KEEP

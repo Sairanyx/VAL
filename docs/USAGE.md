@@ -181,6 +181,16 @@ Red is the target, and a dashed outline means the object can be moved.
 It's generated from the scan, not surveyed: objects are boxes, and the scale hasn't been checked on site. A name
 with no room to show stays hidden until you find or tap its object. The map needs `make bim`, and DXF needs `make api`.
 
+## Equipment dashboard
+Select an object linked to an Excel record, such as P-005, and press **Dashboard**. The backend draws one
+page of charts for that record with matplotlib: health and condition, 3 days of telemetry picked for its
+kind of equipment, two weeks of alarms and events, the maintenance history with downtime and the next
+service date (red if overdue), and known data problems. Esc or × closes it. Needs `make api`.
+
+The header says how the 3D object was linked to the record. Most links are made by rule, so it warns that
+the identity isn't confirmed. Objects without a record have no Dashboard button. All 30 records as
+images, for slides: `uv run python -m app.dashboard runs/dashboards`.
+
 ## Ask Val
 Val is the field-service assistant. Press **Ask Val**, with or without an object selected, then talk, type or tap a
 suggestion. It can say what needs attention, what's wrong with a device, what to check next and when it was

@@ -1,6 +1,6 @@
-# yasasha: yasasha/bim-pick
-**Goal:** Reliable selection with a hover preview, in BIM mode and in the scan; nothing behind the nearest object.
-**Done:** web/bim.js picks and hovers by each element's simple Box shape in every look (Real, Mesh, Box); faint shell and outline on hover, pointer cursor; web/main.js checks the mouse once a frame. Scan view hovers the object a click would pick, outlined with its BIM simple shape (web/hover.js, shared). docs/USAGE.md.
-**Verified:** make check 252 passed. Chromium on real data: rays through three bucket centres miss the scan mesh but pick the bucket in all looks; a real mouse hover and click picked bucket obj-0148; hover clears on empty space and leaving the canvas. Scan hover: bucket outline matches the clicked object; outline follows a moved cart; BIM on/off swaps cleanly. web/pick.js: nearest object wins, pipes block only at their scanned surface; 120 rays at the cart picked nothing behind it (old rule: 51).
-**Next:** Check hover speed on the GPU machine; tablet has no hover, taps use the same shapes.
-**Blockers:** none. BIM Real/Mesh/Box merged in #28.
+# yasasha: yasasha/dashboard
+**Goal:** A good-looking dashboard per Excel record, opened from the object panel.
+**Done:** app/dashboard.py (matplotlib: health gauge, condition, service with overdue in red, 3-day telemetry per equipment kind, events, maintenance, data problems; header warns on unconfirmed links). `GET /api/assets/{id}/dashboard.png` (cached) in app/api/main.py; Dashboard button and overlay in web/. app/copilot/store.py now also reads the pack's real telemetry names, event status and downtime.
+**Verified:** make check; tests/test_dashboard.py (every kind, empty record, unknown record, API 200/404). Real data: 30 of 30 drawn; API 0.9 s then 2 ms; Chromium: P-005 opens, Esc closes, unlinked cart has no button.
+**Next:** Tell Hannu: Val's trend checks in copilot.py use current_a, temperature_c, vibration_rms_mm_s, which this pack doesn't have, so Val misses P-005's rising current.
+**Blockers:** none. web/ is Benjamin's area and the store is Hannu's: ask before merging.

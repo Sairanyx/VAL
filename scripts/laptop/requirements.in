@@ -9,3 +9,4 @@ pandas>=2.2
 openpyxl
 pillow
 psycopg[binary]>=3.3.8
+matplotlib>=3.9

@@ -1049,7 +1049,7 @@ function animate(now) {
   const followText = following ? "Stop" : "Walk route";
   if ($("follow").textContent !== followText) $("follow").textContent = followText;
   if (plan?.state.open) {
-    plan.draw(); // The room is covered, so there's no need to draw it as well.
+    plan.draw(now); // The room is covered, so there's no need to draw it as well.
   } else {
     renderer.render(scene, camera);
     tracking.update();

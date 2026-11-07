@@ -304,7 +304,8 @@ export async function setupBim({
 
   // The backend's copy shows the model as it stands now. Without one, there's still the built file.
   async function chooseDownload() {
-    const reply = await fetch("/api/plan").catch(() => null);
+    // The health check is cheap; /api/plan would build the whole floor layout just to answer.
+    const reply = await fetch("/api/health").catch(() => null);
     document.getElementById("bim-download").href = reply?.ok ? "/api/plan/model.ifc" : "model.ifc";
   }
 

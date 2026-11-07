@@ -260,3 +260,49 @@ def test_changes_made_while_database_is_down_save_later(tmp_path):
     second = {"op": "move", "object_id": "b", "position": [6, 1, 0]}
     assert client.post("/api/changes", json=second).json()["saved"] is True
     assert [c["object_id"] for c in database.changes] == ["a", "b"]
+
+
+def open_floor(tmp_path):
+    np = pytest.importorskip("numpy")
+    pytest.importorskip("scipy")
+    path = tmp_path / "nav_grid.npz"
+    free = np.ones((120, 40), dtype=bool)
+    free[[0, -1], :] = free[:, [0, -1]] = False
+    clearance = (
+        np.minimum.reduce(
+            [
+                np.arange(120)[:, None] * np.ones(40),
+                (119 - np.arange(120))[:, None] * np.ones(40),
+                np.arange(40)[None, :] * np.ones((120, 1)),
+                (39 - np.arange(40))[None, :] * np.ones((120, 1)),
+            ]
+        )
+        * 0.05
+    )
+    np.savez(
+        path,
+        origin=np.array([0.0, 0.0]),
+        cell=0.05,
+        floor_height=0.0,
+        up=np.array([0.0, -1.0, 0.0]),
+        axes=np.array([0, 2]),
+        free=free,
+        clearance=clearance,
+        clearance_low=clearance,
+    )
+    return path
+
+
+def test_route_preview_blocks_without_saving_the_move(tmp_path):
+    assets = [box("target", [5.5, -0.5, 1.0], "fixed"), box("cart", [0.6, -0.5, 1.0], "movable")]
+    path = tmp_path / "assets.json"
+    path.write_text(json.dumps({"scene_id": "t", "assets": assets}))
+    client = TestClient(create_app(path, open_floor(tmp_path), database=FakeDatabase()))
+    request = {"start": [2.0, 0.0, 1.0], "object_id": "target"}
+    clear = client.post("/api/route", json=request).json()["length"]
+    wall = {"object_id": "cart", "position": [3.0, -0.5, 1.0]}
+    blocked = client.post("/api/route", json={**request, "preview": wall})
+    assert blocked.status_code == 409 or blocked.json()["length"] > clear
+    assert client.get("/api/assets/cart").json()["center"] == [0.6, -0.5, 1.0]
+    assert client.get("/api/changes").json()["changes"] == []
+    assert client.post("/api/route", json=request).json()["length"] == clear

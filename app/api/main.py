@@ -37,10 +37,16 @@ UNCONFIRMED_NEW = "new, unconfirmed"
 Position = Annotated[list[float], Field(min_length=3, max_length=3)]
 
 
+class PreviewMove(BaseModel):
+    object_id: str
+    position: Position
+
+
 class RouteRequest(BaseModel):
     start: Position
     object_id: str
     profile: Literal["robot", "person"] = "person"
+    preview: PreviewMove | None = None
 
 
 class ChangeRequest(BaseModel):
@@ -71,14 +77,31 @@ class CopilotRequest(BaseModel):
     object_id: str | None = None
 
 
-def footprints(store: SceneStore, target_id: str) -> list[tuple[list[float], list[float]]]:
-    """Return boxes that block routes on top of the map: movable and newly added objects."""
-    return [
-        (asset["bbox_min"], asset["bbox_max"])
-        for asset in store.visible()
-        if asset["object_id"] != target_id
-        and (asset["mobility"] == "movable" or asset["status"] == UNCONFIRMED_NEW)
-    ]
+def shifted_box(asset: dict, position: list[float]) -> tuple[list[float], list[float]]:
+    """Return an object's box as if its center were at `position`."""
+    shift = [p - c for p, c in zip(position, asset["center"], strict=True)]
+    low = [v + d for v, d in zip(asset["bbox_min"], shift, strict=True)]
+    high = [v + d for v, d in zip(asset["bbox_max"], shift, strict=True)]
+    return low, high
+
+
+def footprints(
+    store: SceneStore, target_id: str, preview: "PreviewMove | None" = None
+) -> list[tuple[list[float], list[float]]]:
+    """Return boxes that block routes on top of the map: movable and newly added objects.
+
+    `preview` shows where an object is being dragged to, before the move is saved.
+    """
+    boxes = []
+    for asset in store.visible():
+        if asset["object_id"] == target_id:
+            continue
+        if asset["mobility"] == "movable" or asset["status"] == UNCONFIRMED_NEW:
+            if preview and asset["object_id"] == preview.object_id:
+                boxes.append(shifted_box(asset, preview.position))
+            else:
+                boxes.append((asset["bbox_min"], asset["bbox_max"]))
+    return boxes
 
 
 def create_app(
@@ -153,16 +176,20 @@ def create_app(
     @app.post("/api/route")
     def route(request: RouteRequest) -> dict:
         asset = require(request.object_id)
+        preview = request.preview
+        low, high = asset["bbox_min"], asset["bbox_max"]
+        if preview and preview.object_id == request.object_id:
+            low, high = shifted_box(asset, preview.position)
         if grid is not None:
             try:
                 found = plan_route(
                     grid,
                     tuple(request.start),
-                    tuple(asset["bbox_min"]),
-                    tuple(asset["bbox_max"]),
+                    tuple(low),
+                    tuple(high),
                     width=BODIES[request.profile][0],
                     band=BODIES[request.profile][1],
-                    footprints=footprints(store, request.object_id),
+                    footprints=footprints(store, request.object_id, preview),
                 )
             except NoRoute as reason:
                 raise HTTPException(409, str(reason)) from None

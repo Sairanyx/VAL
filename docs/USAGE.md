@@ -179,3 +179,8 @@ curl -X POST localhost:8001/api/viewer/commands -H 'Content-Type: application/js
 The open viewer runs it within about half a second. `GET /api/viewer/commands/ID` shows the result. Adding,
 splitting, and combining only start from a command, because a person draws or taps the rest.
 
+## Copilot voice
+The copilot reads its answer aloud with the device's own voice. **Voice on** turns this off. A device with
+no voice installed stays silent. Speaking to it isn't built yet: browser speech recognition usually needs
+internet, so offline needs a local model such as Whisper.
+

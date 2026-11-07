@@ -264,6 +264,7 @@ const copilot = setupCopilot({
   input: $("copilot-input"),
   answer: $("copilot-answer"),
   close: $("copilot-close"),
+  speakButton: $("copilot-speak"),
   getSelected: () => selected,
   name,
 });
@@ -407,8 +408,10 @@ function showManipBar(mode) {
   updateStatusForMode(mode);
 }
 
+// Hiding the bar also leaves move mode. Otherwise the next drag would move the object.
 function hideManipBar() {
   $("manip-bar").hidden = true;
+  objectLayer?.finishManipulation();
 }
 
 function updateStatusForMode(mode) {
@@ -857,6 +860,7 @@ async function load() {
   $("bim").hidden = !bim;
   $("bim").onclick = () => {
     const on = !bim.state.active;
+    hideManipBar();
     if (on) viewBeforeBim = objectLayer.state.view;
     objectLayer.setView(on ? "bim" : viewBeforeBim);
     bim.setActive(on);

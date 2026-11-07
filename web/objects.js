@@ -272,7 +272,8 @@ export async function setupObjects({
         moving.object.center.toArray(),
         moving.object.yaw || 0,
       );
-      if (state.moving !== moving) break;
+      // An answer that arrives after letting go is out of date, and finishDrag decides instead.
+      if (state.moving !== moving || !moving.dragging) break;
       showCheck(moving, result);
     } while (moving.checkAgain);
     moving.checking = false;

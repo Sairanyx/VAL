@@ -3,6 +3,7 @@
 // line up. Solid elements have a fitted shape; see-through ones only have a bounding box.
 import * as THREE from "three";
 
+const UP = new THREE.Vector3(0, 1, 0);
 const CLASS_COLORS = {
   IfcWall: 0xc7cdd6,
   IfcSlab: 0x6b7280,
@@ -35,6 +36,7 @@ export async function setupBim({ root, renderer, objects, faultTag, floorY, onSe
   root.add(group);
 
   const byId = new Map(objects.map((o) => [o.asset.object_id, o]));
+  const known = new Set(objects);
   const items = model.elements.map((element) => {
     const object = element.object_id ? byId.get(element.object_id) : null;
     const fault = element.psets.Valmet_Mapping?.Tag === faultTag;
@@ -45,6 +47,7 @@ export async function setupBim({ root, renderer, objects, faultTag, floorY, onSe
       object,
       mesh,
       home: mesh.position.clone(),
+      turn: mesh.quaternion.clone(),
       volume: volume(element.geometry),
       solid: !mesh.material.transparent,
     };
@@ -132,6 +135,7 @@ export async function setupBim({ root, renderer, objects, faultTag, floorY, onSe
   }
 
   function visible(item) {
+    if (item.object?.gone) return false;
     if (state.hidden.has(item.element.ifc_class)) return false;
     if (item.object?.gone) return false;
     if (state.isolated && state.selected) {
@@ -141,14 +145,54 @@ export async function setupBim({ root, renderer, objects, faultTag, floorY, onSe
   }
 
   const offset = new THREE.Vector3();
+  const spin = new THREE.Quaternion();
   const floorWorld = new THREE.Vector3();
+  // Objects made after the model was built, by adding, splitting, or combining, get a plain box.
+  function addNewObjects() {
+    for (const object of objects) {
+      if (object.gone || known.has(object)) continue;
+      known.add(object);
+      const low = object.asset.bbox_min;
+      const high = object.asset.bbox_max;
+      const size = low.map((value, i) => Math.abs(high[i] - value));
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(...size),
+        new THREE.MeshStandardMaterial({
+          color: CLASS_COLORS.IfcBuildingElementProxy ?? 0x9ca3af,
+          transparent: true,
+          opacity: 0.35,
+          clippingPlanes: [section],
+        }),
+      );
+      mesh.position.set(...object.asset.center);
+      group.add(mesh);
+      items.push({
+        element: {
+          name: object.asset.label,
+          ifc_class: "IfcBuildingElementProxy",
+          psets: { Valmet_Operator: { Status: object.asset.status, ObjectId: object.asset.object_id } },
+          geometry: {},
+        },
+        object,
+        mesh,
+        home: mesh.position.clone(),
+        turn: mesh.quaternion.clone(),
+        volume: size[0] * size[1] * size[2],
+        solid: false,
+      });
+    }
+  }
+
   function update() {
     if (!state.active) return;
+    addNewObjects();
     for (const item of items) {
       item.mesh.visible = visible(item);
-      if (item.object) {
+      if (item.object && !item.object.gone) {
         offset.set(...item.object.asset.center);
         item.mesh.position.copy(item.home).add(item.object.center).sub(offset);
+        spin.setFromAxisAngle(UP, item.object.yaw || 0);
+        item.mesh.quaternion.copy(item.turn).premultiply(spin);
       }
     }
     // The section keeps what is below a height above the floor, like a plan cut.
@@ -181,6 +225,7 @@ export async function setupBim({ root, renderer, objects, faultTag, floorY, onSe
 
   for (const item of items) item.mesh.userData.item = item;
   return {
+    items,
     state,
     setActive,
     update,

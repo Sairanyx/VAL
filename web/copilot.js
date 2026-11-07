@@ -16,7 +16,24 @@ function section(parent, title, items) {
   parent.append(list);
 }
 
-export function setupCopilot({ panel, form, input, answer, close, getObject }) {
+// Spoken by the device's own voice, which works offline if a voice is installed.
+function speak(text) {
+  if (!window.speechSynthesis) return false;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+  return true;
+}
+
+export function setupCopilot({ panel, form, input, answer, close, speakButton, getObject }) {
+  let speaking = true;
+  if (speakButton) {
+    speakButton.onclick = () => {
+      speaking = !speaking;
+      speakButton.textContent = speaking ? "Voice on" : "Voice off";
+      if (!speaking) window.speechSynthesis?.cancel();
+    };
+  }
+
   async function ask(question) {
     const object = getObject();
     answer.replaceChildren();
@@ -39,6 +56,7 @@ export function setupCopilot({ panel, form, input, answer, close, getObject }) {
     if (reply.placeholder) row(answer, "p", "Placeholder: the copilot isn't connected.", "warning");
     if (reply.safety_passed === false) row(answer, "p", "Refused for safety.", "warning");
     row(answer, "p", reply.answer);
+    if (speaking) speak(reply.answer);
     section(answer, "Observed", reply.observations);
     section(answer, "Possible causes", reply.hypotheses);
     section(answer, "Sources", reply.citations);
@@ -56,7 +74,10 @@ export function setupCopilot({ panel, form, input, answer, close, getObject }) {
     event.preventDefault();
     if (input.value.trim()) ask(input.value.trim());
   });
-  close.onclick = () => (panel.hidden = true);
+  close.onclick = () => {
+    panel.hidden = true;
+    window.speechSynthesis?.cancel();
+  };
 
   return {
     open(question) {

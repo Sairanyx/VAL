@@ -44,7 +44,7 @@ async function callApi(path, body) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const detail = typeof data.detail === "string" ? data.detail : `Backend error ${response.status}`;
-    throw new Error(detail);
+    throw Object.assign(new Error(detail), { refused: response.status < 500 });
   }
   return data;
 }
@@ -275,19 +275,40 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
   }
 
   // Send moves to the backend, which keeps the map's footprints, then re-plan the active route.
-  async function syncChanges(changes) {
-    try {
-      if (!changes.length) {
+  // One at a time and in order, so quick changes can't overlap, repeat, or arrive out of order.
+  let saving = Promise.resolve();
+  let waiting = 0;
+
+  function syncChanges(changes) {
+    waiting += 1;
+    saving = saving.then(() => saveChanges(changes));
+    return saving;
+  }
+
+  async function saveChanges(changes) {
+    waiting -= 1;
+    if (!changes.length) {
+      state.posted = 0;
+      try {
         await callApi("/api/changes/reset");
-      } else {
-        for (const change of changes.slice(state.posted)) await callApi("/api/changes", change);
+      } catch (error) {
+        onMessage(`Couldn't undo the changes: ${error.message}`);
+        return;
       }
-      state.posted = changes.length;
-    } catch (error) {
-      onMessage(`Couldn't save the move: ${error.message}`);
-      return;
     }
-    if (state.target) await plan(state.target, state.start);
+    while (state.posted < changes.length) {
+      try {
+        await callApi("/api/changes", changes[state.posted]);
+      } catch (error) {
+        onMessage(`Couldn't save the change: ${error.message}`);
+        // A refused change would block every later one. Others may just need a retry.
+        if (error.refused) state.posted += 1;
+        return;
+      }
+      state.posted += 1;
+    }
+    // Later changes re-plan anyway, so only the last one needs to.
+    if (state.target && !waiting) await plan(state.target, state.start);
   }
 
   const look = new THREE.Matrix4();

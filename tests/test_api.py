@@ -1,0 +1,77 @@
+import json
+
+import pytest
+
+pytest.importorskip("fastapi")
+pytest.importorskip("httpx")
+
+from fastapi.testclient import TestClient  # noqa: E402
+
+from app.api.main import create_app  # noqa: E402
+
+
+def box(object_id, center, mobility):
+    low = [c - 0.5 for c in center]
+    high = [c + 0.5 for c in center]
+    return {
+        "object_id": object_id,
+        "label": "cart",
+        "center": center,
+        "bbox_min": low,
+        "bbox_max": high,
+        "mapping": None,
+        "mobility": mobility,
+    }
+
+
+@pytest.fixture
+def client(tmp_path):
+    assets = [box("near", [1, 1, 0], "movable"), box("far", [9, 1, 0], "fixed")]
+    path = tmp_path / "assets.json"
+    path.write_text(json.dumps({"scene_id": "t", "floor_y": 1.25, "assets": assets}))
+    return TestClient(create_app(path))
+
+
+def test_assets_and_missing_object(client):
+    assert len(client.get("/api/assets").json()["assets"]) == 2
+    assert client.get("/api/assets/near").json()["telemetry"] == []
+    assert client.get("/api/assets/nope").status_code == 404
+
+
+def test_nearby_uses_radius_and_sorts(client):
+    found = client.get("/api/nearby", params={"x": 0, "y": 1, "z": 0, "radius": 3}).json()["assets"]
+    assert [a["object_id"] for a in found] == ["near"]
+    assert found[0]["distance"] == 0.5
+
+
+def test_route_is_marked_placeholder(client):
+    body = client.post("/api/route", json={"start": [0, 1.25, 0], "object_id": "far"}).json()
+    assert body["placeholder"] is True
+    assert body["path"][0] == [0, 1.25, 0]
+    assert body["length"] == 9
+
+
+def test_move_updates_box_and_is_logged(client):
+    moved = {"op": "move", "object_id": "near", "position": [5, 1, 0]}
+    assert client.post("/api/changes", json=moved).status_code == 200
+    asset = client.get("/api/assets/near").json()
+    assert asset["center"] == [5, 1, 0]
+    assert asset["bbox_min"] == [4.5, 0.5, -0.5]
+    assert len(client.get("/api/changes").json()["changes"]) == 1
+
+
+def test_fixed_object_cannot_move(client):
+    change = {"op": "move", "object_id": "far", "position": [5, 1, 0]}
+    assert client.post("/api/changes", json=change).status_code == 409
+
+
+def test_add_remove_and_reset(client):
+    added = client.post("/api/changes", json={"op": "add", "position": [2, 1, 2]}).json()
+    assert client.get(f"/api/assets/{added['object_id']}").json()["mapping"] is None
+    assert (
+        client.post("/api/changes", json={"op": "remove", "object_id": "near"}).status_code == 200
+    )
+    assert client.get("/api/assets/near").status_code == 404
+    client.post("/api/changes/reset")
+    ids = {a["object_id"] for a in client.get("/api/assets").json()["assets"]}
+    assert ids == {"near", "far"}

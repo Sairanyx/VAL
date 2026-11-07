@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bg91o6djq</task-id>
+<tool-use-id>toolu_01RoCTZBQxf9iM8JC7G1PLSQ</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/bg91o6djq.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the rerun and print every answer" completed (exit code 0)</summary>
+</task-notification>

@@ -44,6 +44,8 @@ export function setupCopilot({ panel, form, input, answer, close, getObject }) {
     section(answer, "Sources", reply.citations);
     const mapping = object?.asset.mapping;
     const notes = [`Answer confidence ${Number(reply.confidence ?? 0).toFixed(2)}`];
+    if (reply.answer_source === "model") notes.push("Worded by the local model, checked by code");
+    else if (reply.answer_source) notes.push("Fixed template");
     if (mapping) {
       notes.push(`Object linked to ${mapping.tag} by ${mapping.method}, ${mapping.confidence}`);
     }

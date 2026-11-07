@@ -4,6 +4,7 @@ from dataclasses import asdict
 from typing import Any
 
 from app.copilot.copilot import CopilotEngine
+from app.copilot.llm import Writer, answer
 from app.copilot.store import DataStore
 
 RECENT = 20
@@ -49,7 +50,13 @@ def copilot_mapping(assets: list[dict], store: DataStore) -> dict[str, dict[str,
     return mapping
 
 
-def ask(engine: CopilotEngine, assets: list[dict], question: str, object_id: str | None) -> dict:
+def ask(
+    engine: CopilotEngine,
+    assets: list[dict],
+    question: str,
+    object_id: str | None,
+    writer: Writer | None = None,
+) -> dict:
     """Answer from the current scene, so moved objects and new links are always included."""
     engine.sample_assets = copilot_assets(assets)
     engine.mapping = copilot_mapping(assets, engine.store)
@@ -57,7 +64,7 @@ def ask(engine: CopilotEngine, assets: list[dict], question: str, object_id: str
         # A detected object with no record mustn't inherit the previous machine's identity.
         engine.focused_asset_tag = None
         engine.focused_object_id = object_id
-    return engine.query(question, object_id=object_id).to_dict()
+    return answer(engine, question, object_id, writer)
 
 
 def condition(asset: dict, store: DataStore) -> dict[str, Any] | None:

@@ -6,6 +6,7 @@ make api                                      # fixture, on http://localhost:800
 SCENE_ASSETS=path/to/assets.json make api     # real objects
 """
 
+import base64
 import hashlib
 import io
 import json
@@ -37,8 +38,14 @@ from app.api.store import GONE, ChangeError, SceneStore
 from app.bim.ifc import ifc_text
 from app.bim.model import build_model
 from app.copilot.llm import can_reword, load_writer, warm_up
-from app.nav.grid import NavGrid, load_grid
-from app.nav.route import BODIES, NoRoute, placeholder_route, plan_route
+from app.nav.grid import NavGrid, largest_region, load_grid
+from app.nav.route import (
+    BODIES,
+    NoRoute,
+    clearance_with_footprints,
+    placeholder_route,
+    plan_route,
+)
 from app.plan.export_dxf import write_dxf
 from app.plan.layout import build_layout
 from app.scene.load import Splats, read_splats, write_splats
@@ -476,6 +483,27 @@ def create_app(
     @app.get("/api/plan/floor.png")
     def plan_image() -> Response:
         return Response(plan_layout()["png"], media_type="image/png")
+
+    @app.get("/api/plan/walkable")
+    def plan_walkable(profile: Literal["robot", "person"] = "person") -> dict:
+        """Where a body can walk right now, as a mask over the floor map. Walk mode keeps to it.
+
+        The same map, body width, and moved objects' footprints as routing, so walking and routes
+        agree. The mask is packed bits, row by row, over `shape`.
+        """
+        if grid is None:
+            raise HTTPException(404, "No floor map is loaded")
+        width, band = BODIES[profile]
+        clearance = clearance_with_footprints(grid, footprints(store, ""), band)
+        walk = largest_region(clearance >= width / 2)
+        return {
+            "origin": [float(v) for v in grid.origin],
+            "cell": float(grid.cell),
+            "axes": [int(a) for a in grid.axes],
+            "shape": [int(n) for n in walk.shape],
+            "mask": base64.b64encode(np.packbits(walk, axis=None).tobytes()).decode(),
+            "changes": len(store.changes),
+        }
 
     @app.get("/api/plan/layout.dxf")
     def plan_dxf() -> Response:

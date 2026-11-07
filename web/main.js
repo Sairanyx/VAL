@@ -14,6 +14,7 @@ import { setupObjects } from "./objects.js";
 import { setupPacing } from "./pacing.js";
 import { setupPhone } from "./phone.js";
 import { setupPlan } from "./plan.js";
+import { setupWalkable } from "./walkable.js";
 import { setupWalkXR, xrSupported } from "./xr.js";
 import { setupRoute } from "./route.js";
 
@@ -101,6 +102,8 @@ const phone = setupPhone({
   joystick: $("joystick"),
   onMessage: (msg) => ($("status").textContent = msg),
 });
+// Walk mode keeps to the walkable floor; Fly goes anywhere.
+const walkFloor = setupWalkable({ root, camera });
 const raycaster = new THREE.Raycaster();
 const objects = []; // { asset, box, pick, label, center, yaw, baseSize }
 const pacing = setupPacing({
@@ -906,6 +909,7 @@ $("track").onclick = async () => {
 
 $("reset").onclick = () => {
   if (tracking.state.active) return tracking.recenter();
+  walkFloor.forget();
   camera.position.copy(startPos);
   camera.rotation.set(0, 0, 0);
   camera.quaternion.set(0, 0, 0, 1);
@@ -1014,6 +1018,7 @@ function animate(now) {
   if (following && !tracked) route.update(stepTime);
   else if (!tracked) phone.update(stepTime);
   if (walk && !tracked) camera.position.y = eyeY;
+  if (walk && !tracked && !following) walkFloor.keepOnFloor(now);
   const hoverDue = now - lastHoverCheck > HOVER_EVERY;
   if (hoverDue && (hoverChanged || (hoverAt && pacing.isMoving()))) {
     hoverChanged = false;

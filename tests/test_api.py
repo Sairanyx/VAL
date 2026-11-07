@@ -507,3 +507,34 @@ def test_raising_an_object_moves_its_whole_box_up(client):
     asset = client.get("/api/assets/near").json()
     assert asset["center"] == [1, 0.5, 0]
     assert asset["bbox_min"][1] == 0.0 and asset["bbox_max"][1] == 1.0
+
+
+def test_walkable_floor_follows_a_moved_object(tmp_path):
+    np = pytest.importorskip("numpy")
+    import base64
+
+    assets = [box("cart", [5.0, -0.5, 1.0], "movable")]
+    path = tmp_path / "assets.json"
+    path.write_text(json.dumps({"scene_id": "t", "assets": assets}))
+    client = TestClient(create_app(path, open_floor(tmp_path), database=FakeDatabase()))
+
+    def walkable():
+        body = client.get("/api/plan/walkable").json()
+        assert body["shape"] == [120, 40] and body["axes"] == [0, 2]
+        bits = np.frombuffer(base64.b64decode(body["mask"]), dtype=np.uint8)
+        return np.unpackbits(bits)[: 120 * 40].reshape(120, 40).astype(bool)
+
+    def at(mask, x, z):  # 5 cm cells from the origin (0, 0), x along rows, z along columns
+        return mask[int(x / 0.05), int(z / 0.05)]
+
+    before = walkable()
+    assert before.any() and not at(before, 5.0, 1.0)
+    client.post(
+        "/api/changes", json={"op": "move", "object_id": "cart", "position": [1.0, -0.5, 1.0]}
+    )
+    after = walkable()
+    assert at(after, 5.0, 1.0) and not at(after, 1.0, 1.0)
+
+
+def test_walkable_floor_needs_a_floor_map(client):
+    assert client.get("/api/plan/walkable").status_code == 404

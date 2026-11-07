@@ -1,6 +1,6 @@
-# yasasha: yasasha/bim
-**Goal:** BIM mode: a simulated, interactive BIM model of the room close to the real objects, plus IFC.
-**Done:** app/bim/ (room from scan density; per-object scan meshes and true-colour splats in shapes.py and __main__.py; IFC4 with triangulated meshes), web/bim.js (BIM button, Real/Mesh/Box look, class filters, IFC properties, isolate, section, IFC download; moves follow), `make bim`, serve.py `--bim`, docs/USAGE.md.
-**Verified:** make check 223 passed. IfcOpenShell on real model.ifc: 0 schema issues, 445 elements built. Chromium (software GL): enter/exit, P-005 picked via its mesh, Real/Mesh/Box switching and picking, cart shapes and splats follow a move, section, isolate, download.
-**Next:** Check frame rate on a real GPU and tablet; merge partial detections (pallet jack) for fuller shapes.
-**Blockers:** none. web/ is Benjamin's area: ask him before merging.
+# yasasha: yasasha/bim-pick
+**Goal:** Reliable BIM selection: tapping a gap in a scanned object still picks it, with a hover preview.
+**Done:** web/bim.js picks and hovers by each element's simple Box shape in every look (Real, Mesh, Box); faint shell and outline on hover, pointer cursor; web/main.js checks the mouse once a frame. docs/USAGE.md.
+**Verified:** make check 252 passed. Chromium on real data: rays through three bucket centres miss the scan mesh but pick the bucket in all looks; a real mouse hover and click picked bucket obj-0148; hover clears on empty space and leaving the canvas.
+**Next:** Check hover speed on the GPU machine; tablet has no hover, taps use the same shapes.
+**Blockers:** none. BIM Real/Mesh/Box merged in #28.

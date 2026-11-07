@@ -2,7 +2,7 @@
 // meshes.bin (scan surface meshes) and bim/splats/ (each object's own scanned splats).
 // Three looks: "real" shows the objects' true-colour splats in the estimated room, "mesh" shows
 // meshes built from those splats, and "box" the simple shapes: fitted boxes and cylinders, or
-// bounding boxes. All but "real" are coloured by IFC class. Taps hit the mesh, or the box in "box".
+// bounding boxes. All but "real" are coloured by IFC class. Taps and hovering always use the simple shape.
 // Everything is in scene coordinates inside `root`, like the scan, so moves and routes line up.
 import * as THREE from "three";
 import { SplatMesh } from "@sparkjsdev/spark";
@@ -27,6 +27,7 @@ const CLASS_COLORS = {
 const FAULT_COLOR = 0xff2d2d;
 const SELECTED_GLOW = 0x0891b2;
 const SELECTED_TINT = 0x22d3ee;
+const HOVER_COLOR = 0xe0f2fe;
 const ROOM = new Set(["IfcWall", "IfcSlab"]);
 
 export async function setupBim({
@@ -102,6 +103,7 @@ export async function setupBim({
     isolated: false,
     hidden: new Set(),
     cut: null,
+    hovered: null,
   };
   ready = true;
   // Objects that can't move share one splat file per IFC class; movable ones get their own.
@@ -200,7 +202,10 @@ export async function setupBim({
     if (on) {
       setLook(state.look);
       chooseDownload();
-    } else hideSplats();
+    } else {
+      hideSplats();
+      hover(null);
+    }
   }
 
   function hideSplats() {
@@ -327,26 +332,86 @@ export async function setupBim({
       root.localToWorld(floorWorld.set(0, floorY, 0));
       section.constant = floorWorld.y + state.cut;
     }
+    placeHover();
   }
 
-  // Equipment is preferred over walls and floor. See-through bounding boxes can overlap, so the
-  // smallest one under the pointer wins, but nothing behind the first solid shape is picked.
-  function pick(raycaster) {
-    const meshes = items.filter((item) => item.mesh.visible).map((item) => item.mesh);
+  // Taps and hovering use each element's simple shape in every look, even when it isn't drawn:
+  // scan meshes and splats have gaps, so a tap in the middle of a bucket could miss it.
+  // Equipment is preferred over walls and floor. Bounding boxes can overlap, so the smallest one
+  // under the pointer wins, but nothing behind the first fitted shape is picked.
+  function candidate(raycaster) {
+    const boxes = items.filter((item) => visible(item)).map((item) => item.box);
     const hits = raycaster
-      .intersectObjects(meshes, false)
+      .intersectObjects(boxes, false)
       .filter((hit) => state.cut === null || section.distanceToPoint(hit.point) >= 0)
       .map((hit) => hit.object.userData.item);
     const equipment = [];
     for (const item of hits) {
       if (ROOM.has(item.element.ifc_class)) continue;
       equipment.push(item);
-      if (!item.mesh.userData.base.transparent) break;
+      if (!item.box.userData.base.transparent) break;
     }
     const pool = equipment.length ? equipment : hits.slice(0, 1);
-    const item = pool.length ? pool.reduce((a, b) => (b.volume < a.volume ? b : a)) : null;
+    return pool.length ? pool.reduce((a, b) => (b.volume < a.volume ? b : a)) : null;
+  }
+
+  function pick(raycaster) {
+    const item = candidate(raycaster);
     select(item);
     return item;
+  }
+
+  // A faint shell of the simple shape under the pointer, so it's clear what a tap would pick.
+  const hoverFill = new THREE.MeshBasicMaterial({
+    color: HOVER_COLOR,
+    transparent: true,
+    opacity: 0.12,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    clippingPlanes: [section],
+  });
+  const hoverLine = new THREE.LineBasicMaterial({
+    color: HOVER_COLOR,
+    transparent: true,
+    opacity: 0.8,
+    depthTest: false,
+    clippingPlanes: [section],
+  });
+  const hoverMesh = new THREE.Mesh(undefined, hoverFill);
+  const hoverEdges = new THREE.LineSegments(undefined, hoverLine);
+  hoverMesh.add(hoverEdges);
+  hoverMesh.renderOrder = hoverEdges.renderOrder = 10;
+  hoverMesh.raycast = hoverEdges.raycast = () => {};
+  hoverMesh.visible = false;
+  root.add(hoverMesh);
+  const edgeCache = new WeakMap();
+
+  // Pass a raycaster to hover what is under it, or null to clear. Returns the hovered item.
+  function hover(raycaster) {
+    const item = raycaster && state.active ? candidate(raycaster) : null;
+    if (item && ROOM.has(item.element.ifc_class)) return hover(null);
+    state.hovered = item;
+    hoverMesh.visible = Boolean(item);
+    if (!item) return null;
+    const box = item.box;
+    if (hoverMesh.geometry !== box.geometry) {
+      hoverMesh.geometry = box.geometry;
+      if (!edgeCache.has(box.geometry)) edgeCache.set(box.geometry, new THREE.EdgesGeometry(box.geometry, 20));
+      hoverEdges.geometry = edgeCache.get(box.geometry);
+    }
+    placeHover();
+    return item;
+  }
+
+  function placeHover() {
+    const item = state.hovered;
+    if (!item || !hoverMesh.visible) return;
+    if (!visible(item)) {
+      hoverMesh.visible = false;
+      return;
+    }
+    hoverMesh.position.copy(item.box.position);
+    hoverMesh.quaternion.copy(item.box.quaternion);
   }
 
   document.getElementById("bim-look").hidden = looks.length < 2;
@@ -357,6 +422,7 @@ export async function setupBim({
     setLook,
     update,
     pick,
+    hover,
     selectObject,
     elementCount: items.length,
   };

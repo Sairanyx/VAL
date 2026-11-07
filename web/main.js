@@ -483,6 +483,31 @@ function hit(ndc) {
   return found.length ? found.reduce((a, b) => (b.volume < a.volume ? b : a)) : null;
 }
 
+// In BIM mode a mouse shows what a tap would pick. Checked once a frame, so it also follows
+// the view when the camera moves under a still mouse.
+let hoverAt = null;
+canvas.addEventListener("pointermove", (e) => {
+  const free = e.pointerType === "mouse" && e.buttons === 0;
+  hoverAt = free ? { x: e.clientX, y: e.clientY } : null;
+});
+canvas.addEventListener("pointerleave", () => (hoverAt = null));
+let hovering = false;
+function updateHover() {
+  if (!bim) return;
+  const busy = adder.state.active || objectLayer?.state.moving;
+  let item = null;
+  if (hoverAt && bim.state.active && !busy) {
+    const ndc = new THREE.Vector2(
+      (hoverAt.x / window.innerWidth) * 2 - 1,
+      -(hoverAt.y / window.innerHeight) * 2 + 1,
+    );
+    raycaster.setFromCamera(ndc, camera);
+    item = bim.hover(raycaster);
+  } else if (hovering) bim.hover(null);
+  hovering = Boolean(item);
+  canvas.style.cursor = item ? "pointer" : "";
+}
+
 // A short tap without dragging selects an object. Drags are camera movement.
 let down = null;
 canvas.addEventListener("pointerdown", (e) => (down = { x: e.clientX, y: e.clientY, t: e.timeStamp }));
@@ -620,6 +645,7 @@ function animate(now) {
   objectLayer?.update(dt);
   highlight.update();
   bim?.update();
+  updateHover();
   if (following && !tracked) route.update(dt);
   else if (!tracked) phone.update(dt);
   route?.animate(dt);

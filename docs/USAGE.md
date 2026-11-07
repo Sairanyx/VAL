@@ -59,6 +59,8 @@ model: estimated walls and floor, plus one IFC element per detected object. **Lo
   bounding boxes where no shape was fitted.
 - **Tap an element** to see its IFC class, GlobalId and properties. Equipment also opens the normal
   panel, so **Ask copilot**, **Route here** and **Move on floor** still work, and moves show in BIM.
+  Taps use each object's simple Box shape in every look, so tapping a gap in a scanned bucket
+  still picks the bucket. With a mouse, the shape under the pointer shows as a faint outline first.
 - **Class boxes** hide or show element types. **Isolate** keeps only the selection, walls and floor.
 - **Section** cuts everything above a height, like a floor plan. It switches to the Mesh look.
 - **Download IFC** saves `model.ifc` (IFC4), which opens in BIM tools such as Bonsai.

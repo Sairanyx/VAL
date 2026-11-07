@@ -14,10 +14,12 @@ HIGHLIGHTS_DIR ?= $(SCENE_DIR)/highlights
 HIGHLIGHTS ?= $(if $(filter $(SCENE_DIR)/%,$(SCENE)),$(if $(wildcard $(HIGHLIGHTS_DIR)/highlights.json),$(HIGHLIGHTS_DIR)))
 # Phones and tablets load this lighter scene. Not with PIECES: it still has the cut-out objects.
 LIGHT ?= $(if $(PIECES),,$(if $(filter $(SCENE_DIR)/%,$(SCENE)),$(wildcard $(SCENE_DIR)/light_full.ply)))
+BIM_DIR ?= $(SCENE_DIR)/bim
+BIM ?= $(if $(filter $(SCENE_DIR)/%,$(SCENE)),$(if $(wildcard $(BIM_DIR)/bim.json),$(BIM_DIR)))
 MODEL ?= Qwen3.5-9B
 MODEL_DIR ?= data/models/$(MODEL)
 
-.PHONY: setup entire views scene scene-full model pieces highlights pipeline gpu train tb web fmt lint test check up api floor mapping db nav-check start-browser start-tablet
+.PHONY: setup entire views scene scene-full model pieces highlights pipeline gpu train tb web fmt lint test check up api floor mapping db nav-check start-browser start-tablet bim
 
 setup:   ## install everything
 	uv sync
@@ -49,6 +51,8 @@ pieces:  ## cut movable objects out of a scene, so dragging moves the real thing
 	uv run python -m app.scene.split_movable "$(PIECES_FROM)" $(SCENE_DIR)/assets_viewer.json $(PIECES_DIR) --objects $(PIECES_OBJECTS) --members $(SCENE_DIR)/members.npz --box $(PIECES_BOX)
 highlights: ## export segmented object surfaces for cyan selection highlighting
 	uv run python -m app.scene.highlights "$(SCENE_DIR)/Equipment Room.ply" $(SCENE_DIR)/assets_final.json $(SCENE_DIR)/splat_labels.npy $(HIGHLIGHTS_DIR) $(if $(wildcard $(PIECES_DIR)/pieces.json),--pieces $(PIECES_DIR))
+bim:     ## simulated BIM model of the room for the viewer's BIM mode, plus model.ifc (IFC4)
+	uv run python -m app.bim "$(SCENE_DIR)/Equipment Room.ply" $(SCENE_DIR)/assets_mapped.json $(SCENE_DIR)/shapes.json $(BIM_DIR)
 pipeline: ## run a scene through everything: make pipeline CONFIG=scenes/equipment_room.toml, DRY=1 to preview
 	uv run python scripts/pipeline.py $(or $(CONFIG),scenes/equipment_room.toml) $(if $(DRY),--dry-run)
 start-browser: ## start everything for a laptop or PC. Same as ./start browser
@@ -75,7 +79,7 @@ tb:      ## training graphs at http://localhost:6006
 	uv run tensorboard --logdir runs
 SCENE ?= data/scene/sample/scene.ply
 web:     ## web viewer on port 8000, SCENE= picks the splat, HTTPS=1 for phone sensors, LIGHT= for phones
-	uv run python web/serve.py --scene "$(SCENE)" $(if $(HTTPS),--https) $(if $(ASSETS),--assets "$(ASSETS)") $(if $(SHAPES),--shapes "$(SHAPES)") $(if $(PIECES),--pieces "$(PIECES)") $(if $(HIGHLIGHTS),--highlights "$(HIGHLIGHTS)") $(if $(LIGHT),--light "$(LIGHT)")
+	uv run python web/serve.py --scene "$(SCENE)" $(if $(HTTPS),--https) $(if $(ASSETS),--assets "$(ASSETS)") $(if $(SHAPES),--shapes "$(SHAPES)") $(if $(PIECES),--pieces "$(PIECES)") $(if $(HIGHLIGHTS),--highlights "$(HIGHLIGHTS)") $(if $(LIGHT),--light "$(LIGHT)") $(if $(BIM),--bim "$(BIM)
 fmt:     ## tidy code style and auto-fix lint
 	uv run --only-group dev ruff format .
 	uv run --only-group dev ruff check --fix .

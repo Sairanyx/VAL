@@ -63,7 +63,8 @@ export function setupHighlight({ root, objectLayer, onMessage }) {
 
   function update() {
     if (!overlay || !selected) return;
-    overlay.visible = objectLayer()?.state.view !== "objects" && !selected.gone;
+    const view = objectLayer()?.state.view;
+    overlay.visible = view !== "objects" && view !== "bim" && !selected.gone;
     const yaw = selected.yaw || 0;
     overlay.quaternion.setFromAxisAngle(yAxis, yaw);
     const rotatedHome = home.clone().applyAxisAngle(yAxis, yaw);

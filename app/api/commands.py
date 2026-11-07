@@ -25,6 +25,7 @@ ACTIONS: dict[str, dict[str, Any]] = {
     "set_range": {"args": {"metres": "number"}, "does": "How far away objects are shown"},
     "set_view": {"args": {"view": "str"}, "does": "Show scan, both, or objects"},
     "set_apart": {"args": {"on": "bool"}, "does": "Pull objects apart, or bring them together"},
+    "set_bim": {"args": {"on": "bool"}, "does": "Show or leave the BIM model"},
     "reset_view": {"args": {}, "does": "Go back to the starting position"},
     "open_copilot": {"args": {}, "does": "Open the copilot window"},
     "ask_copilot": {"args": {"question": "str"}, "does": "Ask the copilot and show the answer"},

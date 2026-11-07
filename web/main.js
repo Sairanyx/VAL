@@ -4,6 +4,7 @@
 import * as THREE from "three";
 import { SparkControls, SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
 import { setupAddObject } from "./addobject.js";
+import { setupBim } from "./bim.js";
 import { setupCommands } from "./commands.js";
 import { setupCopilot } from "./copilot.js";
 import { setupHighlight } from "./highlight.js";
@@ -85,6 +86,7 @@ let walk = true;
 let eyeY = EYE_HEIGHT;
 let startPos = new THREE.Vector3(0, EYE_HEIGHT, 0);
 let objectLayer = null;
+let bim = null;
 let route = null;
 let selected = null;
 let boxesOn = true;
@@ -213,6 +215,7 @@ function showInfo(obj) {
     "</dl>";
   selected = obj;
   highlight.select(obj);
+  bim?.selectObject(obj);
   $("move-actions").hidden = a.mobility !== "movable" || !objectLayer;
   $("cant-move").hidden = a.mobility === "movable";
   $("cant-move").textContent =
@@ -470,6 +473,11 @@ canvas.addEventListener("pointerup", (e) => {
     (e.clientX / window.innerWidth) * 2 - 1,
     -(e.clientY / window.innerHeight) * 2 + 1,
   );
+  if (bim?.state.active && !adder.state.active) {
+    raycaster.setFromCamera(ndc, camera);
+    if (!bim.pick(raycaster)) $("info").hidden = true;
+    return;
+  }
   const obj = hit(ndc);
   if (obj && adder.state.combining && !adder.state.other) adder.combineWith(obj);
   else if (obj) {
@@ -551,7 +559,7 @@ function updateLabels() {
 
   nearby.sort((a, b) => a.rank - b.rank || a.dist - b.dist);
   const inView = nearby.filter((item) => item.onScreen);
-  if (boxesOn && !apart) {
+  if (boxesOn && !apart && !bim?.state.active) {
     for (const { o } of inView.slice(0, MAX_BOXES)) {
       if (!highlight.hasSurface(o)) o.box.visible = true;
     }
@@ -586,6 +594,7 @@ function animate(now) {
   if (!phone.enabled && !busy && !tracked) controls.update(camera);
   objectLayer?.update(dt);
   highlight.update();
+  bim?.update();
   if (following && !tracked) route.update(dt);
   else if (!tracked) phone.update(dt);
   route?.animate(dt);
@@ -745,6 +754,10 @@ function commandHandlers() {
     start_rotate: ({ object_id }) => open(object_id, "rotate"),
     finish_moving: press("manip-done"),
     undo_changes: press("reset-moves"),
+    set_bim: ({ on }) => {
+      if (!bim) throw new Error("No BIM model: run make bim");
+      pressIf(bim.state.active !== on, "bim");
+    },
     start_add: press("add-object"),
     start_split: ({ object_id }) => open(object_id, "split-object"),
     start_combine: ({ object_id }) => open(object_id, "combine-object"),
@@ -828,6 +841,32 @@ async function load() {
     hideManipBar();
     objectLayer.resetMoves();
   };
+  bim = await setupBim({
+    root,
+    renderer,
+    objects,
+    faultTag,
+    floorY: data.floor_y ?? 0,
+    // Walls and the floor have no scan object, so only the BIM panel describes them.
+    onSelectObject: (object) => (object ? showInfo(object) : ($("info").hidden = true)),
+  }).catch((err) => {
+    console.error("BIM model failed to load", err);
+    return null;
+  });
+  let viewBeforeBim = "scan";
+  $("bim").hidden = !bim;
+  $("bim").onclick = () => {
+    const on = !bim.state.active;
+    if (on) viewBeforeBim = objectLayer.state.view;
+    objectLayer.setView(on ? "bim" : viewBeforeBim);
+    bim.setActive(on);
+    $("bim").textContent = on ? "Exit BIM" : "BIM";
+    $("view-mode").disabled = on;
+    $("apart").disabled = on;
+    $("status").textContent = on
+      ? `BIM model: ${bim.elementCount} elements, simulated from the scan`
+      : "Back to the scan";
+  };
   // Starting states from the URL, for screenshots and rehearsals.
   if (params.has("view")) {
     objectLayer.setView(params.get("view"));
@@ -839,7 +878,7 @@ async function load() {
   }
   await syncWithBackend();
   setupCommands(commandHandlers());
-  window.plantViewer = { objects, objectLayer, camera, route, copilot, showInfo, adder }; // For browser tests and debugging.
+  window.plantViewer = { objects, objectLayer, camera, route, copilot, showInfo, adder, bim }; // For browser tests and debugging.
   if (params.has("camera")) {
     const [x, y, z, yaw, pitch] = params.get("camera").split(",").map(Number);
     camera.position.set(x, y, z);

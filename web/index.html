@@ -43,6 +43,7 @@
     <button id="range">Range 3 m</button>
     <button id="reset">Start</button>
     <button id="view-mode">Scan</button>
+    <button id="bim" hidden>BIM</button>
     <button id="apart">Apart</button>
     <button id="reset-moves">Undo changes</button>
   </div>
@@ -69,6 +70,18 @@
     <button id="manip-turn-left" title="Turn 45° counter-clockwise">↶ 45°</button>
     <button id="manip-turn-right" title="Turn 45° clockwise">↷ 45°</button>
     <button id="manip-done">Done</button>
+  </div>
+
+  <div id="bim-panel" hidden>
+    <h2>BIM model <small>simulated from the scan</small></h2>
+    <p class="bim-note">Solid: fitted shape. See-through: bounding box only. Walls are estimates.</p>
+    <div id="bim-classes"></div>
+    <label class="bim-section">Section <input id="bim-section" type="range" min="0.3" max="2.6" step="0.1" value="2.6"> <span id="bim-section-value">off</span></label>
+    <div class="bim-actions">
+      <button id="bim-isolate">Isolate</button>
+      <a id="bim-download" href="model.ifc" download="model.ifc">Download IFC</a>
+    </div>
+    <div id="bim-props"></div>
   </div>
 
   <div id="select-frame" hidden></div>

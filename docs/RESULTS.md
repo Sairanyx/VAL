@@ -16,6 +16,7 @@ numbers feed the scene comparison, slides, and technical note, so only record wh
 ## Runs
 | Date | Owner | Step | Scene or input | Settings | Result | Time | Peak memory | Machine |
 |---|---|---|---|---|---|---|---|---|
+| 2026-11-07 | yasasha | Simulated BIM and IFC export (`app/bim`) | `Equipment Room.ply`, objects-v2, 65 fitted shapes | Walls: outermost band with 15% of peak density at 0.5-2.0 m | 445 IFC4 elements (4 walls, 1 slab, 440 objects; 58 fitted shapes, rest bounding boxes). Room 9.1 x 7.3 m, ceiling 2.49 m. IfcOpenShell: 0 schema issues, all geometry built | About 1 s | Not measured | WSL2 laptop |
 | 2026-11-08 | yasasha | Selection surface highlights | Original `Equipment Room.ply`, objects-v2 labels | Cyan per-object splats, no higher-order SH | 440 highlights exported; Chromium movement, undo, visibility, disposal and rapid-selection checks passed. Isolated obj-0309 render: cyan pixels increased from 0 to 10,888 at 512x512 (G-R and B-R both above 40); not a segmentation accuracy metric | Not measured | Not measured | WSL2, Chromium SwiftShader |
 | 2026-11-06 | Viktor | Validate PLY | `Equipment Room.ply` | | 1,676,481 of 1,676,481 records valid | | | ThinkPad |
 | 2026-11-06 | Viktor | Clean scene | `Equipment Room.ply` | Opacity above 0.05, floater removal | 1,178,554 splats kept, floor y about 1.18 | About 4 s | 0.8 GB RAM | ThinkPad |

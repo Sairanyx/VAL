@@ -268,3 +268,12 @@ button {
 .add-row button {
   flex: 1;
 }
+
+#cant-move {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+#cant-move[hidden] {
+  display: none;
+}

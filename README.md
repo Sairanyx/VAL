@@ -7,7 +7,7 @@ labelled assets linked to device data, routes a worker around obstacles to a fau
 gives AI guidance with cited evidence. Runs on one local GPU server, viewed in a tablet browser.
 
 **Status:** core features work, not yet rehearsed on the demo hardware.
-[Current tasks and how to run the demo](docs/PLAN.md#now) · [Plan](docs/PLAN.md) · [Challenge](docs/CHALLENGE.md) ·
+**[How to run and use it](docs/USAGE.md)** · [Current tasks](docs/PLAN.md#now) · [Plan](docs/PLAN.md) · [Challenge](docs/CHALLENGE.md) ·
 [Results](docs/RESULTS.md)
 
 ## Setup (once)

@@ -33,6 +33,10 @@ function chevronGeometry() {
 }
 const LIVE_STEP = 0.1; // metres moved before the route is re-planned or trimmed
 const LIVE_WAIT = 50; // milliseconds between live re-plans, so requests don't pile up
+const RETRY_WAIT = 2000; // milliseconds before trying again to save a change that didn't get through
+const WARNING_TIME = 8000; // milliseconds a warning stays, as live re-plans replace the status often
+const FORGOTTEN =
+  "The backend lost saved moves, so objects went back. It restarted without make db, or someone pressed Undo elsewhere";
 
 async function callApi(path, body) {
   const response = await fetch(path, {
@@ -43,7 +47,7 @@ async function callApi(path, body) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const detail = typeof data.detail === "string" ? data.detail : `Backend error ${response.status}`;
-    throw new Error(detail);
+    throw Object.assign(new Error(detail), { refused: response.status < 500 });
   }
   return data;
 }
@@ -64,7 +68,7 @@ function pathToViewPoint(path, viewFrom) {
   return [...points.slice(0, best.index + 1), view];
 }
 
-export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
+export function setupRoute({ root, camera, floorY, getEyeY, onMessage, onOutOfStep }) {
   const group = new THREE.Group();
   group.renderOrder = 10;
   root.add(group);
@@ -100,6 +104,27 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
   // Live re-planning: one request at a time, always for the newest position. `plan` and `clear`
   // bump `version`, so an older reply that arrives afterwards is dropped.
   const live = { busy: false, version: 0, lastAt: 0, lastFrom: null, lastDrag: null };
+  let expected = 0; // How many changes the backend should hold, at least.
+  let retry = null;
+  let warning = { text: "", until: 0 };
+
+  // Routes come from what the backend knows, so the view must show the same, or routes would cross
+  // objects the viewer can see.
+  async function followBackend(why) {
+    await onOutOfStep();
+    warning = { text: why, until: performance.now() + WARNING_TIME };
+    onMessage(why);
+  }
+
+  function lostChanges(count) {
+    const lost = count < expected;
+    expected = count;
+    return lost;
+  }
+
+  async function noticeLostChanges(route) {
+    if (lostChanges(route.changes)) await followBackend(FORGOTTEN);
+  }
 
   function clearLine() {
     for (const child of [...group.children]) {
@@ -168,7 +193,8 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
   function describe(route, name) {
     const reach = route.stop_distance === undefined ? "" : `, stops ${route.stop_distance.toFixed(1)} m away`;
     const fake = route.placeholder ? " (placeholder: no floor map loaded)" : "";
-    return `${name}: ${route.length.toFixed(1)} m for a ${route.width ?? ""} m ${route.profile}${reach}${fake}`;
+    const note = performance.now() < warning.until ? `. ${warning.text}` : "";
+    return `${name}: ${route.length.toFixed(1)} m for a ${route.width ?? ""} m ${route.profile}${reach}${fake}${note}`;
   }
 
   // Plan from where the viewer stands. A refusal clears the line and shows the reason.
@@ -194,6 +220,7 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
     }
     draw(state.route.path);
     onMessage(describe(state.route, target.name));
+    await noticeLostChanges(state.route);
     return state.route;
   }
 
@@ -236,6 +263,7 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
       state.route = route;
       draw(route.path);
       onMessage(describe(route, target.name));
+      await noticeLostChanges(route);
     } catch (error) {
       if (version !== live.version || state.walking) return;
       // The viewer can stand off the floor, so keep the last line. A drag can really block the way.
@@ -271,19 +299,50 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
   }
 
   // Send moves to the backend, which keeps the map's footprints, then re-plan the active route.
-  async function syncChanges(changes) {
+  // One at a time and in order, so quick changes can't overlap, repeat, or arrive out of order.
+  let saving = Promise.resolve();
+  let waiting = 0;
+
+  function syncChanges(changes) {
+    clearTimeout(retry);
+    waiting += 1;
+    // Caught, or one error would stop every later save without a word.
+    saving = saving
+      .then(() => saveChanges(changes))
+      .catch((error) => onMessage(`Couldn't save the change: ${error.message}`));
+    return saving;
+  }
+
+  async function saveChanges(changes) {
+    waiting -= 1;
+    let problem = null;
     try {
       if (!changes.length) {
+        state.posted = 0;
         await callApi("/api/changes/reset");
-      } else {
-        for (const change of changes.slice(state.posted)) await callApi("/api/changes", change);
+        expected = 0;
       }
-      state.posted = changes.length;
+      while (state.posted < changes.length) {
+        try {
+          const saved = await callApi("/api/changes", changes[state.posted]);
+          expected += 1;
+          if (lostChanges(saved.change_id)) problem = FORGOTTEN;
+        } catch (error) {
+          if (!error.refused) throw error;
+          // Sent again, it would be refused again, and every later change would wait behind it.
+          problem = `Couldn't save the move, so it went back: ${error.message}`;
+        }
+        state.posted += 1;
+      }
     } catch (error) {
-      onMessage(`Couldn't save the move: ${error.message}`);
+      // It didn't get through, and routes ignore the change until the backend has it.
+      onMessage(`Couldn't save the change, trying again: ${error.message}`);
+      retry = setTimeout(() => syncChanges(changes), RETRY_WAIT);
       return;
     }
-    if (state.target) await plan(state.target, state.start);
+    if (problem) await followBackend(problem);
+    // Later changes re-plan anyway, so only the last one needs to.
+    if (state.target && !waiting) await plan(state.target, state.start);
   }
 
   const look = new THREE.Matrix4();

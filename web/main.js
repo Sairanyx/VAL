@@ -529,13 +529,19 @@ async function syncWithBackend() {
       changed += 1;
     }
   }
+  // What's being dragged follows the pointer, and is saved when it's released.
+  const moving = objectLayer.state.moving;
+  const dragged = moving?.dragging ? moving.object : null;
   for (const asset of current) {
     const object = known.get(asset.object_id);
     if (!object) {
       addAsset(asset);
       objects.at(-1).addedByOperator = true;
       changed += 1;
-    } else if (object.center.distanceTo(new THREE.Vector3(...asset.center)) > 0.001) {
+    } else if (
+      object !== dragged &&
+      object.center.distanceTo(new THREE.Vector3(...asset.center)) > 0.001
+    ) {
       await objectLayer.ensurePiece(object);
       objectLayer.placeAt(object, asset.center);
       changed += 1;
@@ -618,6 +624,7 @@ async function load() {
     onMessage: (message) => {
       if (!$("hud").classList.contains("blocked")) $("status").textContent = message;
     },
+    onOutOfStep: syncWithBackend,
   });
   $("go-fault").hidden = !objects.some((o) => kind(o.asset) === "fault");
   plan = setupPlan({

@@ -45,6 +45,9 @@ Rules:
 - In "answer", say only what was measured or recorded.
 - In "hypotheses", give possible causes, worded with "may", and only ones these facts suggest. Don't
   say whether past work did or didn't fix anything. If nothing is wrong, leave it empty.
+- If two facts disagree, such as on dates, say so instead of choosing one.
+- model_confidence is about the diagnosis. mapping_confidence is about which physical object this
+  record belongs to. Report them separately.
 - Cite the ID of every fact you use.
 - Never tell anyone to operate, start, stop, or change equipment. Suggest checks only.
 - Use two to four short, plain sentences.
@@ -134,6 +137,13 @@ def gather_facts(engine: CopilotEngine, tag: str) -> list[Fact]:
     summary = {key: value for key, value in status.items() if key != "data_quality_issues"}
     facts = [Fact(asset_id, describe(summary))]
     facts += [Fact(issue["issue_id"], describe(issue)) for issue in quality]
+    record = store.get_asset(asset_id)
+    if record:
+        dates = {
+            "asset record, last_service_date": record.last_service_date,
+            "service_interval_days": record.service_interval_days,
+        }
+        facts.append(Fact(asset_id, describe(dates)))
     metrics = get_telemetry_summary(tag, store, limit=20).get("metrics", {})
     facts += [Fact(asset_id, text) for text in metric_observations(metrics)]
     for event in get_events_for_asset(tag, store, limit=MAX_ITEMS):

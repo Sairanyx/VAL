@@ -1,4 +1,5 @@
 import json
+import math
 
 import pytest
 
@@ -84,8 +85,33 @@ def test_move_updates_box_and_is_logged(client):
     assert len(client.get("/api/changes").json()["changes"]) == 1
 
 
+def test_rotate_updates_yaw_and_bounds(client):
+    rotated = {"op": "rotate", "object_id": "near", "yaw": math.pi / 2}
+    assert client.post("/api/changes", json=rotated).status_code == 200
+    asset = client.get("/api/assets/near").json()
+    assert asset["yaw"] == round(math.pi / 2, 4)
+    assert asset["bbox_min"] == [0.5, 0.5, -0.5]
+    assert asset["bbox_max"] == [1.5, 1.5, 0.5]
+
+
+def test_move_and_rotate_together(client):
+    change = {"op": "move", "object_id": "near", "position": [3, 1, 2], "yaw": math.pi / 4}
+    assert client.post("/api/changes", json=change).status_code == 200
+    asset = client.get("/api/assets/near").json()
+    assert asset["center"] == [3, 1, 2]
+    assert asset["yaw"] == round(math.pi / 4, 4)
+    expected_hw = round(0.5 * math.cos(math.pi / 4) + 0.5 * math.sin(math.pi / 4), 3)
+    assert asset["bbox_min"] == [round(3 - expected_hw, 3), 0.5, round(2 - expected_hw, 3)]
+    assert asset["bbox_max"] == [round(3 + expected_hw, 3), 1.5, round(2 + expected_hw, 3)]
+
+
 def test_fixed_object_cannot_move(client):
     change = {"op": "move", "object_id": "far", "position": [5, 1, 0]}
+    assert client.post("/api/changes", json=change).status_code == 409
+
+
+def test_fixed_object_cannot_rotate(client):
+    change = {"op": "rotate", "object_id": "far", "yaw": 1.0}
     assert client.post("/api/changes", json=change).status_code == 409
 
 
@@ -228,13 +254,15 @@ def test_changes_survive_restart_and_reset_clears_them(tmp_path):
     path.write_text(json.dumps({"scene_id": "t", "assets": [box("near", [1, 1, 0], "movable")]}))
     database = FakeDatabase()
     client = TestClient(create_app(path, database=database))
-    change = {"op": "move", "object_id": "near", "position": [5, 1, 0]}
+    change = {"op": "move", "object_id": "near", "position": [5, 1, 0], "yaw": 1.57}
     assert client.post("/api/changes", json=change).status_code == 200
     restarted = TestClient(create_app(path, database=database))
     assert restarted.get("/api/assets/near").json()["center"] == [5, 1, 0]
+    assert restarted.get("/api/assets/near").json()["yaw"] == 1.57
     assert restarted.post("/api/changes/reset").status_code == 200
     again = TestClient(create_app(path, database=database))
     assert again.get("/api/assets/near").json()["center"] == [1, 1, 0]
+    assert again.get("/api/assets/near").json()["yaw"] == 0.0
 
 
 def test_health_says_what_is_connected(client):
@@ -326,3 +354,53 @@ def test_route_says_how_many_changes_the_backend_holds(tmp_path):
 def test_placeholder_route_says_how_many_changes_the_backend_holds(client):
     request = {"start": [0, 0, 0], "object_id": "near"}
     assert client.post("/api/route", json=request).json()["changes"] == 0
+
+
+def test_turning_into_another_object_is_refused(tmp_path):
+    long_cart = box("cart", [1, 1, 0], "movable")
+    long_cart["bbox_min"], long_cart["bbox_max"] = [-0.8, 0.5, -0.1], [2.8, 1.5, 0.1]
+    other = box("crate", [1, 1, 1.2], "fixed")
+    path = tmp_path / "assets.json"
+    path.write_text(json.dumps({"scene_id": "t", "assets": [long_cart, other]}))
+    client = TestClient(create_app(path, database=FakeDatabase()))
+    straight = {"position": [1, 1, 0], "yaw": 0}
+    assert client.post("/api/objects/cart/check-move", json=straight).json()["ok"] is True
+    turned = {"position": [1, 1, 0], "yaw": math.pi / 2}
+    check = client.post("/api/objects/cart/check-move", json=turned).json()
+    assert check["ok"] is False
+    assert check["blockers"] == ["crate"]
+    rotate = {"op": "rotate", "object_id": "cart", "yaw": math.pi / 2}
+    assert client.post("/api/changes", json=rotate).status_code == 409
+    assert client.get("/api/assets/cart").json()["yaw"] == 0
+
+
+def test_viewer_commands_reach_the_viewer_once_and_report_back(client):
+    assert client.get("/api/viewer/commands").json() == {"last_id": 0, "commands": []}
+    sent = client.post(
+        "/api/viewer/commands", json={"action": "route_to", "args": {"object_id": "near"}}
+    ).json()
+    assert client.get("/api/viewer/commands").json()["commands"] == []
+    found = client.get("/api/viewer/commands", params={"after": 0}).json()["commands"]
+    assert [c["id"] for c in found] == [sent["id"]]
+    assert client.get("/api/viewer/commands", params={"after": sent["id"]}).json()["commands"] == []
+    client.post(f"/api/viewer/commands/{sent['id']}/result", json={"ok": True})
+    assert client.get(f"/api/viewer/commands/{sent['id']}").json()["result"]["ok"] is True
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        {"action": "explode"},
+        {"action": "route_to"},
+        {"action": "set_range", "args": {"metres": "far"}},
+        {"action": "move_object", "args": {"object_id": "near", "position": [1, 2]}},
+    ],
+)
+def test_bad_viewer_commands_are_refused(client, command):
+    assert client.post("/api/viewer/commands", json=command).status_code == 422
+
+
+def test_every_viewer_action_is_listed_with_what_it_needs(client):
+    actions = client.get("/api/viewer/actions").json()["actions"]
+    assert {"route_to", "move_object", "rotate_object", "undo_changes"} <= set(actions)
+    assert all("does" in spec and "args" in spec for spec in actions.values())

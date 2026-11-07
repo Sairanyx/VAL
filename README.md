@@ -22,6 +22,8 @@ Should end by printing your GPU name.
 |---|---|
 | `make db` | Start local TimescaleDB and load the Excel telemetry |
 | `make nav-check` | Test floor map, routes, mapping and API together, with a picture |
+| `./start browser` | Start the demo for a laptop or PC |
+| `./start tablet` | Start the demo for the Lenovo tablet |
 | `make train` | Train a model |
 | `make tb` | Training graphs at http://localhost:6006 |
 | `make fmt` | Tidy code style and auto-fix lint |

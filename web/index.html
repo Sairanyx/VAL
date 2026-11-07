@@ -37,6 +37,7 @@
     <button id="follow" hidden>Walk route</button>
     <button id="clear-route" hidden>Clear route</button>
     <button id="profile" hidden>Person</button>
+    <button id="track" hidden>Track</button>
     <button id="phone">Phone</button>
     <button id="mode">Walk</button>
     <button id="boxes">Boxes on</button>
@@ -56,8 +57,20 @@
     <button id="route-here" hidden>Route here</button>
     <button id="split-object" hidden>Split into two</button>
     <button id="combine-object" hidden>Combine with...</button>
-    <button id="move" hidden>Move on floor</button>
+    <div id="move-actions" class="action-row" hidden>
+      <button id="move">Move on floor</button>
+      <button id="rotate">Rotate on floor</button>
+    </div>
     <p id="cant-move" hidden></p>
+  </div>
+
+  <div id="manip-bar" hidden>
+    <span id="manip-title">Manipulate</span>
+    <button id="manip-mode-move" class="active">Move</button>
+    <button id="manip-mode-rotate">Rotate</button>
+    <button id="manip-turn-left" title="Turn 45° counter-clockwise">↶ 45°</button>
+    <button id="manip-turn-right" title="Turn 45° clockwise">↷ 45°</button>
+    <button id="manip-done">Done</button>
   </div>
 
   <div id="bim-panel" hidden>
@@ -120,6 +133,7 @@
     <form id="copilot-form">
       <input id="copilot-input" placeholder="Ask about the selected object" autocomplete="off">
       <button type="submit">Ask</button>
+      <button type="button" id="copilot-speak">Voice on</button>
     </form>
     <div id="copilot-answer"></div>
   </div>

@@ -1,7 +1,7 @@
 # eduard-rednic: eduard
-**Goal:** floor, routing, nearby search and backend API (`app/nav/`, `app/api/`), per docs/PLAN.md under "Now".
-**Done:** merged live route updates: re-plans every 0.1 m, or at most every 50 ms, while moving or dragging (`preview` on `POST /api/route` saves nothing). Earlier: API, TimescaleDB (`make db`), Excel links (`make mapping`), `make nav-check`. Old `eduard-*` branches deleted; use `eduard`.
-**Verified:** `make check` passes on main. Live updates passed 14 Node checks with a fake backend and API speed tests. Not yet run in a real browser or on the 5090.
-**Next:** set up `make db` and `make api` on the 5090, plus the router and offline network; find a second good detour; backend slide. Later, when asked: telemetry simulator for diagnostics.
-**Team:** Benjamin's arrows branch contains my live-route commit, which is now on main, so merge main first. Viktor's PR #18 changes moves: check that drag previews still work with it. Hannu's copilot rules are his to change.
-**Blockers:** none. Open: which pump is `P-005` (`obj-0049` is unconfirmed), and a real start point.
+**Goal:** floor, routing, nearby search and backend API (`app/nav/`, `app/api/`), and the tablet version of the viewer.
+**Done:** merged Hannu's rotation with Viktor's collision checks, which now cover turning (`check-move` takes `yaw`). Tablet mode: tap a window to close it, no X, bigger buttons, lighter defaults. `POST /api/viewer/commands` runs any viewer action, for the voice copilot (`app/api/commands.py`, `web/commands.js`). `./start browser` and `./start tablet` run everything. Not merged: the user said to wait. Fixed: move mode ending, ordered saves, stale red warnings, BIM rotation and combined objects. Copilot reads answers aloud (`Voice on`, device voice).
+**Verified:** `make check` passes. Headless Chromium walkthrough on real objects, floor map and BIM, with a thinned test scene: route, move, quick turns, BIM, combine, undo all pass. API: save 14 ms, combine 9 ms, undo 40 ms with TimescaleDB. Not tested: real scene look, speech output, Lenovo, the language model on this laptop.
+**Next:** test on the Lenovo, then tune `?res=` and `?splats=`. 5090 and router setup; second detour; backend slide. Later, when asked: VR mode with video, telemetry simulator.
+**Team:** `eduard` also contains main, Benjamin's tracking (`web/xr.js`) and Sasha's BIM mode, none of which conflict now. Hannu, rotation is here too. Not merged to main yet: the user said to wait.
+**Blockers:** none.

@@ -1,6 +1,6 @@
 # benjamin-sundell: benjamin/webviewer
 **Goal:** web viewer for the tablet demo (`web/`), per docs/PLAN.md
-**Done:** route arrows: chevrons flow towards the target, faint guide line, pulsing end ring (`web/route.js`, `route?.animate(dt)` in `web/main.js`). Merged latest main and Eduard's unmerged `eduard-live-route` (live re-plans while moving/dragging, trims the line while walking); resolved conflicts in route.js and main.js by keeping both. Arrows now spaced from the route's end so live re-plans and trimming don't make them jump
-**Verified:** `make check` passes (192 passed). Arrows and live re-plan NOT yet seen together in a browser: needs `make mapping`, `make api`, `make web`
-**Next:** check in the browser; open a PR to main (coordinate with Eduard: this branch now contains his live-route commit); demo video and slides
-**Blockers:** `assets_mapped.json` missing locally until `make mapping` runs
+**Done:** merged main (Viktor: move any object's real splats) and Eduard's latest (`./start`, make start-browser/start-tablet); resolved conflicts in objects.js, main.js, app/api/main.py by keeping both (ensurePiece before Eduard's move/rotate/moveTo/placeAt with yaw). Before that: "Track" button (`web/xr.js`): WebXR + ARCore track the device on Android Chrome and the whole map moves with it via an `xrOffset` group above `root` (main.js); start point and facing calibrate on start, Start re-calibrates; map drawn opaque; other controls off while tracking. Button only shows where immersive-ar is supported (HTTPS). Earlier: one tablet mode (Eduard's TABLET flag + light scene)
+**Verified:** `make check` passes (227). Tracking NOT tested: needs an ARCore Android device with Chrome 89+, so Spark rendering inside WebXR is unverified
+**Next:** test Track on an ARCore Android device over HTTPS; check scale (are scene units metres?) by walking a known distance; then render-on-demand and label throttling for phone fps
+**Blockers:** test tablet's Chrome 81 can't run the viewer (no import maps)

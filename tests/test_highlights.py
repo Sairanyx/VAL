@@ -28,6 +28,7 @@ def test_exports_only_segmented_surface_preserving_source(tmp_path):
     np.testing.assert_allclose(subset.base_colors, [[0.05, 0.9, 1]] * 2, atol=1e-6)
     np.testing.assert_array_equal(original.data, before)
     assert json.loads((tmp_path / "highlights.json").read_text()) == result
+    assert result["obj-1"] == {"splats": 2, "source": "segmentation"}
 
 
 @pytest.mark.parametrize(
@@ -44,3 +45,11 @@ def test_rejects_wrong_asset_order_counts(tmp_path):
         export_highlights(
             scene(), [{"object_id": "obj-1", "splats": 4}], np.array([0, 0, -1, 0]), tmp_path
         )
+
+
+def test_cut_piece_replaces_partial_segmentation(tmp_path):
+    assets = [{"object_id": "obj-1", "splats": 1}]
+    labels = np.array([0, -1, -1, -1])
+    result = export_highlights(scene(), assets, labels, tmp_path, {"obj-1": scene()})
+    assert result == {"obj-1": {"splats": 4, "source": "piece"}}
+    assert len(read_splats(tmp_path / "obj-1.ply")) == 4

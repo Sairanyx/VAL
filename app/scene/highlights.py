@@ -1,8 +1,9 @@
 """Export coloured object splats for selection highlighting, without changing the scan.
 
-python -m app.scene.highlights SCENE.ply ASSETS_FINAL.json SPLAT_LABELS.npy OUT_DIR
+python -m app.scene.highlights SCENE.ply ASSETS_FINAL.json SPLAT_LABELS.npy OUT_DIR [--pieces CUT]
 
 Labels must index the supplied full scene and the assets in their extraction order.
+Objects cut out by app.scene.split_movable use their whole piece instead of the labelled splats.
 """
 
 import argparse
@@ -16,7 +17,22 @@ from app.scene.lighten import strip_view_dependence
 from app.scene.load import Splats, read_splats, write_splats
 
 
-def export_highlights(scene: Splats, assets: list[dict], labels: np.ndarray, out: Path) -> dict:
+def tint(splats: Splats) -> Splats:
+    splats = strip_view_dependence(splats)
+    # Zero-order SH encodes RGB as 0.5 + C0 * coefficient.
+    for channel, color in enumerate((0.05, 0.9, 1.0)):
+        splats.data[f"f_dc_{channel}"] = (color - 0.5) / 0.28209479177387814
+    return splats
+
+
+def export_highlights(
+    scene: Splats,
+    assets: list[dict],
+    labels: np.ndarray,
+    out: Path,
+    pieces: dict[str, Splats] | None = None,
+) -> dict:
+    pieces = pieces or {}
     if labels.shape != (len(scene),) or labels.dtype.kind not in "iu":
         raise ValueError("Labels must be a one-dimensional integer array indexing the full scene")
     if labels.size and (labels.min() < -1 or labels.max() >= len(assets)):
@@ -32,16 +48,22 @@ def export_highlights(scene: Splats, assets: list[dict], labels: np.ndarray, out
     out.mkdir(parents=True, exist_ok=True)
     manifest = {}
     for index, asset in enumerate(assets):
-        if not counts[index]:
+        object_id = asset["object_id"]
+        if object_id in pieces:
+            subset, source = pieces[object_id], "piece"
+        elif counts[index]:
+            subset, source = scene[labels == index], "segmentation"
+        else:
             continue
-        subset = strip_view_dependence(scene[labels == index])
-        # Zero-order SH encodes RGB as 0.5 + C0 * coefficient.
-        for channel, color in enumerate((0.05, 0.9, 1.0)):
-            subset.data[f"f_dc_{channel}"] = (color - 0.5) / 0.28209479177387814
-        write_splats(subset, out / f"{asset['object_id']}.ply")
-        manifest[asset["object_id"]] = {"splats": int(counts[index])}
+        write_splats(tint(subset), out / f"{object_id}.ply")
+        manifest[object_id] = {"splats": len(subset), "source": source}
     (out / "highlights.json").write_text(json.dumps(manifest))
     return manifest
+
+
+def read_pieces(cut: Path) -> dict[str, Splats]:
+    ids = json.loads((cut / "pieces.json").read_text())
+    return {i: read_splats(cut / "pieces" / f"{i}.ply") for i in ids}
 
 
 def main() -> None:
@@ -50,14 +72,21 @@ def main() -> None:
     parser.add_argument("assets", type=Path)
     parser.add_argument("labels", type=Path)
     parser.add_argument("out", type=Path)
+    parser.add_argument("--pieces", type=Path, help="cut folder from app.scene.split_movable")
     args = parser.parse_args()
     manifest = export_highlights(
         read_splats(args.scene),
         json.loads(args.assets.read_text())["assets"],
         np.load(args.labels, allow_pickle=False),
         args.out,
+        read_pieces(args.pieces) if args.pieces else None,
     )
-    print(json.dumps({"highlight_objects": len(manifest), "out": str(args.out)}))
+    whole = sum(item["source"] == "piece" for item in manifest.values())
+    print(
+        json.dumps(
+            {"highlight_objects": len(manifest), "whole_pieces": whole, "out": str(args.out)}
+        )
+    )
 
 
 if __name__ == "__main__":

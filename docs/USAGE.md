@@ -34,8 +34,9 @@ Run `make highlights`, then restart your viewer. Clicking an object tints its se
 splats cyan and hides its selected box; selecting another object replaces the highlight.
 The highlight follows dragging and undo and is independent of the **Boxes** toggle.
 
-Highlights show detected surfaces, not complete reconstructed objects: missed parts remain
-missing. Operator-added objects have no segmentation yet; a message explains this.
+The four cut-out movable objects highlight their whole cut piece, the same splats that move when
+dragged, so run `make pieces` before `make highlights`. Other objects show detected surfaces only:
+missed parts remain missing. Operator-added objects have no segmentation yet; a message explains this.
 **Objects** mode still shows fitted shapes instead of scanned surfaces.
 
 Generate highlights from the original PLY, not `cut/base.ply` or a reduced scene: labels index the

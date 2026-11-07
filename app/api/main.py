@@ -44,7 +44,7 @@ from app.bim.model import build_model
 from app.copilot.llm import can_reword, load_writer, warm_up
 from app.copilot.voice import MAX_AUDIO_BYTES, TRANSCRIBER
 from app.dashboard import render_dashboard
-from app.nav.grid import NavGrid, largest_region, load_grid, open_boxes, vacate
+from app.nav.grid import NavGrid, largest_region, load_grid, open_boxes, splat_cells, vacate
 from app.nav.route import (
     BODIES,
     NoRoute,
@@ -60,6 +60,7 @@ from app.scene.load import Splats, read_splats, write_splats
 from app.scene.split_movable import FLOOR_MARGIN, split_movable
 
 DEFAULT_ASSETS = Path("fixtures/sample_assets.json")
+OPENED_MAPS_KEPT = 8  # floor maps with moved and deleted objects' spots opened
 UNCONFIRMED_NEW = "new, unconfirmed"
 Position = Annotated[list[float], Field(min_length=3, max_length=3)]
 
@@ -313,7 +314,9 @@ def create_app(
     ) -> dict:
         return {"assets": [with_condition(a) for a in store.nearby((x, y, z), radius)]}
 
-    opened_maps: dict[tuple[str, ...], NavGrid] = {}
+    # A few recent states: a drag asks with and without the dragged object, turn about.
+    opened_maps: dict[tuple, NavGrid] = {}
+    scan_cells: list = []  # each splat's cell and height, then its opacity
 
     def floor_map(also_left: str | None = None) -> NavGrid | None:
         """Return the floor map with the spots that objects have left open again.
@@ -350,12 +353,18 @@ def create_app(
                 except HTTPException:
                     splats = None
                 if splats is not None:
+                    if not scan_cells:  # once: the scan doesn't move
+                        scan_cells.append(splat_cells(grid, splats.positions))
+                        scan_cells.append(splats.opacities)
                     own = left_splats(key[0], splats.positions)
                     boxes = [home_corners(object_id) for object_id in key[0]]
-                    opened = vacate(opened, splats.positions, splats.opacities, own, boxes)
+                    opened = vacate(
+                        opened, splats.positions, scan_cells[1], own, boxes, scan_cells[0]
+                    )
             if key[1]:
                 opened = open_boxes(opened, [home_corners(object_id) for object_id in key[1]])
-            opened_maps.clear()  # One state at a time: changes come one after another.
+            if len(opened_maps) >= OPENED_MAPS_KEPT:
+                del opened_maps[next(iter(opened_maps))]  # the oldest
             opened_maps[key] = opened
         return opened_maps[key]
 
@@ -505,6 +514,8 @@ def create_app(
                 scene_splats.append(read_splats(Path(path)))
         return scene_splats[0]
 
+    splats_that_left: dict[str, np.ndarray] = {}
+
     def left_splats(object_ids: tuple[str, ...], positions: np.ndarray) -> np.ndarray:
         """Return the splats that went with these objects: everything in each one's old box, as
         the viewer hides that box when it moves, except splats labelled as another object."""
@@ -513,14 +524,16 @@ def create_app(
         labelled = labels is not None and len(labels) == len(positions)
         left = np.zeros(len(positions), dtype=bool)
         for object_id in object_ids:
-            asset = store.get(object_id)
-            inside = in_box(positions, store.home_box(object_id))
-            if labelled:
-                parts = asset.get("combined_from") or [object_id]
-                mine = [scan_members["index"].get(part) for part in parts]
-                # Most splats have no object (-1). Another object's splats stay where they are.
-                inside &= (labels == -1) | np.isin(labels, [i for i in mine if i is not None])
-            left |= inside
+            if object_id not in splats_that_left:  # An object's old box never changes.
+                asset = store.get(object_id)
+                inside = in_box(positions, store.home_box(object_id))
+                if labelled:
+                    parts = asset.get("combined_from") or [object_id]
+                    mine = [scan_members["index"].get(part) for part in parts]
+                    # Most splats have no object (-1). Another object's splats stay put.
+                    inside &= (labels == -1) | np.isin(labels, [i for i in mine if i is not None])
+                splats_that_left[object_id] = np.flatnonzero(inside)
+            left[splats_that_left[object_id]] = True
         return left
 
     # Read the scene while nobody's waiting, so the first move or route after a move isn't slow.

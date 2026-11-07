@@ -120,26 +120,32 @@ def open_boxes(grid: NavGrid, boxes: list[tuple[list[float], list[float]]]) -> N
     return _with_free(grid, free, low_free)
 
 
+def splat_cells(grid: NavGrid, positions: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Return each splat's floor-map cell and its height above the floor."""
+    cells = np.floor((positions[:, list(grid.axes)] - grid.origin) / grid.cell).astype(np.int32)
+    return cells, (positions @ grid.up - grid.floor_height).astype(np.float32)
+
+
 def vacate(
     grid: NavGrid,
     positions: np.ndarray,
     opacities: np.ndarray,
     own: np.ndarray,
     boxes: list[tuple[list[float], list[float]]],
+    placed: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> NavGrid:
     """Return the map with the floor opened where objects used to stand, in their old boxes.
 
     `own` marks the splats of the objects that have left. Under each old box, a cell opens if no
     other solid splats would block it, and either floor was seen there or the object stood there,
     as it stood on floor. Walls and fixed equipment in the box still block.
+    `placed` is `splat_cells(grid, positions)`, worked out once, as the scene doesn't change.
     """
     if not boxes:
         return grid
-    axes = list(grid.axes)
     free = grid.free.copy()
     low_free = grid.clearance_low > 0
-    cells = np.floor((positions[:, axes] - grid.origin) / grid.cell).astype(np.int64)
-    heights = positions @ grid.up - grid.floor_height
+    cells, heights = placed if placed is not None else splat_cells(grid, positions)
     for low, high in boxes:
         start, stop = _window(grid, low, high)
         inside = ((cells >= start) & (cells < stop)).all(axis=1)

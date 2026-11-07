@@ -202,9 +202,16 @@ class FakeDatabase:
 
     def __init__(self):
         self.changes = []
+        self.down = False
 
     def save_change(self, scene_id, change):
+        if self.down:
+            return False
         self.changes.append(change)
+        return True
+
+    def ping(self):
+        return not self.down
 
     def load_changes(self, scene_id):
         return list(self.changes)
@@ -232,3 +239,24 @@ def test_changes_survive_restart_and_reset_clears_them(tmp_path):
 
 def test_health_says_what_is_connected(client):
     assert client.get("/api/health").json()["objects"] == 2
+
+
+def test_changes_made_while_database_is_down_save_later(tmp_path):
+    path = tmp_path / "assets.json"
+    assets = [box("a", [1, 1, 0], "movable"), box("b", [3, 1, 0], "movable")]
+    path.write_text(json.dumps({"scene_id": "t", "assets": assets}))
+    database = FakeDatabase()
+    client = TestClient(create_app(path, database=database))
+    database.down = True
+    first = {"op": "move", "object_id": "a", "position": [5, 1, 0]}
+    reply = client.post("/api/changes", json=first)
+    assert reply.status_code == 200
+    assert reply.json()["saved"] is False
+    assert client.get("/api/assets/a").json()["center"] == [5, 1, 0]
+    health = client.get("/api/health").json()
+    assert health["database"] is False
+    assert health["unsaved_changes"] == 1
+    database.down = False
+    second = {"op": "move", "object_id": "b", "position": [6, 1, 0]}
+    assert client.post("/api/changes", json=second).json()["saved"] is True
+    assert [c["object_id"] for c in database.changes] == ["a", "b"]

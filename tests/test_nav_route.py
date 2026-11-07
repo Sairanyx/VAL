@@ -135,3 +135,12 @@ def test_coin_and_ceiling_pipe_do_not_take_floor():
     assert (body_clearance == clearance_with_footprints(grid, [], BODY_BAND)).all()
     tall_box = ((1.0, -1.5, 2.0), (1.5, 0.0, 2.5))
     assert not (clearance_with_footprints(grid, [tall_box], BODY_BAND) == body_clearance).all()
+
+
+def test_route_clear_rejects_paths_through_obstacles():
+    from app.nav.check import route_clear
+
+    grid = height_grid()
+    assert route_clear(grid, [[1.0, 0.0, 2.0], [1.5, 0.0, 2.0]], "person")
+    assert not route_clear(grid, [[1.0, 0.0, 2.0], [3.0, 0.0, 2.0]], "person")
+    assert route_clear(grid, [[1.0, 0.0, 2.0], [3.0, 0.0, 2.0]], "robot")

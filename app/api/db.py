@@ -39,14 +39,39 @@ CREATE TABLE IF NOT EXISTS scene_changes (
 
 class Database:
     def __init__(self, url: str):
-        self.conn = psycopg.connect(url, autocommit=True, connect_timeout=CONNECT_TIMEOUT)
+        self.url = url
+        self.conn = self._connect()
         self.conn.execute(SCHEMA)
 
-    def save_change(self, scene_id: str, change: dict) -> None:
-        self.conn.execute(
-            "INSERT INTO scene_changes (scene_id, op, object_id, position) VALUES (%s, %s, %s, %s)",
-            (scene_id, change["op"], change["object_id"], Jsonb(change["position"])),
-        )
+    def _connect(self) -> psycopg.Connection:
+        return psycopg.connect(self.url, autocommit=True, connect_timeout=CONNECT_TIMEOUT)
+
+    def _reconnect_if_needed(self) -> None:
+        """Open a new connection if the last one dropped, such as after a database restart."""
+        if self.conn.closed or self.conn.broken:
+            self.conn = self._connect()
+
+    def ping(self) -> bool:
+        try:
+            self._reconnect_if_needed()
+            self.conn.execute("SELECT 1")
+            return True
+        except psycopg.Error:
+            return False
+
+    def save_change(self, scene_id: str, change: dict) -> bool:
+        """Save a change. Returns False if the database can't be reached, so it can be retried."""
+        try:
+            self._reconnect_if_needed()
+            self.conn.execute(
+                "INSERT INTO scene_changes (scene_id, op, object_id, position) "
+                "VALUES (%s, %s, %s, %s)",
+                (scene_id, change["op"], change["object_id"], Jsonb(change["position"])),
+            )
+            return True
+        except psycopg.Error as error:
+            print(f"Couldn't save a scene change, will retry: {error}")
+            return False
 
     def load_changes(self, scene_id: str) -> list[dict]:
         rows = self.conn.execute(
@@ -56,8 +81,15 @@ class Database:
         ).fetchall()
         return [{"op": op, "object_id": obj, "position": pos} for op, obj, pos in rows]
 
-    def clear_changes(self, scene_id: str) -> None:
-        self.conn.execute("DELETE FROM scene_changes WHERE scene_id = %s", (scene_id,))
+    def clear_changes(self, scene_id: str) -> bool:
+        """Forget saved changes. Returns False if the database can't be reached."""
+        try:
+            self._reconnect_if_needed()
+            self.conn.execute("DELETE FROM scene_changes WHERE scene_id = %s", (scene_id,))
+            return True
+        except psycopg.Error as error:
+            print(f"Couldn't clear saved scene changes: {error}")
+            return False
 
     def add_telemetry(self, rows: list[tuple[str, str, str, str, dict]]) -> None:
         """Add (time, asset_id, tag, source, metrics) rows, skipping any already stored."""
@@ -68,13 +100,17 @@ class Database:
                 [(time, asset, tag, source, Jsonb(m)) for time, asset, tag, source, m in rows],
             )
 
-    def telemetry(self, asset_id: str, limit: int = 20) -> list[dict]:
-        """Return an asset's latest readings, newest first, each saying where it came from."""
-        rows = self.conn.execute(
-            "SELECT time, tag, source, metrics FROM telemetry "
-            "WHERE asset_id = %s ORDER BY time DESC LIMIT %s",
-            (asset_id, limit),
-        ).fetchall()
+    def telemetry(self, asset_id: str, limit: int = 20) -> list[dict] | None:
+        """Return an asset's latest readings, newest first, or None if the database is down."""
+        try:
+            self._reconnect_if_needed()
+            rows = self.conn.execute(
+                "SELECT time, tag, source, metrics FROM telemetry "
+                "WHERE asset_id = %s ORDER BY time DESC LIMIT %s",
+                (asset_id, limit),
+            ).fetchall()
+        except psycopg.Error:
+            return None
         return [
             {
                 "timestamp": time.isoformat(),

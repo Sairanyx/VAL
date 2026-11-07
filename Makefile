@@ -4,7 +4,7 @@ SCENE_TAG ?= scene-v2
 SCENE_FILE ?= scene_v2.tar
 SCENE_DIR ?= data/scene/splat_v2
 
-.PHONY: setup entire views scene gpu train tb web fmt lint test check up api floor
+.PHONY: setup entire views scene gpu train tb web fmt lint test check up api floor mapping
 
 setup:   ## install everything
 	uv sync
@@ -31,6 +31,8 @@ api:     ## backend API at http://localhost:8001/docs
 	uv run uvicorn app.api.main:app --host 0.0.0.0 --port 8001 --reload
 floor:   ## floor map: make floor SCENE="path/to/Equipment Room.ply"
 	uv run python -m app.nav.grid "$(SCENE)" --out data/scene/equipment_room/nav_grid.npz --preview runs/floor.png
+mapping: ## link Excel records to objects, marking them procedural
+	uv run python -m app.copilot.mapping $(SCENE_DIR)
 train:   ## train a model
 	uv run python -m app.train
 tb:      ## training graphs at http://localhost:6006

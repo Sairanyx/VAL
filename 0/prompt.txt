@@ -1,0 +1,13 @@
+Copies should be same object but not same ID if that makes sense - the operator can name it if needed
+
+---
+
+Merge and push to main after it is ready
+
+---
+
+Check if there is anything to pull and merge from other users and combine everything into main so we check it with the team
+
+---
+
+Speed up the merge so others can use it we can improve later

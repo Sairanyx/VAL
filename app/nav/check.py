@@ -104,7 +104,8 @@ def main() -> None:
 
     health = client.get("/api/health").json()
     check("copilot and Excel pack loaded", health["copilot"])
-    assets = client.get("/api/assets").json()["assets"]
+    scene = client.get("/api/assets").json()
+    assets = scene["assets"]
     linked = [asset for asset in assets if asset.get("mapping")]
     check("objects linked to Excel", linked, f"{len(linked)} of {len(assets)}")
     check(
@@ -116,7 +117,8 @@ def main() -> None:
     check(f"{args.target} has an object", target, target["object_id"] if target else "")
     routes: dict[str, dict] = {}
     if target:
-        start = [float(v) for v in np.load(args.scene / "walked.npy")[0]]
+        walked = args.scene / "walked.npy"
+        start = [float(v) for v in np.load(walked)[0]] if walked.exists() else scene["start"]
         request = {"start": start, "object_id": target["object_id"]}
         for profile in BODIES:
             reply = client.post("/api/route", json={**request, "profile": profile})

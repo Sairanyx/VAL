@@ -106,10 +106,17 @@ canvas#view {
 
 #buttons {
   position: fixed;
+  left: 12px;
   right: 12px;
   bottom: 12px;
   display: flex;
+  flex-wrap: wrap; /* narrow windows: wrap into more rows instead of running off the left edge */
+  justify-content: flex-end;
   gap: 8px;
+  pointer-events: none; /* the gaps between buttons still reach the scene */
+}
+#buttons > * {
+  pointer-events: auto;
 }
 button {
   min-width: 64px;
@@ -389,6 +396,39 @@ button {
 .tablet #view {
   touch-action: none;
 }
+/* Phones and tablets: the buttons become one row along the bottom that scrolls sideways, so none
+   fall off the screen, and the joystick sits just above it. */
+.tablet #buttons {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  overflow-x: auto;
+  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
+  pointer-events: auto;
+  touch-action: pan-x;
+  scrollbar-width: none;
+}
+.tablet #buttons::-webkit-scrollbar {
+  display: none;
+}
+.tablet #buttons button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.tablet #joystick {
+  bottom: 76px;
+}
+/* Windows stay on screen and scroll inside themselves on short screens. */
+.tablet #info,
+.tablet #copilot,
+.tablet #add-panel {
+  max-height: calc(100vh - 110px);
+  overflow-y: auto;
+  touch-action: pan-y;
+}
 
 /* Tracking (xr.js): the page becomes an overlay on the tracked view, so it must be see-through. */
 body.xr {
@@ -396,4 +436,17 @@ body.xr {
 }
 body.xr #view {
   visibility: hidden;
+}
+
+/* The move/rotate bar: full width and wrapping on phones, and the joystick steps aside meanwhile. */
+.tablet #manip-bar {
+  left: 8px;
+  right: 8px;
+  bottom: 70px;
+  transform: none;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+body.tablet:has(#manip-bar:not([hidden])) #joystick {
+  display: none;
 }

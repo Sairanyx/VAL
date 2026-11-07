@@ -75,8 +75,11 @@ function kind(asset) {
 }
 const COLORS = { fault: 0xff4d4f, mapped: 0x38bdf8, plain: 0xd1d5db };
 
+// Links made by rule aren't real identities, so they're shown as a question.
 function name(asset) {
-  return asset.mapping?.tag ?? asset.label;
+  const link = asset.mapping;
+  if (!link) return asset.label;
+  return link.method?.startsWith("procedural") ? `${link.tag}?` : link.tag;
 }
 
 function addAsset(asset) {

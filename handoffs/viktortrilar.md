@@ -1,6 +1,7 @@
 # viktortrilar: viktor/moving-splats
-**Goal:** dragging moves the real object, the floor behind looks whole, and operators can add missed objects
-**Done:** app/scene/split_movable.py cuts objects down to the floor, and clones nearby floor under them (patches.json records where). app/api/select_object.py and web/addobject.js: drag a box or tap, a vision model suggests a label, code sets mobility, the operator confirms. PRs #10, #11, #12 merged. PR #13 is open on this branch
-**Verified:** lint; all tests. Browser: real drag, add, save, re-route, undo (before the floor patch). Renders: roll cage moves cleanly with a whole-looking floor; chair's base looks thin, so it's off by default. Selection median overlap 0.35 against known boxes. Qwen 9B sensible on 6 crops. Not tested: 5090, tablet, full scene in the viewer
-**Next:** merge PR #13. Rehearse on the 5090 offline. Mask-based cutting for more objects. Written directions. A person confirms P-005 on obj-0049
-**Blockers:** none. Cert valid to 2026-11-07 20:41. Local branch viktor/viewer-objects holds an unused merge: don't merge it
+**Goal:** close the limits on moving objects and on testing everything together
+**Done:** app/scene/movable_members.py cuts by masks. Four checked objects move as real splats (roll cage by box; chairs obj-0021, obj-0008 and box obj-0112 by masks), others as outlines. Add object, floor patch, Range limit (at most 15 frames, 8 labels), and a "?" on procedural links. members.npz is in Release objects-v2
+**Verified:** lint; tests. Full flow in a headless browser with the template copilot: route, copilot, refusal, drag to 5.56 m, add, undo, no page errors. Real Qwen 9B through the API on Roihu: checked answers in about 3 s, refusal, label suggestion. Full scene loads in the viewer with no errors, at 1 fps in software. By eye, only 3 of 25 high-scoring mask cuts look clean
+**Not tested:** 5090, tablet, real frame rate, model text shown in the browser (compute node login refused the tunnel)
+**Next:** merge PR #13 and rehearse on the 5090. Then a per-scene config and `make pipeline`: the full job is still only in scratch. A second room would prove transfer
+**Blockers:** none. P-005 on obj-0049 is an unconfirmed pick. Cert valid to 2026-11-07 20:41

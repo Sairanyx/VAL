@@ -15,7 +15,7 @@ HIGHLIGHTS ?= $(if $(filter $(SCENE_DIR)/%,$(SCENE)),$(if $(wildcard $(HIGHLIGHT
 MODEL ?= Qwen3.5-9B
 MODEL_DIR ?= data/models/$(MODEL)
 
-.PHONY: setup entire views scene scene-full model pieces highlights pipeline gpu train tb web fmt lint test check up api floor mapping db nav-check
+.PHONY: setup entire views scene scene-full model pieces highlights pipeline gpu train tb web fmt lint test check up api floor mapping db nav-check start-browser start-tablet
 
 setup:   ## install everything
 	uv sync
@@ -49,6 +49,10 @@ highlights: ## export segmented object surfaces for cyan selection highlighting
 	uv run python -m app.scene.highlights "$(SCENE_DIR)/Equipment Room.ply" $(SCENE_DIR)/assets_final.json $(SCENE_DIR)/splat_labels.npy $(HIGHLIGHTS_DIR) $(if $(wildcard $(PIECES_DIR)/pieces.json),--pieces $(PIECES_DIR))
 pipeline: ## run a scene through everything: make pipeline CONFIG=scenes/equipment_room.toml, DRY=1 to preview
 	uv run python scripts/pipeline.py $(or $(CONFIG),scenes/equipment_room.toml) $(if $(DRY),--dry-run)
+start-browser: ## start everything for a laptop or PC. Same as ./start browser
+	./start browser
+start-tablet: ## start everything for the Lenovo tablet. Same as ./start tablet
+	./start tablet
 gpu:     ## check the GPU works
 	uv run python -m app.gpu_check
 db:      ## start local TimescaleDB and load the Excel telemetry

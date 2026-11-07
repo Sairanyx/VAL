@@ -1,0 +1,47 @@
+Yes go ahead and use COLMAP for whatever we needed
+
+---
+
+Regarding PI3, VGGT, 3DGS, 2DGS, must3r, dust3r etc etc, which one is the best to use?
+
+---
+
+Alright lets do that then
+
+---
+
+<task-notification>
+<task-id>bkiwwehxy</task-id>
+<tool-use-id>toolu_01YMc6fJfxeNYYKGMRTHrEkk</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/bkiwwehxy.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the feature comparison and print the results" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b9kgdjluj</task-id>
+<tool-use-id>toolu_01THMWNzZy3eKb7qWMaGJdJj</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/b9kgdjluj.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the splat smoke test and print its log" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bcqtgt0e2</task-id>
+<tool-use-id>toolu_013MC9oJKHj5iiakHoKafYaa</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/bcqtgt0e2.output</output-file>
+<status>completed</status>
+<summary>Background command "Confirm lint, wait for the smoke test and mesh test, and fetch the mesh sheet" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Let's try it
+
+---
+
+Go ahead and we can go ahead and implement some of benjamins stuff so we test it

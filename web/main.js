@@ -367,6 +367,14 @@ function animate(now) {
   objectLayer?.update(dt);
   if (following) route.update(dt);
   else phone.update(dt);
+  if (!following && !adder.state.active) {
+    const moving = objectLayer?.state.moving;
+    route?.updateLive(
+      moving?.dragging
+        ? { object_id: moving.object.asset.object_id, position: moving.object.center.toArray() }
+        : null,
+    );
+  }
   $("follow").textContent = following ? "Stop" : "Walk route";
   if (walk) camera.position.y = eyeY;
   renderer.render(scene, camera);

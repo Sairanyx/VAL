@@ -134,3 +134,19 @@ Add these to the URL: `?lod=0&res=2` for the sharpest image, or `?res=0.5` if it
 | Old object IDs, such as `obj-0046` for P-005 | Old data | Run `make scene mapping pieces` again |
 
 Open the browser's developer console (F12) for more detail, and include any red errors when asking for help.
+
+## Tablet mode
+Touch screens get it automatically. `?tablet=1` or `?tablet=0` in the address forces it. Windows have no
+close button: tap a window anywhere except its controls to close it. It also draws at 0.75 resolution and
+aims for 500,000 splats. Change these with `?res=` and `?splats=`. For a tablet, also cut a lighter scene:
+`make pieces PIECES_FROM=data/scene/equipment_room/light_full.ply`.
+
+## Control the viewer with commands
+Every button has a command, so a voice copilot can do the same things. `GET /api/viewer/actions` lists them.
+```bash
+curl -X POST localhost:8001/api/viewer/commands -H 'Content-Type: application/json' \
+  -d '{"action": "route_to", "args": {"object_id": "obj-0049"}}'
+```
+The open viewer runs it within about half a second. `GET /api/viewer/commands/ID` shows the result. Adding,
+splitting, and combining only start from a command, because a person draws or taps the rest.
+

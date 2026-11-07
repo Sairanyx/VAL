@@ -32,7 +32,8 @@ function chevronGeometry() {
   return geometry;
 }
 const LIVE_STEP = 0.1; // metres moved before the route is re-planned or trimmed
-const LIVE_WAIT = 50; // milliseconds between live re-plans, so requests don't pile up
+// Milliseconds between live re-plans, so requests don't pile up. Each one also redraws the line.
+const LIVE_WAIT = document.body.classList.contains("tablet") ? 100 : 50;
 
 async function callApi(path, body) {
   const response = await fetch(path, {

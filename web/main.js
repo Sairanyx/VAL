@@ -4,6 +4,7 @@
 import * as THREE from "three";
 import { SparkControls, SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
 import { setupAddObject } from "./addobject.js";
+import { setupCommands } from "./commands.js";
 import { setupCopilot } from "./copilot.js";
 import { setupHighlight } from "./highlight.js";
 import { setupObjects } from "./objects.js";
@@ -13,19 +14,33 @@ import { setupRoute } from "./route.js";
 let faultTag = "P-005"; // the pre-chosen faulty device, unless the scene's file names another
 const EYE_HEIGHT = 1.6; // metres above the floor in walk mode (scene units look close to metres)
 const RANGES = [2, 3, 5, 10]; // metres the Range button cycles through, for frames and labels
-const MAX_LABELS = 8;
 const MAX_BOXES = 15;
 const BACKGROUND_LABELS = new Set(["pipe", "pipe fitting", "cable", "hose", "object"]);
+
+// Lighter defaults for tablets, until they're measured on the real Lenovo.
+const TABLET_RES = 0.75;
+const TABLET_SPLATS = 500000;
 
 // Speed settings, changeable in the URL without editing code, e.g. ?res=0.5&splats=300000
 //   res     render resolution relative to the screen (default 1; 0.5 is about 4x fewer pixels)
 //   lod     1 = level of detail on: far-away areas use fewer, bigger splats (default 1)
 //   splats  how many splats LOD aims to draw per frame (default: Spark's choice for the device)
 const params = new URLSearchParams(location.search);
-const RES = Number(params.get("res") ?? 1);
+//   tablet  1 or 0 forces the touch layout and lighter defaults. Default: on for touch screens
+const TABLET = params.has("tablet")
+  ? params.get("tablet") === "1"
+  : window.matchMedia("(pointer: coarse)").matches;
+document.body.classList.toggle("tablet", TABLET);
+const MAX_LABELS = TABLET ? 5 : 8;
+const RES = Number(params.get("res") ?? (TABLET ? TABLET_RES : 1));
 const LOD = params.get("lod") !== "0";
-const LOD_SPLATS = params.has("splats") ? Number(params.get("splats")) : undefined;
+const LOD_SPLATS = params.has("splats")
+  ? Number(params.get("splats"))
+  : TABLET
+    ? TABLET_SPLATS
+    : undefined;
 
+const PANEL_CONTROLS = "button, a, input, select, textarea, label, summary, form";
 const $ = (id) => document.getElementById(id);
 const canvas = $("view");
 
@@ -196,6 +211,16 @@ function showInfo(obj) {
   showCondition(obj);
   $("info").hidden = false;
 }
+// On a tablet there's no close button: tapping a window anywhere except its controls closes it.
+function closeOnTap(panel, close) {
+  panel.addEventListener("click", (event) => {
+    if (document.body.classList.contains("tablet") && !event.target.closest(PANEL_CONTROLS)) {
+      close.click();
+    }
+  });
+}
+closeOnTap($("info"), $("info-close"));
+closeOnTap($("copilot"), $("copilot-close"));
 $("info-close").onclick = () => {
   $("info").hidden = true;
   hideManipBar();
@@ -613,6 +638,79 @@ async function checkMove(object, position, yaw = 0) {
   return { ok: true, reason: "", blockers: [] };
 }
 
+// What the voice copilot can do, through the same code as the buttons. See app/api/commands.py.
+function commandHandlers() {
+  const find = (id) => {
+    const object = objects.find((o) => o.asset.object_id === id && !o.gone);
+    if (!object) throw new Error(`No object ${id}`);
+    return object;
+  };
+  const press = (id) => () => $(id).click();
+  // Buttons toggle, so only press one if it isn't in the state asked for.
+  const pressIf = (needed, id) => {
+    if (needed) $(id).click();
+  };
+  const open = (id, button) => {
+    showInfo(find(id));
+    $(button).click();
+  };
+  const views = ["scan", "both", "objects"];
+  return {
+    select: ({ object_id }) => showInfo(find(object_id)),
+    close_panels: () => {
+      $("info-close").click();
+      $("copilot-close").click();
+    },
+    route_to: ({ object_id }) => routeTo(find(object_id)),
+    go_to_fault: press("go-fault"),
+    clear_route: press("clear-route"),
+    walk_route: () => pressIf(!route.state.walking, "follow"),
+    stop_walking: () => pressIf(route.state.walking, "follow"),
+    set_profile: ({ profile }) => {
+      if (!["person", "robot"].includes(profile)) throw new Error("Use person or robot");
+      pressIf(route.state.profile !== profile, "profile");
+    },
+    set_mode: ({ mode }) => {
+      if (!["walk", "fly"].includes(mode)) throw new Error("Use walk or fly");
+      pressIf(walk !== (mode === "walk"), "mode");
+    },
+    set_boxes: ({ on }) => pressIf(boxesOn !== on, "boxes"),
+    set_range: ({ metres }) => {
+      if (!RANGES.includes(metres)) throw new Error(`Use one of ${RANGES.join(", ")} m`);
+      range = metres;
+      $("range").textContent = `Range ${range} m`;
+    },
+    set_view: ({ view }) => {
+      if (!views.includes(view)) throw new Error(`Use one of ${views.join(", ")}`);
+      objectLayer.setView(view);
+      $("view-mode").textContent = view[0].toUpperCase() + view.slice(1);
+    },
+    set_apart: ({ on }) => pressIf(objectLayer.state.apart !== on, "apart"),
+    reset_view: press("reset"),
+    open_copilot: press("open-copilot"),
+    ask_copilot: ({ question }) => copilot.open(question),
+    move_object: ({ object_id, position }) => {
+      const object = find(object_id);
+      return objectLayer.moveTo(object, position);
+    },
+    rotate_object: ({ object_id, degrees }) => {
+      const object = find(object_id);
+      return objectLayer.moveTo(object, undefined, (degrees * Math.PI) / 180);
+    },
+    turn_object: ({ object_id, degrees }) => {
+      const object = find(object_id);
+      return objectLayer.moveTo(object, undefined, (object.yaw || 0) + (degrees * Math.PI) / 180);
+    },
+    start_move: ({ object_id }) => open(object_id, "move"),
+    start_rotate: ({ object_id }) => open(object_id, "rotate"),
+    finish_moving: press("manip-done"),
+    undo_changes: press("reset-moves"),
+    start_add: press("add-object"),
+    start_split: ({ object_id }) => open(object_id, "split-object"),
+    start_combine: ({ object_id }) => open(object_id, "combine-object"),
+  };
+}
+
 async function load() {
   const data = await (await fetch("assets.json")).json();
   faultTag = data.fault_tag ?? faultTag;
@@ -698,6 +796,7 @@ async function load() {
     $("apart").textContent = "Together";
   }
   await syncWithBackend();
+  setupCommands(commandHandlers());
   window.plantViewer = { objects, objectLayer, camera, route, copilot, showInfo, adder }; // For browser tests and debugging.
   if (params.has("camera")) {
     const [x, y, z, yaw, pitch] = params.get("camera").split(",").map(Number);

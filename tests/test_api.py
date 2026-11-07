@@ -352,3 +352,35 @@ def test_turning_into_another_object_is_refused(tmp_path):
     rotate = {"op": "rotate", "object_id": "cart", "yaw": math.pi / 2}
     assert client.post("/api/changes", json=rotate).status_code == 409
     assert client.get("/api/assets/cart").json()["yaw"] == 0
+
+
+def test_viewer_commands_reach_the_viewer_once_and_report_back(client):
+    assert client.get("/api/viewer/commands").json() == {"last_id": 0, "commands": []}
+    sent = client.post(
+        "/api/viewer/commands", json={"action": "route_to", "args": {"object_id": "near"}}
+    ).json()
+    assert client.get("/api/viewer/commands").json()["commands"] == []
+    found = client.get("/api/viewer/commands", params={"after": 0}).json()["commands"]
+    assert [c["id"] for c in found] == [sent["id"]]
+    assert client.get("/api/viewer/commands", params={"after": sent["id"]}).json()["commands"] == []
+    client.post(f"/api/viewer/commands/{sent['id']}/result", json={"ok": True})
+    assert client.get(f"/api/viewer/commands/{sent['id']}").json()["result"]["ok"] is True
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        {"action": "explode"},
+        {"action": "route_to"},
+        {"action": "set_range", "args": {"metres": "far"}},
+        {"action": "move_object", "args": {"object_id": "near", "position": [1, 2]}},
+    ],
+)
+def test_bad_viewer_commands_are_refused(client, command):
+    assert client.post("/api/viewer/commands", json=command).status_code == 422
+
+
+def test_every_viewer_action_is_listed_with_what_it_needs(client):
+    actions = client.get("/api/viewer/actions").json()["actions"]
+    assert {"route_to", "move_object", "rotate_object", "undo_changes"} <= set(actions)
+    assert all("does" in spec and "args" in spec for spec in actions.values())

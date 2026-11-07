@@ -376,3 +376,16 @@ button {
   color: #38bdf8;
   font-size: 13px;
 }
+
+/* Lenovo tablet: fingers, not a mouse. Tapping a window closes it, so it has no close button. */
+.tablet #info-close,
+.tablet #copilot-close {
+  display: none;
+}
+.tablet button {
+  min-height: 44px;
+  min-width: 44px;
+}
+.tablet #view {
+  touch-action: none;
+}

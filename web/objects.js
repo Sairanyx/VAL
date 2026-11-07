@@ -410,6 +410,18 @@ export async function setupObjects({
     setObjectRotation({ object, item }, yaw);
   }
 
+  // Move or turn an object without dragging, such as by voice. Nothing changes if it doesn't fit.
+  async function moveTo(object, center = object.center.toArray(), yaw = object.yaw || 0) {
+    if (object.asset.mobility !== "movable") {
+      return { ok: false, message: `${object.asset.object_id} can't be moved` };
+    }
+    const result = await checkMove(object, center, yaw);
+    if (!result.ok) return { ok: false, message: result.reason };
+    placeAt(object, center, yaw);
+    recordChange(object);
+    return { ok: true, message: "" };
+  }
+
   function resetMoves() {
     for (const object of objects) {
       const item = items.find((candidate) => candidate.object === object);
@@ -438,6 +450,7 @@ export async function setupObjects({
     turnObject,
     finishManipulation,
     resetMoves,
+    moveTo,
     placeAt,
     shapeCount: items.length,
   };

@@ -17,6 +17,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from app.api.collisions import MoveCheck, check_move
+from app.api.commands import ACTIONS, CommandQueue, problem_with
 from app.api.copilot_link import ask, condition, details, load_engine
 from app.api.db import open_database
 from app.api.select_object import (
@@ -62,6 +63,16 @@ class ChangeRequest(BaseModel):
 class SuggestRequest(BaseModel):
     image: str
     rectangle: Annotated[list[float], Field(min_length=4, max_length=4)]
+
+
+class ViewerCommand(BaseModel):
+    action: str
+    args: dict[str, Any] = Field(default_factory=dict)
+
+
+class CommandResult(BaseModel):
+    ok: bool
+    message: str = ""
 
 
 class MoveCheckRequest(BaseModel):
@@ -167,6 +178,42 @@ def create_app(
     @app.get("/", include_in_schema=False)
     def home() -> RedirectResponse:
         return RedirectResponse("/docs")
+
+    commands = CommandQueue()
+
+    @app.get("/api/viewer/actions")
+    def viewer_actions() -> dict:
+        """List what the viewer can be told to do, and what each action needs."""
+        return {"actions": ACTIONS}
+
+    @app.post("/api/viewer/commands")
+    def send_command(request: ViewerCommand) -> dict:
+        """Tell the open viewer to do something. Check the command by ID for its result."""
+        problem = problem_with(request.action, request.args)
+        if problem:
+            raise HTTPException(422, problem)
+        return commands.add(request.action, request.args)
+
+    @app.get("/api/viewer/commands")
+    def poll_commands(after: int | None = None) -> dict:
+        """Commands newer than `after`. Without it, only the latest ID, so old ones don't rerun."""
+        found = [] if after is None else commands.after(after)
+        return {"last_id": commands.last_id, "commands": found}
+
+    @app.get("/api/viewer/commands/{command_id}")
+    def get_command(command_id: int) -> dict:
+        command = commands.get(command_id)
+        if command is None:
+            raise HTTPException(404, f"No command {command_id}")
+        return command
+
+    @app.post("/api/viewer/commands/{command_id}/result")
+    def report_result(command_id: int, result: CommandResult) -> dict:
+        command = commands.get(command_id)
+        if command is None:
+            raise HTTPException(404, f"No command {command_id}")
+        command["result"] = result.model_dump()
+        return command
 
     @app.get("/api/health")
     def health() -> dict:

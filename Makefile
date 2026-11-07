@@ -13,7 +13,7 @@ PIECES_DIR ?= $(SCENE_DIR)/cut
 MODEL ?= Qwen3.5-9B
 MODEL_DIR ?= data/models/$(MODEL)
 
-.PHONY: setup entire views scene scene-full model pieces gpu train tb web fmt lint test check up api floor mapping db nav-check
+.PHONY: setup entire views scene scene-full model pieces pipeline gpu train tb web fmt lint test check up api floor mapping db nav-check
 
 setup:   ## install everything
 	uv sync
@@ -43,6 +43,8 @@ model:   ## download the copilot's language model once, before going offline (ab
 	uv run python -c "from huggingface_hub import snapshot_download as s; s('Qwen/$(MODEL)', local_dir='$(MODEL_DIR)', allow_patterns=['*.safetensors', '*.json', '*.txt', '*.jinja', 'merges*', 'vocab*'])"
 pieces:  ## cut movable objects out of a scene, so dragging moves the real thing. Then: make web SCENE=$(PIECES_DIR)/base.ply PIECES=$(PIECES_DIR)
 	uv run python -m app.scene.split_movable "$(PIECES_FROM)" $(SCENE_DIR)/assets_viewer.json $(PIECES_DIR) --objects $(PIECES_OBJECTS) --members $(SCENE_DIR)/members.npz --box $(PIECES_BOX)
+pipeline: ## run a scene through everything: make pipeline CONFIG=scenes/equipment_room.toml, DRY=1 to preview
+	uv run python scripts/pipeline.py $(or $(CONFIG),scenes/equipment_room.toml) $(if $(DRY),--dry-run)
 gpu:     ## check the GPU works
 	uv run python -m app.gpu_check
 db:      ## start local TimescaleDB and load the Excel telemetry

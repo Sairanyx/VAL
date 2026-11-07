@@ -120,6 +120,8 @@ export async function setupObjects({ root, scene, camera, canvas, splat, objects
     (event) => {
       if (!state.moving) return;
       event.stopPropagation();
+      // Keeps the drag alive if the pointer leaves the canvas, such as over a panel.
+      canvas.setPointerCapture(event.pointerId);
       state.moving.dragging = true;
       state.moving.last = floorPoint(event);
     },
@@ -139,22 +141,27 @@ export async function setupObjects({ root, scene, camera, canvas, splat, objects
     },
     true,
   );
-  canvas.addEventListener(
-    "pointerup",
-    (event) => {
-      if (!state.moving) return;
-      event.stopPropagation();
-      const { object } = state.moving;
-      state.changes.push({
-        op: "move",
-        object_id: object.asset.object_id,
-        position: object.center.toArray().map((value) => Number(value.toFixed(3))),
-      });
-      state.moving = null;
-      onChange?.(state.changes);
-    },
-    true,
-  );
+  function finishMove(event) {
+    if (!state.moving?.dragging) return;
+    event.stopPropagation();
+    const { object } = state.moving;
+    state.changes.push({
+      op: "move",
+      object_id: object.asset.object_id,
+      position: object.center.toArray().map((value) => Number(value.toFixed(3))),
+    });
+    state.moving = null;
+    onChange?.(state.changes);
+  }
+  canvas.addEventListener("pointerup", finishMove, true);
+  canvas.addEventListener("pointercancel", finishMove, true);
+
+  // Put an object where the backend says it is, such as after reloading the page.
+  function placeAt(object, center) {
+    const item = items.find((candidate) => candidate.object === object);
+    const delta = new THREE.Vector3(...center).sub(object.center);
+    shiftObject({ object, item }, delta);
+  }
 
   function resetMoves() {
     for (const object of objects) {
@@ -176,7 +183,16 @@ export async function setupObjects({ root, scene, camera, canvas, splat, objects
   }
 
   applyView();
-  return { state, setView, setApart, update, startMove, resetMoves, shapeCount: items.length };
+  return {
+    state,
+    setView,
+    setApart,
+    update,
+    startMove,
+    resetMoves,
+    placeAt,
+    shapeCount: items.length,
+  };
 }
 
 async function fetchPieces() {

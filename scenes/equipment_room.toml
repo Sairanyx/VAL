@@ -1,0 +1,24 @@
+# One scene's settings for `make pipeline`. Copy this for a new room, and change what differs.
+name = "equipment_room"
+source = "data/scene/equipment_room/Equipment Room.ply"
+output = "data/scene/equipment_room/pipeline"
+up = [0.0, -1.0, 0.0]  # Which way is up in the file. This scan has +y pointing down.
+fault_tag = "P-005"  # The pre-chosen faulty device, from the asset records.
+
+[objects]
+vision_model = "data/models/Qwen3.5-4B"
+views = 5
+
+[renders]
+views = 400
+detail_views = 300
+
+[masks]
+# A folder holding VLSplat's preprocess/run_masks.sh. Its text prompts are set in that script.
+tool = "vlsplat"
+
+[python]
+# Steps can run in separate environments. Each defaults to the Python running the pipeline.
+render = ""
+masks = ""
+vision = ""

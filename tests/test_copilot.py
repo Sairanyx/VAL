@@ -192,3 +192,13 @@ def test_fouling_hypothesis_only_names_trends_in_the_data():
     )
     assert "falling flow" in stated.lower() and "vibration" not in stated
     assert "isn't clearly backed" in fouling_hypothesis({"vibration_rms_mm_s": {"trend": "stable"}})
+
+
+def test_fault_tag_can_differ_between_sites(monkeypatch):
+    if not list(Path("data").glob("*.xlsx")):
+        pytest.skip("No Excel builder pack found in data/")
+    assert CopilotEngine(fault_tag="P-001").fault_tag == "P-001"
+    monkeypatch.setenv("COPILOT_FAULT_TAG", "P-002")
+    assert CopilotEngine().fault_tag == "P-002"
+    monkeypatch.delenv("COPILOT_FAULT_TAG")
+    assert CopilotEngine().fault_tag == "P-005"

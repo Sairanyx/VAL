@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_012XuxnPNDgYaaca7XB4gVsK",
+  "agent_id": "a4377feb4a83c7bac",
+  "subagent_type": "fork",
+  "task_description": "Fact-check the devlog and docs",
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 22713,
+    "cache_read_tokens": 1648438,
+    "output_tokens": 13135,
+    "api_call_count": 5
+  },
+  "started_at": "2026-11-07T22:26:22.319839297+02:00",
+  "completed_at": "2026-11-07T22:28:22.279713574+02:00"
+}

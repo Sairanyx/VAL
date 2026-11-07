@@ -1,0 +1,52 @@
+{
+  "cli_version": "0.13.1",
+  "checkpoint_id": "01M6VV64VPBP7S39REGZXBEG24",
+  "strategy": "manual-commit",
+  "branch": "viktor/laptop-demo",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "README.md",
+    "docs/DEVLOG.md",
+    "docs/PITCH.md",
+    "docs/PLAN.md",
+    "docs/TEST_CHECKLIST.md",
+    "docs/USAGE.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 10006,
+    "cache_read_tokens": 982079,
+    "output_tokens": 3438,
+    "api_call_count": 3,
+    "subagent_tokens": {
+      "input_tokens": 2,
+      "cache_creation_tokens": 2262,
+      "cache_read_tokens": 323894,
+      "output_tokens": 535,
+      "api_call_count": 1
+    }
+  },
+  "redaction": {
+    "replacements": 201,
+    "layers": {
+      "betterleaks": 21,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 18,
+      "credentialed_uri": 4,
+      "entropy": 28,
+      "key_context": 148,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

@@ -454,6 +454,13 @@ export async function setupObjects({
 
   function finishManipulation() {
     clearMarks();
+    // Ended in the middle of a drag, by Esc or Done: what wasn't saved goes back.
+    const moving = state.moving;
+    if (moving?.dragging) {
+      moving.dragging = false;
+      placeAt(moving.object, moving.saved.toArray(), moving.savedYaw);
+      onMoveCancelled?.();
+    }
     state.moving = null;
   }
 
@@ -500,8 +507,9 @@ export async function setupObjects({
         const pts = Array.from(activePointers.values());
         const currentAngle = Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x);
         if (state.moving.lastTouchAngle !== null) {
+          // Twisting clockwise on screen turns it clockwise, like the turn buttons and arrow keys.
           const deltaAngle = currentAngle - state.moving.lastTouchAngle;
-          rotateObject(state.moving, -deltaAngle);
+          rotateObject(state.moving, deltaAngle);
         }
         state.moving.lastTouchAngle = currentAngle;
         return;
@@ -524,11 +532,13 @@ export async function setupObjects({
             let d = a2 - a1;
             while (d > Math.PI) d -= 2 * Math.PI;
             while (d < -Math.PI) d += 2 * Math.PI;
-            deltaYaw = d;
+            // A turn of +yaw takes the object's x axis to -z, so following the pointer is -d.
+            deltaYaw = -d;
           }
         }
         if (deltaYaw === 0 && state.moving.lastClientX !== null) {
-          deltaYaw = -(event.clientX - state.moving.lastClientX) * 0.015;
+          // Dragging right turns it clockwise, like the turn buttons and arrow keys.
+          deltaYaw = (event.clientX - state.moving.lastClientX) * 0.015;
         }
         if (deltaYaw !== 0) {
           rotateObject(state.moving, deltaYaw);
@@ -610,8 +620,11 @@ export async function setupObjects({
   // The scan's +y points down, so raising lowers y. Checked and saved like any move.
   async function raise(object, metres) {
     const offset = object.center.y - object.asset.center[1];
-    const bottom = object.asset.bbox_max[1] + offset; // the lowest point, as +y is down
-    const room = bottom - floorY; // negative while above the floor
+    const scanned = Math.max(object.asset.bbox_min[1], object.asset.bbox_max[1]); // lowest, +y down
+    const bottom = scanned + offset;
+    // The floor, or where the scan had it if that's lower: a box can reach a little into the floor,
+    // and it must always be able to go back to where it was scanned.
+    const room = bottom - Math.max(floorY, scanned); // negative while above that
     const step = metres > 0 ? metres : Math.max(metres, room);
     if (Math.abs(step) < 0.005) return { ok: false, message: "It's already on the floor" };
     const center = object.center.clone();

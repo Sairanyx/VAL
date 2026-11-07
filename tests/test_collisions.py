@@ -105,3 +105,32 @@ def test_check_endpoint_answers_without_moving_anything(tmp_path):
     assert reply["ok"] is False and reply["blockers"] == ["chair"]
     assert client.get("/api/assets/cart").json()["center"] == [0, 0, 0]
     assert client.get("/api/changes").json()["changes"] == []
+
+
+def test_turning_where_it_stands_is_judged_by_its_turned_footprint():
+    # Side by side, just apart: the upright box around the turned cart would reach the other one.
+    cart = {**box("cart", [0, 0, 0]), "base_size": [0.5, 0.5, 0.5]}
+    neighbour = box("neighbour", [0.62, 0, 0])
+    assert check_move(cart, [0, 0, 0], [cart, neighbour], None, yaw=0.0).ok
+    assert check_move(cart, [0, 0, 0], [cart, neighbour], None, yaw=0.7854).ok
+    # Turned and pushed into it, it still collides.
+    assert not check_move(cart, [0.4, 0, 0], [cart, neighbour], None, yaw=0.7854).ok
+
+
+def test_a_turned_object_keeps_its_size_when_checked_again():
+    turned = {**box("cart", [0, 0, 0]), "base_size": [0.5, 0.5, 0.5], "yaw": 0.7854}
+    half = 0.25 * 2**0.5
+    turned["bbox_min"], turned["bbox_max"] = [-half, -0.25, -half], [half, 0.25, half]
+    neighbour = box("neighbour", [0.75, 0, 0])
+    assert check_move(turned, [0, 0, 0], [turned, neighbour], None, yaw=0.0).ok
+
+
+def test_an_object_on_its_own_patch_of_floor_can_still_move():
+    # The scan saw the cart where it stood, so the floor map has no free floor around its center.
+    grid = room_grid()
+    cart = box("cart", [1, -0.5, 1])
+    low = np.floor((np.array([0.7, 0.7]) - grid.origin) / grid.cell).astype(int)
+    high = np.floor((np.array([1.3, 1.3]) - grid.origin) / grid.cell).astype(int)
+    grid.free[low[0] : high[0] + 1, low[1] : high[1] + 1] = False
+    assert check_move(cart, [1.1, -0.5, 1], [cart], grid).ok
+    assert check_move(cart, [1, -0.5, 0.9], [cart], grid).ok

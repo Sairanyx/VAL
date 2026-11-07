@@ -24,6 +24,8 @@ function grabbed(object, item, mode) {
     startYaw,
     valid: start.clone(),
     validYaw: startYaw,
+    saved: start.clone(), // Where the backend has it, so only real changes are recorded.
+    savedYaw: startYaw,
   };
 }
 
@@ -172,12 +174,23 @@ export async function setupObjects({
 
   // For a deleted object: its splats go too, and its space in the scan stays hidden until undone.
   async function erase(object) {
-    await ensurePiece(object);
-    if (object.hiddenSpace) {
-      object.erasedSpace = object.hiddenSpace;
-      object.hiddenSpace = null;
-      removePiece(object);
-    } else dropPiece(object);
+    const cutInAdvance = object.piece && !object.hiddenSpace && !object.isCopy;
+    const isCopy = object.isCopy || object.asset.duplicated_from;
+    dropPiece(object);
+    if (!cutInAdvance && !isCopy) {
+      const id = encodeURIComponent(object.asset.object_id);
+      const reply = await fetch(`/api/objects/${id}/cover`).then((response) => response.json());
+      object.erasedSpaces = (reply.boxes ?? []).map(({ bbox_min: low, bbox_max: high }) => {
+        const first = new THREE.Vector3(...low);
+        const second = new THREE.Vector3(...high);
+        const space = new SplatEditSdf({ type: SplatEditSdfType.BOX, opacity: 0 });
+        space.position.copy(first).add(second).multiplyScalar(0.5);
+        space.scale.copy(second).sub(first);
+        root.add(space);
+        hidden.addSdf(space);
+        return space;
+      });
+    }
     for (const piece of object.inherited ?? []) {
       if (piece.heirs.every((heir) => heir === object || heir.gone)) {
         piece.dropped = true;
@@ -187,10 +200,11 @@ export async function setupObjects({
   }
 
   function unerase(object) {
-    if (!object.erasedSpace) return;
-    hidden.removeSdf(object.erasedSpace);
-    root.remove(object.erasedSpace);
-    object.erasedSpace = null;
+    for (const space of object.erasedSpaces ?? []) {
+      hidden.removeSdf(space);
+      root.remove(space);
+    }
+    object.erasedSpaces = null;
   }
 
   // `keepSplats`: only the object's info goes; the scan still shows it.
@@ -543,11 +557,18 @@ export async function setupObjects({
     if (result.ok) {
       moving.valid = object.center.clone();
       moving.validYaw = object.yaw || 0;
-      return true;
+      onMessage?.("Placed. Undo takes it back.");
+    } else {
+      placeAt(object, moving.valid.toArray(), moving.validYaw);
+      onMessage?.(`Can't do that here: ${result.reason}. It's back where it was.`);
     }
-    placeAt(object, moving.valid.toArray(), moving.validYaw);
-    onMessage?.(`Moved back to the last good spot. ${result.reason}`);
-    return moving.valid.distanceTo(moving.start) >= 0.001 || moving.validYaw !== moving.startYaw;
+    const changed =
+      moving.valid.distanceTo(moving.saved) >= 0.001 || moving.validYaw !== moving.savedYaw;
+    if (changed) {
+      moving.saved = moving.valid.clone();
+      moving.savedYaw = moving.validYaw;
+    }
+    return changed;
   }
 
   async function finishDrag(event) {

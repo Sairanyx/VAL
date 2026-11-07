@@ -1,4 +1,7 @@
-// Val: ask about the room or the selected object, and see each answer with its evidence.
+// Val: ask about the room or the selected object, by typing or talking, and see each answer with its
+// evidence. Speech is turned into text on our own server (see voice.js), so it needs no internet.
+
+import { recordSpeech, MicProblem } from "./voice.js";
 
 function make(tag, text, className) {
   const element = document.createElement(tag);
@@ -15,23 +18,16 @@ function evidenceList(parent, title, items) {
   parent.append(list);
 }
 
-// Spoken by the device's own voice, which works offline if a voice is installed.
-function speak(text) {
-  if (!window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
-}
-
 function suggestionsFor(object, nameOf, faultTag) {
   if (!object) {
-    return ["What needs attention?", `Take me to ${faultTag}`, `What's wrong with ${faultTag}?`];
+    return ["What needs attention?", `Make a path to ${faultTag}`, `What's wrong with ${faultTag}?`];
   }
-  if (!object.asset.mapping) return ["What is this?", "Take me there"];
+  if (!object.asset.mapping) return ["What is this?", "Make path"];
   return [
     "What's wrong with it?",
     "What should I check first?",
     "When was it last serviced?",
-    "Take me there",
+    "Make path",
   ];
 }
 
@@ -43,20 +39,77 @@ export function setupCopilot({
   suggestions,
   context,
   close,
-  speakButton,
+  micButton,
   getObject,
   clearObject,
   nameOf,
   getFaultTag,
   onActions,
 }) {
-  let speaking = true;
   let waiting = false;
-  speakButton.onclick = () => {
-    speaking = !speaking;
-    speakButton.textContent = speaking ? "Voice on" : "Voice off";
-    if (!speaking) window.speechSynthesis?.cancel();
-  };
+  let recording = null; // set while the mic is open
+  const typedHint = input.placeholder;
+
+  function micState(state, hint = typedHint) {
+    micButton.dataset.state = state;
+    micButton.setAttribute("aria-label", state === "listening" ? "Stop and send" : "Talk to Val");
+    input.placeholder = hint;
+    if (state !== "listening") micButton.style.removeProperty("--level");
+  }
+
+  async function transcribe(audio) {
+    const response = await fetch("/api/copilot/transcribe", {
+      method: "POST",
+      headers: { "Content-Type": audio.type || "audio/webm" },
+      body: audio,
+    });
+    const reply = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(reply.detail ?? `Backend error ${response.status}`);
+    return reply;
+  }
+
+  // Tap to talk. It stops by itself when you stop talking, or tap again to send straight away.
+  async function listen() {
+    if (recording) {
+      recording.stop();
+      return;
+    }
+    if (waiting) return;
+    micState("listening", "Listening...");
+    recording = recordSpeech({
+      onLevel: (level) => micButton.style.setProperty("--level", level.toFixed(2)),
+    });
+    let audio;
+    try {
+      audio = await recording.result;
+    } catch (error) {
+      recording = null;
+      micState("idle");
+      say(error instanceof MicProblem ? error.message : `The mic stopped: ${error.message}`, "warning");
+      return;
+    }
+    recording = null;
+    if (!audio) {
+      micState("idle");
+      say("I didn't hear anything. Tap the mic and try again.");
+      return;
+    }
+    micState("working", "Working out what you said...");
+    try {
+      const heard = await transcribe(audio);
+      micState("idle");
+      if (!heard.text) say("I didn't catch that. Try again, or type it.");
+      else if (heard.unsure) {
+        input.value = heard.text;
+        say("I'm not sure I heard that right. Fix it if you need to, then press Ask.");
+        input.focus();
+      } else ask(heard.text);
+    } catch (error) {
+      micState("idle");
+      say(`I can't understand speech right now: ${error.message}`, "warning");
+    }
+  }
+  micButton.onclick = listen;
 
   function scrollDown() {
     messages.scrollTop = messages.scrollHeight;
@@ -98,13 +151,15 @@ export function setupCopilot({
     bubble.replaceChildren(make("p", reply.answer));
     if (reply.placeholder) return bubble;
     const mapping = object?.asset.mapping;
-    const unsure = mapping && !nameOf(object).endsWith(mapping.tag);
+    const aboutDevice = reply.observations?.length || reply.hypotheses?.length;
+    const unsure = aboutDevice && mapping && !nameOf(object).endsWith(mapping.tag);
     if (unsure) {
       bubble.append(make("p", `The link to ${mapping.tag} isn't confirmed.`, "unsure"));
     }
     if (reply.citations?.length) {
       bubble.append(make("p", `Sources: ${reply.citations.join(", ")}`, "sources"));
     }
+    if (!aboutDevice) return bubble;
     const details = make("details");
     details.append(make("summary", "How Val knows"));
     evidenceList(details, "Recorded", reply.observations);
@@ -169,10 +224,13 @@ export function setupCopilot({
     }
     thinking.remove();
     const bubble = showAnswer(reply, object);
-    if (speaking) speak(reply.answer);
     waiting = false;
     const problem = await onActions(reply.actions ?? []);
-    if (problem) bubble.append(make("p", problem, "unsure"));
+    // When a view change fails, say so instead of the "done" written before it was tried.
+    if (problem && reply.actions.some((action) => action.type === "viewer")) {
+      bubble.replaceChildren(make("p", problem));
+      bubble.classList.add("warning");
+    } else if (problem) bubble.append(make("p", problem, "unsure"));
     refresh();
     scrollDown();
     if (reply.can_reword) reword(question, object, bubble);
@@ -184,12 +242,13 @@ export function setupCopilot({
   });
   close.onclick = () => {
     panel.hidden = true;
-    window.speechSynthesis?.cancel();
+    recording?.cancel();
   };
 
   let greeted = false;
   return {
     refresh,
+    listen,
     open(question) {
       panel.hidden = false;
       if (!greeted) {

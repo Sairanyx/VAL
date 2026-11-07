@@ -17,6 +17,7 @@ make bim        # simulated BIM model for BIM mode, plus model.ifc
 make db         # optional, needs Docker: keeps changes after a restart
 make laptop-model # optional, needs Ollama: Val's small model for a laptop with no GPU
 make model      # optional, about 20 GB, for a GPU: Val's larger model
+make voice-model # about 460 MB: lets you talk to Val, with no internet
 ```
 Run these with internet. The demo itself needs none.
 
@@ -126,7 +127,7 @@ Tap an object to find both buttons.
 - **Name it** names any object with no record link, in labels, Plan, BIM mode and the IFC. A name can't be
   a record's tag, such as `P-005`, because it would look like that device.
 - **Delete** asks first, then removes the object from the scan, the routes, BIM mode and the exports.
-  **Undo changes** brings it back. It hides the object's whole box, so a neighbour inside it goes too.
+  It hides a few small boxes around the object's own splats, so most neighbours stay. Undo brings it back.
 
 ## Go back
 Esc, or the back button on a phone, goes back one step: it closes **Actions**, cancels a question or a selection
@@ -164,15 +165,21 @@ It's generated from the scan, not surveyed: objects are boxes, and the scale has
 with no room to show stays hidden until you find or tap its object. Needs `make api` and `Equipment Room.ply`.
 
 ## Ask Val
-Val is the field-service assistant. Press **Ask Val**, with or without an object selected, then type or tap a
+Val is the field-service assistant. Press **Ask Val**, with or without an object selected, then talk, type or tap a
 suggestion. It can say what needs attention, what's wrong with a device, what to check next and when it was
-last serviced, and it can take you there by drawing the route. **× ** beside "About ..." stops asking about
+last serviced, and **Make path** draws the route there. It doesn't move you: **Walk route** does that. **× ** beside "About ..." stops asking about
 that object.
 
 Val answers from the plant's records straight away. With a language model running, its summary appears below as
 "In plain words" when it's ready, about 10 seconds on a ThinkPad, and only if code's checks pass. **How Val
 knows** shows what's recorded, possible causes, confidence and how it was worded. Val says when it has no
-records on something, doesn't guess which device an unlinked object is, and refuses to operate equipment.
+records on something, doesn't guess which device an unlinked object is, and says "I can't do that" if asked to
+operate equipment. If it doesn't understand a message, it says so.
+
+## Frame colours
+Frames are coloured by type, the same as BIM mode: pumps amber, tanks green, valves purple, pipes blue, cables
+yellow, cabinets teal, chairs and shelves pink, anything else grey, and the faulty device red. **Actions** has the
+full list under **Frame colours**.
 
 ## Other controls
 The main buttons are **Go to P-005**, **Map**, **Ask Val** and **Actions**, with **Walk route** and **Clear route**
@@ -240,8 +247,31 @@ curl -X POST localhost:8001/api/viewer/commands -H 'Content-Type: application/js
 The open viewer runs it within about half a second. `GET /api/viewer/commands/ID` shows the result. Adding,
 splitting, and combining only start from a command, because a person draws or taps the rest.
 
-## Val's voice
-Val reads its answer aloud with the device's own voice. **Voice on** turns this off. A device with
-no voice installed stays silent. Speaking to it isn't built yet: browser speech recognition usually needs
-internet, so offline needs a local model such as Whisper.
+## Talk to Val
+Press the mic beside the chat box, or **V** on a keyboard, and speak. It stops by itself when you stop talking,
+or press the mic again to send straight away. The words you said appear in the chat, then Val answers in writing.
+If Val isn't sure it heard you, it puts the words in the box for you to fix first.
 
+Speech is turned into text on our own server, with no internet, and the audio isn't kept. Run `make voice-model`
+once before going offline. Browsers only allow the mic on `localhost` or an `https` address, so `./start tablet`
+uses `https`: accept the certificate warning once, and allow the mic.
+
+Val can also press the buttons. Say or type, for example:
+
+| Say | It does |
+|---|---|
+| "Make a path to P-005" | Draws the route |
+| "Walk the route", "Stop walking", "Clear the path" | The route buttons |
+| "Hide the frames", "Show the frames" | Object frames |
+| "Show the scan", "Show objects", "Show both" | What's on screen |
+| "Show objects within 5 metres" | The range: 2, 3, 5 or 10 m |
+| "Switch to fly mode", "Use the robot" | How you move, and who routes are for |
+| "Pull the objects apart", "Bring them together" | Exploded view |
+| "Show the BIM", "Leave the BIM" | BIM mode |
+| "Select P-005", "Copy it", "Delete it", "Move it" | Acts on the object you name or have selected |
+| "Rotate it to 90 degrees", "Turn it by 45 degrees", "Rename it to Cart A" | The same |
+| "Split it", "Combine it", "Add an object", "Done" | Starts these, and you finish by hand |
+| "Reset the view", "Undo all changes", "Close the panels" | The same as their buttons |
+
+The wording can vary. For "it", Val only uses what's selected or named, and asks "Which one?" otherwise. These only
+change the 3D view. Val never operates real equipment.

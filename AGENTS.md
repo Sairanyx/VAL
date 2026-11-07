@@ -88,6 +88,7 @@ their area.
 | `make pieces` | Cut movable objects out of the scene |
 | `make laptop-model` | Get Val's small model, for a laptop with no GPU |
 | `make model` | Get Val's larger model, for a GPU, before going offline |
+| `make voice-model` | Get the speech model for talking to Val, before going offline |
 | `make pipeline` | Run a scene through everything, from `scenes/*.toml` |
 | `make train` | Train a model |
 

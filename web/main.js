@@ -6,6 +6,7 @@ import { SparkControls, SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
 import { setupAddObject } from "./addobject.js";
 import { setupBim } from "./bim.js";
 import { setupCommands } from "./commands.js";
+import { FAULT_COLOR, LEGEND, colorForLabel } from "./colors.js";
 import { setupCopilot } from "./copilot.js";
 import { setupHighlight } from "./highlight.js";
 import { createHoverShell } from "./hover.js";
@@ -164,7 +165,6 @@ function kind(asset) {
   if (asset.mapping?.tag === faultTag) return "fault";
   return asset.mapping ? "mapped" : "plain";
 }
-const COLORS = { fault: 0xff4d4f, mapped: 0x38bdf8, plain: 0xd1d5db };
 
 // Links made by rule aren't real identities, so they're shown as a question.
 // A link made by rule or by eye is a guess, so it reads as a question.
@@ -187,7 +187,10 @@ function addAsset(asset) {
   // hide lines behind them: a frame's own back edges, and any frame further away.
   const box = new THREE.LineSegments(
     new THREE.EdgesGeometry(geom),
-    new THREE.LineBasicMaterial({ color: COLORS[kind(asset)], transparent: true }),
+    new THREE.LineBasicMaterial({
+      color: kind(asset) === "fault" ? FAULT_COLOR : colorForLabel(asset.label),
+      transparent: true,
+    }),
   );
   box.renderOrder = FRAME_ORDER + 1;
   box.position.copy(mid);
@@ -364,6 +367,19 @@ async function runValActions(actions) {
   const find = (id) => objects.find((o) => o.asset.object_id === id && !o.gone);
   let problem = null;
   for (const action of actions) {
+    // Something asked for out loud or typed: the same code as the button.
+    if (action.type === "viewer") {
+      try {
+        const result = await commandHandlers()[action.action](action.args);
+        if (result?.ok === false) problem = result.message || result.reason || "That didn't work.";
+      } catch (error) {
+        problem = error.message;
+      }
+      // People know devices by name, not by the scene's object IDs.
+      const object = find(action.args.object_id);
+      if (problem && object) problem = problem.replaceAll(object.asset.object_id, name(object.asset).replace(/\?$/, ""));
+      continue;
+    }
     const object = find(action.object_id);
     if (!object) continue;
     if (action.type === "highlight") focusOn(object);
@@ -384,7 +400,7 @@ const copilot = setupCopilot({
   suggestions: $("val-suggestions"),
   context: $("val-context"),
   close: $("copilot-close"),
-  speakButton: $("copilot-speak"),
+  micButton: $("val-mic"),
   getObject: () => selected,
   clearObject: () => {
     selected = null;
@@ -404,6 +420,14 @@ $("ask").onclick = () => {
   const linked = selected?.asset.mapping;
   copilot.open(linked ? "What's wrong with it, and what should I check first?" : "What is this?");
 };
+
+for (const [text, color] of LEGEND) {
+  const item = document.createElement("span");
+  const swatch = document.createElement("i");
+  swatch.style.background = `#${color.toString(16).padStart(6, "0")}`;
+  item.append(swatch, text);
+  $("frame-legend").append(item);
+}
 
 // The main buttons stay few. Everything else waits behind Actions.
 function showMenu(open) {
@@ -631,7 +655,7 @@ async function duplicateObject(object) {
   const position = await freeSpotBeside(object);
   if (!position) {
     $("status").textContent = "There's no free spot beside it for a copy.";
-    return;
+    return { ok: false, message: $("status").textContent };
   }
   try {
     const change = await fetch("/api/changes", {
@@ -644,7 +668,7 @@ async function duplicateObject(object) {
     addAsset(asset);
   } catch (error) {
     $("status").textContent = `Couldn't copy it: ${error.message}`;
-    return;
+    return { ok: false, message: $("status").textContent };
   }
   const copy = objects.at(-1);
   copy.addedByOperator = true;
@@ -703,6 +727,12 @@ window.addEventListener("keydown", (event) => {
   else if (key === "f") handled = press("mode");
   else if (key === "g") handled = press("go-fault");
   else if (key === "l") handled = press("open-list");
+  else if (key === "v") {
+    // Talk to Val from anywhere.
+    copilot.open();
+    copilot.listen();
+    handled = true;
+  }
   if (handled) event.preventDefault();
 });
 // One spare history entry catches the back button. With nothing left to close, it leaves the page.
@@ -958,6 +988,7 @@ function chooseLabels() {
   const nearby = [];
   for (const o of objects) {
     if (o.gone) continue;
+    if (bim?.state.active && !bim.shows(o)) continue;
     pos.copy(o.center).applyMatrix4(root.matrixWorld);
     const dist = camera.position.distanceTo(pos);
     if (dist > range) continue;
@@ -1218,8 +1249,15 @@ function commandHandlers() {
     if (needed) $(id).click();
   };
   const open = (id, button) => {
-    showInfo(find(id));
-    $(button).click();
+    const object = find(id);
+    showInfo(object);
+    const control = $(button);
+    if (control.hidden || control.disabled) throw new Error(`${name(object.asset)} can't do that here.`);
+    control.click();
+  };
+  const needsMovable = (id) => {
+    const object = find(id);
+    if (object.asset.mobility !== "movable") throw new Error(`${name(object.asset).replace(/\?$/, "")} is fixed, so it can't be moved.`);
   };
   const views = ["scan", "both", "objects"];
   return {
@@ -1268,8 +1306,12 @@ function commandHandlers() {
       const object = find(object_id);
       return objectLayer.moveTo(object, undefined, (object.yaw || 0) + (degrees * Math.PI) / 180);
     },
-    start_move: ({ object_id }) => open(object_id, "move"),
+    start_move: ({ object_id }) => {
+      needsMovable(object_id);
+      open(object_id, "move");
+    },
     start_rotate: ({ object_id }) => {
+      needsMovable(object_id);
       open(object_id, "move"); // Rotate is a mode of Move now
       $("manip-mode-rotate").click();
     },
@@ -1349,8 +1391,10 @@ async function load() {
     objects,
     floorY: data.floor_y ?? 0,
     onChange: (changes) => {
-      $("status").textContent = `${changes.length} object(s) moved`;
-      if (!changes.length) removeAdded();
+      if (!changes.length) {
+        $("status").textContent = "Everything's back as scanned.";
+        removeAdded();
+      }
       route.syncChanges(changes);
     },
     checkMove,

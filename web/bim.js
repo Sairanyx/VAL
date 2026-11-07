@@ -6,27 +6,11 @@
 // Everything is in scene coordinates inside `root`, like the scan, so moves and routes line up.
 import * as THREE from "three";
 import { SplatEdit, SplatEditSdf, SplatEditSdfType, SplatMesh } from "@sparkjsdev/spark";
+import { CLASS_COLORS, FAULT_COLOR } from "./colors.js";
 import { createHoverShell } from "./hover.js";
 import { THIN_LABELS, pickFront } from "./pick.js";
 
 const UP = new THREE.Vector3(0, 1, 0);
-const CLASS_COLORS = {
-  IfcWall: 0xc7cdd6,
-  IfcSlab: 0x6b7280,
-  IfcPump: 0xf59e0b,
-  IfcTank: 0x22c55e,
-  IfcValve: 0xa855f7,
-  IfcPipeSegment: 0x3b82f6,
-  IfcPipeFitting: 0x93c5fd,
-  IfcCableSegment: 0xeab308,
-  IfcElectricDistributionBoard: 0x14b8a6,
-  IfcLightFixture: 0xfde68a,
-  IfcSensor: 0xec4899,
-  IfcFlowInstrument: 0xec4899,
-  IfcFurniture: 0xb45309,
-  IfcBuildingElementProxy: 0x9ca3af,
-};
-const FAULT_COLOR = 0xff2d2d;
 const SELECTED_GLOW = 0x0891b2;
 const SELECTED_TINT = 0x22d3ee;
 const ROOM = new Set(["IfcWall", "IfcSlab"]);
@@ -416,7 +400,7 @@ export async function setupBim({
 
   // Taps and hovering use each element's simple shape in every look, even when it isn't drawn:
   // scan meshes and splats have gaps, so a tap in the middle of a bucket could miss it.
-  // Equipment comes before walls and floor; among it, the front shape wins (see pick.js).
+  // Walls and the floor can't be picked, and among equipment the front shape wins (see pick.js).
   function candidate(raycaster) {
     const shown = items.filter((item) => visible(item));
     const inCut = (hit) => state.cut === null || section.distanceToPoint(hit.point) >= 0;
@@ -433,8 +417,7 @@ export async function setupBim({
         inCut,
       )?.item ?? null;
     const equipment = shown.filter((item) => !ROOM.has(item.element.ifc_class));
-    const room = shown.filter((item) => ROOM.has(item.element.ifc_class));
-    return front(equipment) ?? front(room);
+    return front(equipment);
   }
 
   // Distance to an element's real surface along a ray: its fitted shape, or its scan mesh.
@@ -464,8 +447,7 @@ export async function setupBim({
 
   // Pass a raycaster to hover what is under it, or null to clear. Returns the hovered item.
   function hover(raycaster) {
-    let item = raycaster && state.active ? candidate(raycaster) : null;
-    if (item && ROOM.has(item.element.ifc_class)) item = null;
+    const item = raycaster && state.active ? candidate(raycaster) : null;
     state.hovered = item;
     if (item && visible(item)) shell.show(item.box.geometry, item.box.position, item.box.quaternion);
     else shell.hide();
@@ -496,6 +478,12 @@ export async function setupBim({
     pick,
     hover,
     hoverObject,
+    // Whether an object's label belongs on screen, given isolating and hidden types.
+    shows(object) {
+      const item = items.find((candidate) => candidate.object === object);
+      if (!item) return false;
+      return visible(item) || (Boolean(item.combined) && !state.isolated);
+    },
     surfaceDistance,
     selectObject,
     rename(object) {

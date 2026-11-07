@@ -1,6 +1,6 @@
-# benjamin-sundell: benjamin/webviewer
-**Goal:** web viewer for the tablet demo (`web/`), per docs/PLAN.md
-**Done:** merged main (BIM mode, Plan screen, DXF) into this branch, keeping Eduard's tablet mode/rotation/commands and my Track, light scene, phone UI fixes alongside it (conflicts in main.js, style.css, index.html, highlight.js, Makefile, app/api/main.py). Before that: phone UI fixes: info window no longer closes right after tapping an object (browser's ghost click after the tap landed on the new window; windows now ignore clicks for 500 ms after a scene tap, in main.js); buttons are one sideways-scrolling row at the bottom on touch devices and wrap on narrow desktop windows; joystick sits above the row; windows scroll inside themselves; move/rotate bar wraps and hides the joystick (style.css). Earlier: Track (WebXR), one tablet mode, route arrows
-**Verified:** `make check` passes (240 passed, 3 skipped). Merged viewer not yet opened in a browser
-**Next:** open a PR to main (no conflicts now); check BIM + rotation + tablet layout together in the browser; test Track on an ARCore device
-**Blockers:** test tablet's Chrome 81 can't run the viewer (no import maps)
+# benjamin-sundell: benjamin/fixes
+**Goal:** the team's bug and fix list for the viewer, on top of main (PR #35)
+**Done:** flicker fixed (adaptive resolution resized the canvas; now opt-in `?adaptive=1`); typing in Val no longer moves the camera; Rotate is a mode of Move; View button hidden (BIM replaces it); Undo (latest change, new `POST /api/changes/undo`) next to Reset all, and the viewer brings back undone deletes; hotkeys (Delete, Ctrl+Z, M, R, PgUp/PgDn, C, N, F, G, Esc); "Remove info" keeps a junk object's splats (`op: remove` + `keep_splats`, still blocks routes if movable); raise/lower objects and copies; Walk keeps to the walkable floor (new `GET /api/plan/walkable`, `web/walkable.js`), Fly free; start just inside the door (`obj-0268`, `?start=centre` for the old start); Plan rebuilt as a light blueprint from bim.json (`web/plan.js`), BIM no longer builds the layout at startup. Tests in `tests/test_api.py`
+**Verified:** `make check` passes (275 passed, 4 skipped). Not yet clicked through in a browser
+**Next:** click through every fix; push and PR; tell Eduard (store.py, main.py endpoints), Viktor (plan.js, pacing default), Sasha (bim.js). Val stress test skipped (no model here). Database dummy data and demo deployment: decisions for the team
+**Blockers:** none

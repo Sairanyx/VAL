@@ -362,6 +362,7 @@ function animate(now) {
   objectLayer?.update(dt);
   if (following) route.update(dt);
   else phone.update(dt);
+  route?.animate(dt);
   $("follow").textContent = following ? "Stop" : "Walk route";
   if (walk) camera.position.y = eyeY;
   renderer.render(scene, camera);

@@ -3,9 +3,34 @@ import * as THREE from "three";
 
 const WALK_SPEED = 1.2; // metres per second
 const TURN_RATE = 3; // how quickly the view turns towards where it's heading
-const LINE_RADIUS = 0.035;
+const LINE_RADIUS = 0.02; // faint guide line under the arrows
 const LINE_LIFT = 0.03; // metres above the floor, so the line doesn't sink into it
 const COLOR = 0x22d3ee;
+// Chevron arrows along the route, flowing towards the target.
+const ARROW_SPACING = 0.45; // metres between arrows
+const ARROW_SPEED = 0.7; // metres per second the arrows flow
+const ARROW_GROW = 0.3; // arrows grow in and shrink out over this distance at the ends
+const END_GAP = 0.3; // no arrows this close to the end ring
+const MAX_ARROWS = 400;
+
+// A flat ">" lying on the floor, pointing along +z, about 22 x 26 cm.
+function chevronGeometry() {
+  const shape = new THREE.Shape();
+  const outline = [
+    [0, 0.11],
+    [0.13, -0.02],
+    [0.13, -0.1],
+    [0, 0.03],
+    [-0.13, -0.1],
+    [-0.13, -0.02],
+  ];
+  shape.moveTo(...outline[0]);
+  for (const point of outline.slice(1)) shape.lineTo(...point);
+  shape.closePath();
+  const geometry = new THREE.ShapeGeometry(shape);
+  geometry.rotateX(Math.PI / 2); // tip from +y to +z, so it lies flat on the floor
+  return geometry;
+}
 
 async function callApi(path, body) {
   const response = await fetch(path, {
@@ -47,7 +72,20 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
     depthTest: false,
     transparent: true,
     opacity: 0.9,
+    side: THREE.DoubleSide,
   });
+  const lineMaterial = material.clone();
+  lineMaterial.opacity = 0.3;
+  const arrows = new THREE.InstancedMesh(chevronGeometry(), material, MAX_ARROWS);
+  arrows.count = 0;
+  arrows.frustumCulled = false; // instances move every frame, so the bounds would be stale
+  arrows.renderOrder = 11;
+  root.add(arrows);
+  const dummy = new THREE.Object3D();
+  let track = null; // { points, lengths (cumulative), total } of the drawn route
+  let ring = null;
+  let phase = 0;
+  let clock = 0;
   const yAxis = new THREE.Vector3(0, 1, 0);
   const state = {
     target: null,
@@ -63,26 +101,66 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
       child.geometry.dispose();
       group.remove(child);
     }
+    track = null;
+    ring = null;
+    arrows.count = 0;
   }
 
   function draw(path) {
     clearLine();
     const points = path.map((p) => new THREE.Vector3(p[0], floorY - LINE_LIFT, p[2]));
+    const lengths = [0];
     for (let i = 0; i + 1 < points.length; i++) {
       const delta = points[i + 1].clone().sub(points[i]);
+      lengths.push(lengths[i] + delta.length());
       const piece = new THREE.Mesh(
         new THREE.CylinderGeometry(LINE_RADIUS, LINE_RADIUS, delta.length(), 8),
-        material,
+        lineMaterial,
       );
       piece.position.copy(points[i]).addScaledVector(delta, 0.5);
       piece.quaternion.setFromUnitVectors(yAxis, delta.clone().normalize());
       group.add(piece);
     }
-    const end = new THREE.Mesh(new THREE.RingGeometry(0.16, 0.24, 32), material);
-    end.material.side = THREE.DoubleSide;
-    end.position.copy(points.at(-1));
-    end.rotation.x = Math.PI / 2;
-    group.add(end);
+    ring = new THREE.Mesh(new THREE.RingGeometry(0.16, 0.24, 32), material);
+    ring.position.copy(points.at(-1));
+    ring.rotation.x = Math.PI / 2;
+    group.add(ring);
+    track = { points, lengths, total: lengths.at(-1) };
+  }
+
+  // How far along the drawn route the walk has got, so arrows behind the walker disappear.
+  function walkedDistance() {
+    const walking = state.walking;
+    if (!walking || !track) return 0;
+    const index = Math.min(walking.index, track.lengths.length - 1);
+    return track.lengths[index] + walking.along;
+  }
+
+  // Place the arrows for this frame: evenly spaced, flowing towards the end, growing in and out.
+  function animate(dt) {
+    if (!track) return;
+    clock += dt;
+    phase = (phase + ARROW_SPEED * dt) % ARROW_SPACING;
+    if (ring) ring.scale.setScalar(1 + 0.15 * Math.sin(clock * 4));
+    const start = walkedDistance();
+    const stop = track.total - END_GAP;
+    let segment = 0;
+    let count = 0;
+    for (let d = phase; d < stop && count < MAX_ARROWS; d += ARROW_SPACING) {
+      if (d < start) continue;
+      while (segment < track.lengths.length - 2 && track.lengths[segment + 1] < d) segment++;
+      const a = track.points[segment];
+      const b = track.points[segment + 1];
+      const span = track.lengths[segment + 1] - track.lengths[segment];
+      dummy.position.lerpVectors(a, b, span > 0 ? (d - track.lengths[segment]) / span : 0);
+      dummy.rotation.set(0, Math.atan2(b.x - a.x, b.z - a.z), 0);
+      const grow = Math.min(1, (d - start) / ARROW_GROW, (stop - d) / ARROW_GROW);
+      dummy.scale.setScalar(Math.max(grow, 0.01));
+      dummy.updateMatrix();
+      arrows.setMatrixAt(count++, dummy.matrix);
+    }
+    arrows.count = count;
+    arrows.instanceMatrix.needsUpdate = true;
   }
 
   function describe(route, name) {
@@ -215,5 +293,5 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
     return state.target ? plan(state.target, state.start) : null;
   }
 
-  return { state, plan, startWalking, stopWalking, clear, syncChanges, setProfile, update };
+  return { state, plan, startWalking, stopWalking, clear, syncChanges, setProfile, update, animate };
 }

@@ -1,0 +1,69 @@
+Copies should be same object but not same ID if that makes sense - the operator can name it if needed
+
+---
+
+Merge and push to main after it is ready
+
+---
+
+Check if there is anything to pull and merge from other users and combine everything into main so we check it with the team
+
+---
+
+Speed up the merge so others can use it we can improve later
+
+---
+
+Run everything so I fire it up in my browser
+
+---
+
+Read the checklist and go over everything that is assigned to me
+
+---
+
+Close the site meanwhile
+
+---
+
+First merge pull Benjamins  bugfixes. Start on those two then lets tackle the floor and wall being clickable in all the modes since they shouldn't be interactable, when isolating an object in BIM there is a bug where other object labels show up without reason (ss attached). CVal instructions still seem weird so keep stress testing it with different prompts an we make Val more human like/less chatbot style? We should also have colored bounding boxes depending on the groups (you can use the filtering that BIM views use) and you can decide the colors (so lets say pipes are 1 color, pumps are color 2 etc etc.) How are we handling new objects adding - do we need to shoot a video and resplat that specific area/ add the splats in there? If so how are we handling that? Regarding voice mode how heavy would be whisper/another TTS- STT model on top of our current deployment? How are we handling demo deployment - the deliverables allows us to submit a demo site (probably github.io, but that means we would need to use one computer as the server and if multiple people would check the demo it would explode?) what do you suggest?
+
+---
+
+Alright let's adopt Whisper into this then (check eddies stuff first) and make it work with Val (so Val can take voice commands). We have access to Google AI lab API from the hackathon so we could deploy there? Also how feasible and how big of an improvement is converting the backend to rust?
+
+---
+
+We can use ElevenLabs for voice sims
+
+---
+
+Merge ASAP so the others start working on the presentation while we will continue with optimization and bugfixing
+
+---
+
+Check newest commits first and merge sashas dashboard stuff, then I have another list of fixes. We are focusing on making the system robust and bug free. First off the map/plan it's way too cluttered - maybe we display only the walls and non movable objects - and the current target we want to go to and where we are. Second Benjamins attention required labels now appear on objects but they look way too AI sloppy so tone that down to be more simple and there should be a toggle depending on severity etc, we should have really good filtering for everything since that enhances operator workflow. All these features should ideally work with Val voice commands too. Read and update all the documents we have then compare the whole project to the required project brief to see if we cover everything.
+
+---
+
+The map/plan should be game - minimap style on web browser (right or left top corner) and a toggle for it on the phone
+
+---
+
+Sasha branch should be visible now
+
+---
+
+More requests -"Focus" capability - when we click on an object in the object list on the side of the screen it brings us to it's best view.  Right now severity labels persist when swiching to BIM view. Can we make a demo mode/button that goes through the viewer and showcases everything?
+
+---
+
+Have the minimap a bit more transparent/better looking right now it stands out too much
+
+---
+
+So how are we handling the deployment of this? How long does everything take to build etc etc
+
+---
+
+Ignore the 5090 right now this is supposed to run as a demo on a judges laptop etc we need to make it work

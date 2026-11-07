@@ -61,6 +61,8 @@ model: estimated walls and floor, plus one IFC element per detected object. **Lo
   bounding boxes where no shape was fitted.
 - **Tap an element** to see its IFC class, GlobalId and properties. Equipment also opens the normal
   panel, so **Ask Val**, **Route here** and **Move** still work, and moves show in BIM.
+  Taps use each object's simple Box shape in every look, so tapping a gap in a scanned bucket
+  still picks the bucket. With a mouse, the shape under the pointer shows as a faint outline first.
 - **Class boxes** hide or show element types. **Isolate** keeps only the selection, walls and floor.
 - **Section** cuts everything above a height, like a floor plan. It switches to the Mesh look.
 - **Download IFC** saves `model.ifc` (IFC4), which opens in BIM tools such as Bonsai.
@@ -77,7 +79,9 @@ including all of those changes, but with simple shapes rather than scan meshes. 
 the file `make bim` built, which has the scan meshes but none of the changes.
 
 ## Move an object
-1. Tap the object. The smallest box under your finger is selected.
+1. Tap the object. The nearest object under your finger is selected, never one behind it. Pipes,
+   hoses and cables only count where their scanned surface is, since their boxes are mostly empty.
+   With a mouse, the object's simple shape shows as a faint outline before you click.
 2. Press **Move**, or **Rotate** to turn it. Only movable objects have these buttons.
 3. Drag anywhere on the screen. The object follows your drag across the floor.
 4. Release to save. If a route is showing, it plans again.

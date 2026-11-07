@@ -40,6 +40,10 @@ def test_safety_guardrail_blocks_autonomous_control():
     res3 = check_safety("Override the vibration alarm on pump 5")
     assert not res3.passed
 
+    # Attempting a restart around an interlock, naming only the tag
+    assert not check_safety("Can I restart P-005 by bypassing the interlock?").passed
+    assert not check_safety("How about disabling the trip?").passed
+
     # Attempting setpoint modification
     res4 = check_safety("Increase the pressure setpoint to 8 bar")
     assert not res4.passed
@@ -166,3 +170,25 @@ def test_copilot_route_commentary(copilot):
     assert commentary[2]["tag"] == "P-005"
     assert "Passing P-005" in commentary[2]["text"]
     assert "Health 44%" in commentary[2]["text"]
+
+
+def test_why_question_quotes_measured_trends_and_does_not_invent_any(copilot):
+    reply = copilot.query("Why is P-005 flagged, and what should I check first?")
+    text = " ".join(reply.observations)
+    assert "motor current" in text or "process flow" in text
+    assert "over 20 samples" in text
+    assert reply.citations
+    assert "inspect hydraulic path" in reply.answer
+
+
+def test_fouling_hypothesis_only_names_trends_in_the_data():
+    from app.copilot.copilot import fouling_hypothesis
+
+    stated = fouling_hypothesis(
+        {
+            "process_flow_pct": {"trend": "decreasing"},
+            "vibration_rms_mm_s": {"trend": "stable"},
+        }
+    )
+    assert "falling flow" in stated.lower() and "vibration" not in stated
+    assert "isn't clearly backed" in fouling_hypothesis({"vibration_rms_mm_s": {"trend": "stable"}})

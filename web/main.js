@@ -3,8 +3,10 @@
 // both served by web/serve.py.
 import * as THREE from "three";
 import { SparkControls, SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
+import { setupCopilot } from "./copilot.js";
 import { setupObjects } from "./objects.js";
 import { setupPhone } from "./phone.js";
+import { setupRoute } from "./route.js";
 
 const FAULT_TAG = "P-005"; // the pre-chosen faulty device (docs/PLAN.md)
 const EYE_HEIGHT = 1.6; // metres above the floor in walk mode (scene units look close to metres)
@@ -50,6 +52,7 @@ let walk = true;
 let eyeY = EYE_HEIGHT;
 let startPos = new THREE.Vector3(0, EYE_HEIGHT, 0);
 let objectLayer = null;
+let route = null;
 let selected = null;
 let boxesOn = true;
 
@@ -101,6 +104,27 @@ function addAsset(asset) {
   objects.push({ asset, box, pick, label, volume, center: new THREE.Vector3(...asset.center) });
 }
 
+// Live condition from the backend, for objects linked to an Excel record.
+async function showCondition(obj) {
+  $("info-condition").replaceChildren();
+  if (!obj.asset.mapping) return;
+  try {
+    const response = await fetch(`/api/assets/${encodeURIComponent(obj.asset.object_id)}`);
+    if (!response.ok || selected !== obj) return;
+    const condition = (await response.json()).condition;
+    if (!condition) return;
+    const text = [
+      condition.issue_summary,
+      `health ${condition.health_score}`,
+      `urgency ${condition.urgency}`,
+      condition.recommended_next_check && `next: ${condition.recommended_next_check}`,
+    ].filter(Boolean);
+    $("info-condition").textContent = text.join(" · ");
+  } catch {
+    // Without a backend, the panel still shows what the scene files know.
+  }
+}
+
 function showInfo(obj) {
   const a = obj.asset;
   const m = a.mapping;
@@ -123,9 +147,60 @@ function showInfo(obj) {
     "</dl>";
   selected = obj;
   $("move").hidden = a.mobility !== "movable" || !objectLayer;
+  $("route-here").hidden = !route;
+  $("ask").hidden = false;
+  showCondition(obj);
   $("info").hidden = false;
 }
 $("info-close").onclick = () => ($("info").hidden = true);
+
+async function routeTo(obj) {
+  $("info").hidden = true;
+  $("status").textContent = `Planning a route to ${name(obj.asset)}...`;
+  const found = await route.plan({ asset: obj.asset, center: obj.center, name: name(obj.asset) });
+  $("follow").hidden = !found;
+  $("clear-route").hidden = !found;
+  $("follow").textContent = "Walk route";
+  selected = obj;
+}
+$("route-here").onclick = () => selected && routeTo(selected);
+const copilot = setupCopilot({
+  panel: $("copilot"),
+  form: $("copilot-form"),
+  input: $("copilot-input"),
+  answer: $("copilot-answer"),
+  close: $("copilot-close"),
+  getObject: () => selected,
+});
+$("ask").onclick = () => {
+  $("info").hidden = true;
+  const about = selected ? name(selected.asset) : "this";
+  copilot.open(`Why is ${about} flagged, and what should I check first?`);
+};
+$("open-copilot").onclick = () => copilot.open();
+$("go-fault").onclick = () => {
+  const fault = objects.find((o) => kind(o.asset) === "fault");
+  if (fault) routeTo(fault);
+  else $("status").textContent = `No object is mapped to ${FAULT_TAG}`;
+};
+$("profile").onclick = async () => {
+  const next = route.state.profile === "person" ? "robot" : "person";
+  $("profile").textContent = next[0].toUpperCase() + next.slice(1);
+  const found = await route.setProfile(next);
+  if (route.state.target) {
+    $("follow").hidden = !found;
+    $("clear-route").hidden = !found;
+  }
+};
+$("follow").onclick = () => {
+  if (route.state.walking) route.stopWalking();
+  else if (route.startWalking()) walk = true;
+};
+$("clear-route").onclick = () => {
+  route.clear();
+  $("follow").hidden = true;
+  $("clear-route").hidden = true;
+};
 $("move").onclick = () => {
   if (objectLayer?.startMove(selected)) {
     $("info").hidden = true;
@@ -211,9 +286,12 @@ function animate(now) {
   const dt = Math.min((now - lastFrame) / 1000, 0.1);
   lastFrame = now;
   // In phone mode the phone's rotation steers, so mouse/touch dragging must not fight it.
-  if (!phone.enabled && !objectLayer?.state.moving) controls.update(camera);
+  const following = Boolean(route?.state.walking);
+  if (!phone.enabled && !objectLayer?.state.moving && !following) controls.update(camera);
   objectLayer?.update(dt);
-  phone.update(dt);
+  if (following) route.update(dt);
+  else phone.update(dt);
+  $("follow").textContent = following ? "Stop" : "Walk route";
   if (walk) camera.position.y = eyeY;
   renderer.render(scene, camera);
   updateLabels();
@@ -256,8 +334,20 @@ async function load() {
     splat,
     objects,
     floorY: data.floor_y ?? 0,
-    onChange: (changes) => ($("status").textContent = `${changes.length} object(s) moved`),
+    onChange: (changes) => {
+      $("status").textContent = `${changes.length} object(s) moved`;
+      route.syncChanges(changes);
+    },
   });
+  route = setupRoute({
+    root,
+    camera,
+    floorY: data.floor_y ?? 0,
+    getEyeY: () => eyeY,
+    onMessage: (message) => ($("status").textContent = message),
+  });
+  $("go-fault").hidden = !objects.some((o) => kind(o.asset) === "fault");
+  $("profile").hidden = false;
   const views = ["scan", "both", "objects"];
   $("view-mode").onclick = () => {
     const next = views[(views.indexOf(objectLayer.state.view) + 1) % views.length];
@@ -278,7 +368,7 @@ async function load() {
     objectLayer.setApart(true);
     $("apart").textContent = "Together";
   }
-  window.plantViewer = { objects, objectLayer, camera }; // For browser tests and debugging.
+  window.plantViewer = { objects, objectLayer, camera, route, copilot, showInfo }; // For browser tests and debugging.
   if (params.has("camera")) {
     const [x, y, z, yaw, pitch] = params.get("camera").split(",").map(Number);
     camera.position.set(x, y, z);

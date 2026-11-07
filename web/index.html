@@ -30,6 +30,11 @@
   <div id="joystick" aria-label="Move"><div></div></div>
 
   <div id="buttons">
+    <button id="go-fault" hidden>Go to P-005</button>
+    <button id="open-copilot">Copilot</button>
+    <button id="follow" hidden>Walk route</button>
+    <button id="clear-route" hidden>Clear route</button>
+    <button id="profile" hidden>Person</button>
     <button id="phone">Phone</button>
     <button id="mode">Walk</button>
     <button id="boxes">Boxes on</button>
@@ -42,7 +47,20 @@
   <div id="info" hidden>
     <button id="info-close" aria-label="Close">&times;</button>
     <div id="info-body"></div>
+    <p id="info-condition"></p>
+    <button id="ask" hidden>Ask copilot</button>
+    <button id="route-here" hidden>Route here</button>
     <button id="move" hidden>Move on floor</button>
+  </div>
+
+  <div id="copilot" hidden>
+    <button id="copilot-close" aria-label="Close">&times;</button>
+    <h2>Copilot</h2>
+    <form id="copilot-form">
+      <input id="copilot-input" placeholder="Ask about the selected object" autocomplete="off">
+      <button type="submit">Ask</button>
+    </form>
+    <div id="copilot-answer"></div>
   </div>
 
   <script type="module" src="main.js"></script>

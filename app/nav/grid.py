@@ -30,6 +30,7 @@ SOLID_OPACITY = 0.3
 SOLID_HITS = 3
 FLOOR_HITS = 2
 PERSON_RADIUS = 0.3
+WALKED_ABOVE = 1.2  # metres: a walked path only clears obstacles higher than this
 STEP_OVER = 0.3  # metres: the tallest floor clutter a person can step over
 STEP_OVER_LABELS = {"hose", "cable"}
 
@@ -102,8 +103,10 @@ def build_nav_grid(
     `not_obstacles` marks splats that don't block the permanent map, though they still count as
     floor having been seen. See `removable_splats`.
 
-    `walked` holds world positions of the camera that filmed the scene. Someone carried it there,
-    so a person's width around that path is free, whatever the splats suggest.
+    `walked` holds world positions of a camera carried through the room, so a person's width around
+    that path is free of fixed things, such as low pipes that floaters or sparse views make look
+    worse than they are. Things below WALKED_ABOVE still block: the camera may have come on another
+    day, when chairs and carts stood elsewhere.
     """
     direction = np.asarray(up, dtype=np.float64)
     up_axis = int(np.argmax(np.abs(direction)))
@@ -138,6 +141,7 @@ def build_nav_grid(
         path[steps[:, 0], steps[:, 1]] = False
         # One extra cell, so that clearance on the path itself reaches a person's radius.
         corridor = ndimage.distance_transform_edt(path) * cell <= PERSON_RADIUS + cell
+        corridor &= ~blocked((BODY_BAND[0], WALKED_ABOVE))
         free |= corridor
         low_free |= corridor
     return NavGrid(
@@ -231,6 +235,11 @@ def main() -> None:
         direction = np.asarray(up, dtype=np.float64)
         labels = np.load(args.labels)
         # Labels may follow the original file's order, or the cleaned scene's.
+        if len(labels) not in (len(splats), len(keep)):
+            raise SystemExit(
+                f"{args.labels} has {len(labels)} labels, for a scene of {len(keep)} splats. "
+                "Use scripts/remap_labels.py if they came from an older cleaning."
+            )
         labels = labels if len(labels) == len(splats) else labels[keep]
         not_obstacles = removable_splats(labels, assets, direction, floor)
         print(f"{int(not_obstacles.sum())} splats left out of the permanent map")

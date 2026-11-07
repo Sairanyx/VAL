@@ -16,10 +16,11 @@ from typing import Any
 
 AUTONOMOUS_CONTROL_PATTERNS = [
     r"\b(?:turn|switch)\s+(?:on|off)\b",
-    r"\b(?:start|stop|restart|shutdown)\s+(?:the\s+)?(?:[a-z0-9_\-]+\s+)?(?:pump|motor|valve|equipment|machine|compressor)\b",
+    r"\b(?:start|stop|restart|shutdown|shut\s+down)(?:ing|s|ped)?\s+(?:the\s+)?(?:[a-z0-9_\-]+\s+)?(?:pump|motor|valve|equipment|machine|compressor)\b",
+    r"\b(?:start|stop|restart|shutdown|shut\s+down)(?:ing|s|ped)?\s+(?:the\s+)?[a-z]+-\d+\b",
     r"\b(?:open|close)\s+(?:the\s+)?(?:[a-z0-9_\-]+\s+)?valve\b",
     r"\b(?:increase|decrease|change|set)\s+(?:the\s+)?(?:[a-z0-9_\-]+\s+)?(?:pressure|speed|flow|setpoint|power|rpm)\b",
-    r"\b(?:override|bypass|disable|clear|acknowledge|reset)\s+(?:the\s+)?(?:[a-z0-9_\-]+\s+)?(?:alarm|interlock|safety|trip)\b",
+    r"\b(?:overrid(?:e|es|ing)|bypass(?:es|ing|ed)?|disabl(?:e|es|ing)|clear(?:s|ing)?|acknowledg(?:e|es|ing)|reset(?:s|ting)?)\s+(?:the\s+|an?\s+)?(?:[a-z0-9_\-]+\s+)?(?:alarm|interlock|safety|trip)s?\b",
     r"\b(?:actuate|pressurize|depressurize|drain|flush)\b",
     r"\bexecute\s+(?:remote\s+)?control\b",
 ]

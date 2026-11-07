@@ -10,7 +10,8 @@ numbers feed the scene comparison, slides, and technical note, so only record wh
 | Junk boxes, out of 30 sampled | Not run | Not built |
 | Route reaches `P-005` candidate without clipping | Not compared on one object | `obj-0048`: 6.8 m at 0.6 m wide, looks clear in 7 rendered views along the route |
 | Floor area connected at 0.6 m wide (Valmet with movable objects and low clutter left out) | 7.4 m2 | 0.2 m2 without floater removal, 6.6 m2 with it. Equal settings not compared |
-| Held-out views, 40 frames, against real photos (Valmet aligned by ICP, which may lower its score) | 11.82 dB | 26.57 dB, and clearly better by eye |
+| Held-out views, 40 frames, against real photos. Not a fair test: the frames are from our video, and Valmet's scene is a different capture (a chair, boxes, and floor differ). Retracted as evidence | 11.82 dB | 26.57 dB |
+| Look from the same viewpoints, on and 0.6 m off our path, both uncleaned, by eye | Near-photographic, complete floor and ceiling. Chosen for the demo | Readable near our path, smeared walls, no ceiling |
 
 ## Runs
 | Date | Owner | Step | Scene or input | Settings | Result | Time | Peak memory | Machine |
@@ -43,3 +44,5 @@ numbers feed the scene comparison, slides, and technical note, so only record wh
 | 2026-11-07 | Eduard | TimescaleDB (`app/api/db.py`) | Excel pack, `splat_v2` | 2.31, PostgreSQL 17, local Docker | 4,320 telemetry rows as a hypertable, marked `excel_sample`. A moved object survived an API restart, reset cleared it, and the API runs without the database | | | ThinkPad |
 | 2026-11-07 | Eduard | `make nav-check` (`app/nav/check.py`) | `splat_v2`, assets_mapped | Real API code, no server or database | 12 of 12 checks pass. Compares routes with our own map only | | | ThinkPad |
 | 2026-11-07 | Eduard | Demo on the original scene | `Equipment Room.ply`, `objects-v1`, 441 objects | Movable objects left out of the map, no carving | 36.3 m2 free. Connected: 13.1 m2 at 0.3 m wide, 8.1 at 0.6. All 30 Excel records linked (10 class, 19 similar, 1 by hand). To `obj-0046`: person 3.17 m, stops 1.25 m away; robot 4.11 m, stops 0.16 m away. nav-check 12 of 12 | | | ThinkPad |
+| 2026-11-07 | Viktor | Cleaning damage, 40 held-out frames at 640x360 | Own splat | `clean_mask` with opacity above 0.05, against no cleaning | 17.48 dB against 22.31 dB. Removed 30% of splats and caused the black floor and door holes. Same setting removed 30% of `Equipment Room.ply`. Every earlier "clean" scene, render, and object set has this damage | | | Roihu L40 |
+| 2026-11-07 | Viktor | Own 3DGS with a stretch limit | COLMAP cameras, 1,309 frames | 30,000 steps, 10:1 limit, floor seed points | Needle splats 16% to 0%, held-out 25.13 dB against 26.41. No clear gain by eye once uncleaned. Not used | 24 min | 5.4 GB VRAM | Roihu L40 |

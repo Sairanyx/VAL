@@ -119,9 +119,12 @@ def valid_mask(splats: Splats) -> np.ndarray:
     return mask
 
 
+MIN_OPACITY = 0.001
+
+
 def clean_mask(
     splats: Splats,
-    min_opacity: float = 0.05,
+    min_opacity: float = MIN_OPACITY,
     max_scale_percentile: float = 99.0,
     voxel_size: float = 0.1,
     min_voxel_count: int = 3,
@@ -129,6 +132,10 @@ def clean_mask(
     """True for splats to keep: drops invalid, nearly transparent, oversized, and isolated ones.
 
     Isolated means sharing a voxel with too few other splats, which catches most floaters.
+
+    Don't raise `min_opacity` for a scene people will look at. Faint splats stack up to form
+    surfaces such as floors and doors: dropping those below 0.05 cost 30% of the splats and left
+    black holes.
     """
     mask = valid_mask(splats)
     with np.errstate(over="ignore", invalid="ignore"):
@@ -179,7 +186,7 @@ def main() -> None:
     parser.add_argument("input", type=Path)
     parser.add_argument("--out", type=Path, help="write the cleaned scene here")
     parser.add_argument("--up", type=float, nargs=3, default=(0.0, -1.0, 0.0))
-    parser.add_argument("--min-opacity", type=float, default=0.05)
+    parser.add_argument("--min-opacity", type=float, default=MIN_OPACITY)
     args = parser.parse_args()
 
     splats = read_splats(args.input)

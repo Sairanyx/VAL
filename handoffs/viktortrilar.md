@@ -1,7 +1,7 @@
-# viktortrilar: viktor/scene-full
-**Goal:** demo on own splat: real objects, floor, routes, P-005
-**Done:** PR #3 is merged by Eduard, who kept Viktor's routing and added heights. This branch adds `make scene-full`, which gets `clean.ply` (513 MB, view-dependent color) from Release `scene-v2`. Local branch viktor/viewer-objects holds an unused merge, 9338915: don't push or merge it
-**Verified:** on main's code with `make scene` data: person route to obj-0048 6.8 m, robot 6.7 m. main's CI passes; 113 tests passed, 17 skipped locally
-**Roihu:** `data/scene/splat_v2/{clean.ply,render,render_detail}`, `runs/lift_v2`, `runs/floor_v2`. Cert valid to 2026-11-07 20:41
-**Next:** a person confirms P-005 and which of the two pumps (obj-0048 is an unconfirmed pick, confidence 0.3). Viewer doesn't draw routes yet (Benjamin's area). `make floor` doesn't pass `--views`/`--walked`. Redo the AI label review for the new scene
-**Blockers:** none. Open: whether the video was really walked, and whether units are metres. Full scene not tested on a tablet
+# viktortrilar: viktor/keep-faint-splats
+**Goal:** demo on Valmet's original `Equipment Room.ply`, with objects built from undamaged renders
+**Done:** found that `clean_mask` (opacity above 0.05) removed 30% of splats and caused the black holes, in both scenes. Default is now 0.001. Corrected docs/RESULTS.md: the 26.57 vs 11.82 dB result is retracted, as Valmet's scene is a different capture
+**Verified:** app/scene/load.py tests pass. Own splat on 40 frames: 22.31 dB uncleaned, 17.48 dB with the old cleaning. Uncleaned Valmet looks near-photographic by eye from every viewpoint tried
+**Roihu:** pipeline job 2926409 on the original: `data/scene/valmet_full`, `data/masks_v3`, `runs/lift_v3`. Default test job 2926421. Original at `data/scene/equipment_room/original.ply`. Cert valid to 2026-11-07 20:41
+**Next:** compare lift_v3 with objects-v1, and agree with Eduard before replacing it, because object IDs and `assets_mapped.json` change. Then pick P-005 again, label from real frames, and publish with a make target. Viewer should load the uncleaned original, not `light_full.ply`
+**Blockers:** none. Open: which pump is P-005 (obj-0046 is a test pick). Floor map assumes our walked path carries over to Valmet's scene, where objects differ

@@ -4,6 +4,7 @@ import pytest
 
 pytest.importorskip("fastapi")
 pytest.importorskip("httpx")
+pytest.importorskip("psycopg")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -194,3 +195,40 @@ def test_copilot_uses_scene_and_clears_old_focus(tmp_path):
 
 def test_home_redirects_to_docs(client):
     assert client.get("/", follow_redirects=False).headers["location"] == "/docs"
+
+
+class FakeDatabase:
+    """Stands in for TimescaleDB, keeping changes between app starts."""
+
+    def __init__(self):
+        self.changes = []
+
+    def save_change(self, scene_id, change):
+        self.changes.append(change)
+
+    def load_changes(self, scene_id):
+        return list(self.changes)
+
+    def clear_changes(self, scene_id):
+        self.changes = []
+
+    def telemetry(self, asset_id, limit=20):
+        return []
+
+
+def test_changes_survive_restart_and_reset_clears_them(tmp_path):
+    path = tmp_path / "assets.json"
+    path.write_text(json.dumps({"scene_id": "t", "assets": [box("near", [1, 1, 0], "movable")]}))
+    database = FakeDatabase()
+    client = TestClient(create_app(path, database=database))
+    change = {"op": "move", "object_id": "near", "position": [5, 1, 0]}
+    assert client.post("/api/changes", json=change).status_code == 200
+    restarted = TestClient(create_app(path, database=database))
+    assert restarted.get("/api/assets/near").json()["center"] == [5, 1, 0]
+    assert restarted.post("/api/changes/reset").status_code == 200
+    again = TestClient(create_app(path, database=database))
+    assert again.get("/api/assets/near").json()["center"] == [1, 1, 0]
+
+
+def test_health_says_what_is_connected(client):
+    assert client.get("/api/health").json()["objects"] == 2

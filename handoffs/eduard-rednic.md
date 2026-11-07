@@ -1,7 +1,7 @@
-# eduard-rednic: eduard-mapping
+# eduard-rednic: eduard-timescale
 **Goal:** floor, routing, nearby search and backend API (`app/nav/`, `app/api/`), per docs/PLAN.md.
-**Done:** `make mapping` links all 30 Excel records to objects by class (`app/copilot/mapping.py`), writing `mapping.json` and `assets_mapped.json`. Run the API with `SCENE_ASSETS=data/scene/splat_v2/assets_mapped.json`. PR #4 merged with Viktor's and Hannu's work.
-**Verified:** `make check` passes; live results in the PR. Links are procedural, not real identities.
-**Next:** viewer uses `assets_mapped.json` (Benjamin); TimescaleDB on the 5090; changes are still in memory.
-**Hannu:** his safety rule is back to his version; leave his copilot rules to him.
-**Blockers:** none. Open: scene units; a person confirming `P-005`; 544 objects have no Excel record because there are only 30 records.
+**Done:** `make db` starts local TimescaleDB and loads Excel telemetry (`app/api/db.py`). Scene changes survive a restart, asset details read telemetry from the database, and `GET /api/health` shows what's connected. `add_telemetry` takes a `source`, ready for simulated data.
+**Verified:** `make check` passes, 135 tests. Live: 4,320 rows, move survives restart, reset clears it, API runs with the database stopped.
+**Next:** simulated machine data and diagnostics; viewer uses `assets_mapped.json` and draws routes (Benjamin).
+**Hannu:** the copilot still reads telemetry from Excel, so simulated data needs his side too. Leave his rules to him.
+**Blockers:** none. Open: if the database drops while the API runs, saving a change errors; whether self-hosted counts for the Tiger Data prize; scene units; a person confirming `P-005`.

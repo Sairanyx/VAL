@@ -42,7 +42,9 @@ facts below. Each fact starts with its ID in square brackets.
 Rules:
 - Use only these facts. If they don't answer the question, say what is missing.
 - Copy numbers exactly as written. Don't calculate new numbers.
-- Say what was measured or recorded. Keep possible causes separate, in "hypotheses".
+- In "answer", say only what was measured or recorded.
+- In "hypotheses", give possible causes, worded with "may", and only ones these facts suggest. Don't
+  say whether past work did or didn't fix anything. If nothing is wrong, leave it empty.
 - Cite the ID of every fact you use.
 - Never tell anyone to operate, start, stop, or change equipment. Suggest checks only.
 - Use two to four short, plain sentences.
@@ -128,7 +130,10 @@ def gather_facts(engine: CopilotEngine, tag: str) -> list[Fact]:
     if not status:
         return []
     asset_id = status["asset_id"]
-    facts = [Fact(asset_id, describe(status))]
+    quality = status.get("data_quality_issues") or []
+    summary = {key: value for key, value in status.items() if key != "data_quality_issues"}
+    facts = [Fact(asset_id, describe(summary))]
+    facts += [Fact(issue["issue_id"], describe(issue)) for issue in quality]
     metrics = get_telemetry_summary(tag, store, limit=20).get("metrics", {})
     facts += [Fact(asset_id, text) for text in metric_observations(metrics)]
     for event in get_events_for_asset(tag, store, limit=MAX_ITEMS):

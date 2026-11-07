@@ -179,6 +179,7 @@ def build_assets(
                     {"view": mask_records[m]["view"], "mask_id": mask_records[m]["mask_id"]}
                     for m in largest
                 ],
+                "all_masks": [[mask_records[m]["view"], mask_records[m]["mask_id"]] for m in masks],
                 "mapping": None,
             }
         )
@@ -279,6 +280,9 @@ def main() -> None:
     assets, labels, summary = run(splats, args.masks_dir, args.render_dirs, tuple(args.up))
     args.out_dir.mkdir(parents=True, exist_ok=True)
     np.save(args.out_dir / "splat_labels.npy", labels)
+    # Every object's masks go in their own file, as they would make assets.json much larger.
+    masks_by_object = {asset["object_id"]: asset.pop("all_masks") for asset in assets}
+    (args.out_dir / "object_masks.json").write_text(json.dumps(masks_by_object))
     document = {
         "scene_id": args.scene_id,
         "units": "metres",

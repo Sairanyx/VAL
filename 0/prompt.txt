@@ -1,0 +1,39 @@
+Check the new merges (Eduard pushed something new)
+
+---
+
+<task-notification>
+<task-id>b62wtt4cz</task-id>
+<tool-use-id>toolu_01KuYch1aYxfoKwQz84mioS4</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/b62wtt4cz.output</output-file>
+<status>failed</status>
+<summary>Background command "Train the full 30000-iteration splat and report results" failed with exit code 255</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bu5tluask</task-id>
+<tool-use-id>toolu_01CR7WJW4fWDZuFBWo8ctz2i</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/bu5tluask.output</output-file>
+<status>completed</status>
+<summary>Background command "Watch the training job, tolerating network drops, and print results" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bj5k0capm</task-id>
+<tool-use-id>toolu_01LEuZtZs3BHsrhakgs8WiGd</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/bj5k0capm.output</output-file>
+<status>completed</status>
+<summary>Background command "Align the two scenes and compare them against real held-out frames" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Yea lets switch its clearly better
+
+---
+
+And also tackle eddies problem

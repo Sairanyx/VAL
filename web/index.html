@@ -39,10 +39,39 @@
     <button id="follow" hidden>Walk route</button>
     <button id="clear-route" hidden>Clear route</button>
     <button id="go-fault" hidden>Go to P-005</button>
+    <button id="open-filters" title="Choose what's shown (T)">Filters</button>
     <button id="open-list" title="Equipment by importance (L)">Objects</button>
     <button id="open-plan">Map</button>
     <button id="open-copilot" class="primary">Ask Val</button>
     <button id="more" aria-expanded="false">Actions</button>
+  </div>
+
+  <div id="tour" hidden role="status">
+    <h2 id="tour-title"></h2>
+    <p id="tour-text"></p>
+    <div class="tour-foot">
+      <span id="tour-count"></span>
+      <button id="tour-pause">Pause</button>
+      <button id="tour-next">Next</button>
+      <button id="tour-stop">Stop</button>
+    </div>
+  </div>
+
+  <div id="filter-panel" hidden>
+    <div class="filter-head">
+      <h2>Filters</h2>
+      <button id="filter-clear">Show all</button>
+      <button id="filter-close" aria-label="Close">&times;</button>
+    </div>
+    <h3>Condition</h3>
+    <div id="filter-conditions" class="filter-chips"></div>
+    <h3>Type</h3>
+    <div id="filter-types" class="filter-chips"></div>
+    <h3>Can it move?</h3>
+    <div id="filter-mobility" class="filter-chips"></div>
+    <h3>Alerts nearby</h3>
+    <div id="filter-alerts" class="filter-chips"></div>
+    <p id="filter-count"></p>
   </div>
 
   <aside id="object-list" hidden>
@@ -71,6 +100,7 @@
     <div class="menu-grid">
       <button id="mode" data-label="Movement" data-stay>Walk</button>
       <button id="reset">Back to start</button>
+      <button id="start-tour" title="A guided run through everything">Demo</button>
       <button id="profile" data-label="Route for" data-stay hidden>Person</button>
       <button id="phone" data-stay>Phone</button>
       <button id="track" hidden>Track</button>
@@ -94,7 +124,7 @@
       <button id="reset-moves" title="Put everything back as scanned">Reset all</button>
     </div>
     <p class="menu-keys">Keys: Delete removes · Ctrl+Z undo · M move (R rotate, PgUp/PgDn height, Enter done) · C copy ·
-      N name · L objects · V talk to Val · F walk/fly · G go to P-005 · Esc back</p>
+      N name · T filters · L objects · V talk to Val · F walk/fly · G go to P-005 · Esc back</p>
   </div>
 
   <div id="info" hidden>
@@ -107,6 +137,7 @@
     <p id="info-condition"></p>
     <div class="action-row">
       <button id="ask" class="primary" hidden>Ask Val</button>
+      <button id="focus-object">Focus</button>
       <button id="route-here" hidden>Route here</button>
     </div>
     <div id="move-actions" class="action-row" hidden>
@@ -174,6 +205,10 @@
       <button id="plan-close">Close</button>
     </div>
     <canvas id="plan-canvas"></canvas>
+    <div id="plan-mini-tools">
+      <button id="plan-expand" aria-label="Full map" title="Full map">&#x26F6;</button>
+      <button id="plan-hide" aria-label="Hide map" title="Hide map">&times;</button>
+    </div>
     <div id="plan-foot">
       <div id="plan-legend"></div>
       <div><span id="plan-note"></span> Generated from the scan, not surveyed.</div>

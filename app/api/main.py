@@ -44,6 +44,7 @@ from app.nav.grid import NavGrid, largest_region, load_grid
 from app.nav.route import (
     BODIES,
     NoRoute,
+    best_view,
     clearance_with_footprints,
     placeholder_route,
     plan_route,
@@ -281,6 +282,22 @@ def create_app(
         x: float, y: float, z: float, radius: Annotated[float, Query(gt=0, le=100)] = 3.0
     ) -> dict:
         return {"assets": [with_condition(a) for a in store.nearby((x, y, z), radius)]}
+
+    @app.get("/api/objects/{object_id}/view")
+    def object_view(object_id: str) -> dict:
+        """Return where to stand to see an object. Null without a floor map."""
+        asset = require(object_id)
+        view = None
+        if grid is not None:
+            view = best_view(
+                grid,
+                tuple(asset["bbox_min"]),
+                tuple(asset["bbox_max"]),
+                footprints(store, object_id),
+            )
+        if view is None:
+            return {"from": None, "clear": False}
+        return {"from": list(view.point), "clear": view.clear}
 
     @app.post("/api/route")
     def route(request: RouteRequest) -> dict:

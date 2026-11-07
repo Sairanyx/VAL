@@ -22,8 +22,7 @@ export async function setupBim({
   faultTag,
   floorY,
   onSelectObject,
-  onMessage,
-}) {
+  onMessage, isShown, isFiltering }) {
   const response = await fetch("bim.json").catch(() => null);
   if (!response?.ok) return null;
   const model = await response.json();
@@ -339,6 +338,7 @@ export async function setupBim({
     // A combined object is its parts, except in the Box look, where it's one box around them.
     if (item.combined && state.look !== "box" && !item.object.gone) return false;
     if (item.object?.gone && state.look === "box") return false;
+    if (item.object && isFiltering?.() && !isShown(ownerOf(item))) return false;
     if (state.hidden.has(item.element.ifc_class)) return false;
     if (state.isolated && state.selected) {
       return item === state.selected || ROOM.has(item.element.ifc_class);
@@ -371,6 +371,7 @@ export async function setupBim({
       item.mesh.visible = visible(item);
       const owner = ownerOf(item);
       if (item.object) cutFromGroup(item, Boolean(item.object.gone));
+      if (real && isFiltering?.() && item.element.splat_group && visible(item)) ownSplats(item);
       if (item.object && !owner && item.splats) item.splats.visible = false;
       if (owner) {
         placeShapes(item);
@@ -379,13 +380,18 @@ export async function setupBim({
           item.splats.position.copy(owner.center).add(shift);
           item.splats.quaternion.copy(spin);
           // Class files hold this object too, so its own file only shows on its own when isolated.
-          const shared = Boolean(item.element.splat_group) && !state.isolated && !item.object.gone;
+          const shared =
+            Boolean(item.element.splat_group) &&
+            !state.isolated &&
+            !item.object.gone &&
+            !isFiltering?.();
           item.splats.visible = real && item.mesh.visible && !shared;
         }
       }
     }
     for (const { mesh, cls } of splatGroups.values()) {
-      mesh.visible = real && !state.isolated && !state.hidden.has(cls);
+      // A class's shared file can't hide some of its objects, so filtering uses their own files.
+      mesh.visible = real && !state.isolated && !state.hidden.has(cls) && !isFiltering?.();
     }
     // The section keeps what is below a height above the floor, like a plan cut.
     if (state.cut === null) section.constant = 1e6;

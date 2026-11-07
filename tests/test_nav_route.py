@@ -11,6 +11,7 @@ from app.nav.grid import BODY_BAND, LOW_BAND, NavGrid, build_nav_grid  # noqa: E
 from app.nav.route import (  # noqa: E402
     BODIES,
     NoRoute,
+    best_view,
     clearance_with_footprints,
     line_is_clear,
     plan_route,
@@ -144,3 +145,48 @@ def test_route_clear_rejects_paths_through_obstacles():
     assert route_clear(grid, [[1.0, 0.0, 2.0], [1.5, 0.0, 2.0]], "person")
     assert not route_clear(grid, [[1.0, 0.0, 2.0], [3.0, 0.0, 2.0]], "person")
     assert route_clear(grid, [[1.0, 0.0, 2.0], [3.0, 0.0, 2.0]], "robot")
+
+
+def view_room():
+    """An open room, with a tall thing between the object and the far side."""
+    free = np.ones((100, 100), bool)
+    free[[0, -1], :] = free[:, [0, -1]] = False
+    free[30:32, 10:90] = False  # a tall thing across the room
+    free[20:24, 48:52] = False  # the object itself
+    clearance = ndimage.distance_transform_edt(free) * 0.1
+    return NavGrid(
+        origin=np.zeros(2),
+        cell=0.1,
+        floor_height=0.0,
+        up=np.array([0.0, 1.0, 0.0]),
+        axes=(0, 2),
+        free=free,
+        clearance=clearance,
+        clearance_low=clearance.copy(),
+    )
+
+
+def test_best_view_stands_clear_with_nothing_in_the_way():
+    view = best_view(view_room(), (2.0, 0.0, 4.8), (2.4, 1.0, 5.2))
+    assert view.clear
+    assert view.point[0] < 3.0  # on the object's side of the tall thing
+    assert 0.8 < math.dist((view.point[0], view.point[2]), (2.2, 5.0)) < 3.5
+
+
+def test_best_view_faces_a_long_object_side_on():
+    view = best_view(view_room(), (2.0, 0.0, 3.0), (2.4, 0.5, 7.0))
+    assert abs(view.point[2] - 5.0) < abs(view.point[0] - 2.2)
+
+
+def test_best_view_avoids_a_moved_object():
+    first = best_view(view_room(), (2.0, 0.0, 4.8), (2.4, 1.0, 5.2)).point
+    x, z = first[0], first[2]
+    box = ((x - 0.5, 0.0, z - 0.5), (x + 0.5, 1.0, z + 0.5))
+    second = best_view(view_room(), (2.0, 0.0, 4.8), (2.4, 1.0, 5.2), [box]).point
+    assert math.dist((x, z), (second[0], second[2])) > 0.3
+
+
+def test_best_view_without_open_floor_is_none():
+    grid = view_room()
+    grid.free[:] = False
+    assert best_view(grid, (2.0, 0.0, 4.8), (2.4, 1.0, 5.2)) is None

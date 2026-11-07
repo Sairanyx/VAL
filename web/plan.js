@@ -1,11 +1,10 @@
-// Map: a 2D blueprint of the room from above, with the walls, the equipment, the route, and where
-// you are. Generated from the scan, not surveyed, and it says so on screen. (Its code and element
-// IDs still say "plan".) Only equipment with metadata, linked to an Excel record, is drawn: buckets,
-// pipes and other detections stay in the 3D view.
+// Map: a 2D blueprint of the room from above: the walls, the fixed equipment, the target, the route,
+// and where you are. Generated from the scan, not surveyed, and it says so on screen. (Its code and
+// element IDs still say "plan".) It sits in a corner as a minimap and opens to the full view. Movable
+// things, pipes, cables and lights stay in the 3D view, unless a filter asks for them.
 //
 // It's light on purpose. Walls and the room outline come from the BIM model (bim.json, built
-// offline), the walkable floor from /api/plan/walkable, and equipment from the objects as they stand
-// now. Nothing heavy is computed to open it, and it redraws at most about ten times a second.
+// offline), and equipment from the objects as they stand now. Nothing heavy is computed to open it, and it redraws at most about ten times a second.
 
 const PADDING = 16;
 const LABEL_HEIGHT = 16;
@@ -14,39 +13,41 @@ const FRAME_MS = 100;
 
 // Blueprint colours: paper, a faint 1 m grid, white lines.
 const PAPER = "#123a63";
-const GRID = "rgba(255, 255, 255, 0.07)";
-const WALKABLE = [0x1d, 0x52, 0x86]; // a lighter blue where a person can walk
+const FAINT = "#7fa3c7";
 const WALL = "#f1f5f9";
-const LINE = "#cfe3f7";
+const MINI_WALL = "rgba(255, 255, 255, 0.7)";
+const MINI_FAINT = "rgba(255, 255, 255, 0.32)";
 const LINKED = "#ffffff";
 const FAULT_COLOR = "#ff6b4a";
 const FOUND_COLOR = "#facc15";
 const ROUTE_COLOR = "#38bdf8";
 const LEGEND = [
-  ["Faulty device", FAULT_COLOR],
-  ["Equipment with a record", LINKED],
-  ["Walkable floor", `rgb(${WALKABLE.join(",")})`],
+  ["Target", FAULT_COLOR],
   ["Route", ROUTE_COLOR],
+  ["You", ROUTE_COLOR],
+  ["Fixed equipment", FAINT],
 ];
+// Fixed, but overhead or running everywhere, so they'd bury the room.
+const NOT_ON_THE_MAP = new Set(["pipe", "pipe fitting", "hose", "cable", "light fixture"]);
 
 export function setupPlan({
+  wake,
   ui,
   objects,
   root,
   camera,
   route,
-  getFaultTag,
   getSelected,
   nameOf,
+  filters,
   onSelect,
 }) {
   const context = ui.canvas.getContext("2d");
-  const floor = document.createElement("canvas"); // the walkable mask, one pixel per cell
   const state = {
-    open: false,
+    open: false, // shown at all: as the corner minimap, or expanded over the whole screen
+    expanded: false,
     ready: false,
     description: null, // { x_min, x_max, z_min, z_max, walls: [{ x0, x1, z0, z1 }] }
-    floor: null, // { x0, z0, x1, z1 } of the walkable mask, once loaded
     found: new Set(),
     lastDraw: 0,
   };
@@ -82,8 +83,13 @@ export function setupPlan({
   }
 
   // Only equipment with metadata (an Excel record) is on the map.
+  const isTarget = (object) => route.state.route && route.state.target?.asset === object.asset;
+
   function shown(object) {
-    return !object.gone && Boolean(object.asset.mapping);
+    if (object.gone) return false;
+    if (isTarget(object) || isHighlighted(object)) return true;
+    if (filters.isActive()) return filters.passes(object);
+    return object.asset.mobility === "fixed" && !NOT_ON_THE_MAP.has(object.asset.label);
   }
 
   // An object's footprint on screen. Its size comes from its box, its place from where it is now.
@@ -133,41 +139,16 @@ export function setupPlan({
     }
   }
 
-  function drawGrid(c, view) {
-    const d = state.description;
-    c.strokeStyle = GRID;
-    c.lineWidth = 1;
-    c.beginPath();
-    for (let x = Math.ceil(d.x_min); x <= d.x_max; x++) {
-      const [sx] = toScreen(view, x, d.z_max);
-      c.moveTo(sx, view.top);
-      c.lineTo(sx, view.top + (d.z_max - d.z_min) * view.scale);
-    }
-    for (let z = Math.ceil(d.z_min); z <= d.z_max; z++) {
-      const [, sy] = toScreen(view, d.x_min, z);
-      c.moveTo(view.left, sy);
-      c.lineTo(view.left + (d.x_max - d.x_min) * view.scale, sy);
-    }
-    c.stroke();
-  }
-
-  function drawFloor(c, view) {
-    const f = state.floor;
-    if (!f) return;
-    const [x, y] = toScreen(view, f.x0, f.z1);
-    c.imageSmoothingEnabled = true;
-    c.drawImage(floor, x, y, (f.x1 - f.x0) * view.scale, (f.z1 - f.z0) * view.scale);
-  }
-
   function drawWalls(c, view) {
-    c.fillStyle = WALL;
+    c.fillStyle = state.expanded ? WALL : MINI_WALL;
+    const thinnest = state.expanded ? 3 : 2;
     for (const wall of state.description.walls) {
       const [left, top] = toScreen(view, wall.x0, wall.z1);
       c.fillRect(
         left,
         top,
-        Math.max((wall.x1 - wall.x0) * view.scale, 3),
-        Math.max((wall.z1 - wall.z0) * view.scale, 3),
+        Math.max((wall.x1 - wall.x0) * view.scale, thinnest),
+        Math.max((wall.z1 - wall.z0) * view.scale, thinnest),
       );
     }
   }
@@ -199,15 +180,15 @@ export function setupPlan({
     const facing = Math.atan2(aheadY - y, aheadX - x);
     c.beginPath();
     c.moveTo(x, y);
-    c.arc(x, y, 30, facing - 0.45, facing + 0.45);
+    c.arc(x, y, state.expanded ? 30 : 18, facing - 0.45, facing + 0.45);
     c.closePath();
     c.fillStyle = "rgba(56, 189, 248, 0.3)";
     c.fill();
     c.beginPath();
-    c.arc(x, y, 6, 0, 2 * Math.PI);
+    c.arc(x, y, state.expanded ? 6 : 4, 0, 2 * Math.PI);
     c.fillStyle = ROUTE_COLOR;
     c.fill();
-    c.lineWidth = 2;
+    c.lineWidth = state.expanded ? 2 : 1.5;
     c.strokeStyle = "#ffffff";
     c.stroke();
   }
@@ -238,30 +219,33 @@ export function setupPlan({
     const view = fit();
     const c = context;
     c.setTransform(view.ratio, 0, 0, view.ratio, 0, 0);
-    c.fillStyle = PAPER;
-    c.fillRect(0, 0, view.width, view.height);
-    drawGrid(c, view);
-    drawFloor(c, view);
+    // The minimap has no paper, so the room shows through it.
+    c.clearRect(0, 0, view.width, view.height);
+    if (state.expanded) {
+      c.fillStyle = PAPER;
+      c.fillRect(0, 0, view.width, view.height);
+    }
     drawWalls(c, view);
 
     const labels = [];
     for (const object of objects) {
       if (!shown(object)) continue;
       const box = footprint(view, object);
-      const fault = object.asset.mapping?.tag === getFaultTag();
+      const target = isTarget(object);
       const highlighted = isHighlighted(object);
-      const color = fault ? FAULT_COLOR : LINKED;
-      if (fault || highlighted) {
-        c.fillStyle = `${fault ? FAULT_COLOR : FOUND_COLOR}33`;
+      const matched = filters.isActive() && filters.passes(object);
+      const plain = state.expanded ? FAINT : MINI_FAINT;
+      const color = target ? FAULT_COLOR : highlighted ? FOUND_COLOR : matched ? LINKED : plain;
+      if (target || highlighted) {
+        c.fillStyle = `${color}33`;
         c.fillRect(box.left, box.top, box.width, box.height);
       }
-      c.strokeStyle = highlighted ? FOUND_COLOR : color;
-      c.lineWidth = highlighted || fault ? 2.5 : 1.5;
+      c.strokeStyle = color;
+      c.lineWidth = target || highlighted ? 2.5 : matched ? 1.5 : 1;
       c.setLineDash(object.asset.mobility === "movable" ? [4, 3] : []);
       c.strokeRect(box.left, box.top, box.width, box.height);
-      {
-        const rank = highlighted ? 3 : fault ? 2 : 1;
-        labels.push({ text: nameOf(object), box, color: highlighted ? FOUND_COLOR : color, rank });
+      if (target || (state.expanded && (highlighted || matched))) {
+        labels.push({ text: nameOf(object), box, color, rank: target ? 3 : highlighted ? 2 : 1 });
       }
     }
     c.setLineDash([]);
@@ -269,7 +253,7 @@ export function setupPlan({
     drawRoute(c, view);
     drawLabels(c, view, labels);
     drawViewer(c, view);
-    drawScale(c, view);
+    if (state.expanded) drawScale(c, view);
   }
 
   function objectAt(view, x, y) {
@@ -294,6 +278,11 @@ export function setupPlan({
 
   ui.canvas.addEventListener("click", (event) => {
     if (!state.ready) return;
+    // The minimap is too small to pick from, so a click opens the full map.
+    if (!state.expanded) {
+      expand();
+      return;
+    }
     const box = ui.canvas.getBoundingClientRect();
     const found = objectAt(fit(), event.clientX - box.left, event.clientY - box.top);
     if (found) onSelect(found);
@@ -305,13 +294,18 @@ export function setupPlan({
     state.lastDraw = 0;
     ui.note.textContent = "";
     if (!wanted) return;
-    const here = objects.filter(shown);
+    // Everything, not just what the map draws: finding a bucket shows the bucket.
+    const here = objects.filter((object) => !object.gone);
     const byTag = here.filter(
       (object) =>
         (object.asset.mapping?.tag ?? "").toLowerCase().includes(wanted) ||
         object.asset.object_id.toLowerCase() === wanted,
     );
-    const byType = here.filter((object) => object.asset.label?.toLowerCase() === wanted);
+    const singular = wanted.replace(/s$/, "");
+    const byType = here.filter((object) => {
+      const label = object.asset.label?.toLowerCase();
+      return label === wanted || label === singular;
+    });
     const matches = byTag.length ? byTag : byType;
     for (const object of matches) state.found.add(object);
     if (!matches.length) ui.note.textContent = "Nothing with that tag or type.";
@@ -373,36 +367,11 @@ export function setupPlan({
     };
   }
 
-  // Where a person can walk now, as lighter paper. Optional: the plan works without it.
-  async function loadFloor() {
-    const reply = await fetch("/api/plan/walkable")
-      .then((response) => (response.ok ? response.json() : null))
-      .catch(() => null);
-    if (!reply || reply.axes?.[0] !== 0 || reply.axes?.[1] !== 2) return;
-    const [rows, cols] = reply.shape; // rows run along x, columns along z
-    const bits = Uint8Array.from(atob(reply.mask), (ch) => ch.charCodeAt(0));
-    floor.width = rows;
-    floor.height = cols;
-    const c = floor.getContext("2d");
-    const pixels = c.createImageData(rows, cols);
-    for (let i = 0; i < rows; i++) {
-      for (let j = 0; j < cols; j++) {
-        const index = i * cols + j;
-        if (!((bits[index >> 3] >> (7 - (index & 7))) & 1)) continue;
-        const p = ((cols - 1 - j) * rows + i) * 4; // +z up the page
-        pixels.data.set([...WALKABLE, 255], p);
-      }
-    }
-    c.putImageData(pixels, 0, 0);
-    const [x0, z0] = reply.origin;
-    state.floor = { x0, z0, x1: x0 + rows * reply.cell, z1: z0 + cols * reply.cell };
-  }
-
   async function open() {
     state.open = true;
     state.lastDraw = 0;
     ui.panel.hidden = false;
-    loadFloor().then(() => (state.lastDraw = 0)); // moved objects change it, so refresh each time
+    setExpanded(state.expanded);
     if (state.ready) return;
     ui.note.textContent = "Drawing the plan...";
     await loadRoom();
@@ -411,12 +380,39 @@ export function setupPlan({
     ui.note.textContent = state.description.walls.length
       ? ""
       : "No BIM model, so no walls: run make bim.";
+    wake?.();
+  }
+
+  function setExpanded(on) {
+    state.expanded = on;
+    state.lastDraw = 0;
+    ui.panel.classList.toggle("mini", !on);
+    wake?.();
+  }
+
+  // The full view, with search and the legend.
+  async function expand() {
+    setExpanded(true);
+    await open();
+  }
+
+  function collapse() {
+    setExpanded(false);
+    state.found.clear(); // The minimap stays down to the target and where you are.
+    ui.search.value = "";
+    ui.note.textContent = "";
   }
 
   function close() {
     state.open = false;
+    state.expanded = false;
     ui.panel.hidden = true;
   }
 
-  return { state, open, close, draw, search };
+  function toggle() {
+    if (state.open) close();
+    else open();
+  }
+
+  return { state, open, close, expand, collapse, toggle, draw, search };
 }

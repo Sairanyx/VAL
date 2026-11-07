@@ -16,10 +16,12 @@ import { setupPacing } from "./pacing.js";
 import { setupPhone } from "./phone.js";
 import { setupAlerts } from "./alerts.js";
 import { setupObjectList } from "./objectlist.js";
+import { setupFilters } from "./filters.js";
 import { setupPlan } from "./plan.js";
 import { setupWalkable } from "./walkable.js";
 import { setupWalkXR, xrSupported } from "./xr.js";
 import { setupRoute } from "./route.js";
+import { setupTour } from "./tour.js";
 
 let faultTag = "P-005"; // the pre-chosen faulty device, unless the scene's file names another
 const EYE_HEIGHT = 1.6; // metres above the floor in walk mode (scene units look close to metres)
@@ -121,9 +123,11 @@ const pacing = setupPacing({
     Boolean(route?.state.walking) ||
     tracking.state.active,
   isDragging: () => Boolean(objectLayer?.state.moving?.dragging),
-  isAnimated: () => Boolean(route?.state.route) || Boolean(alerts?.isActive()),
+  isAnimated: () => Boolean(route?.state.route || flight),
 });
 let walk = true;
+let flight = null; // the camera on its way to an object's best view
+let tour = null;
 let eyeY = EYE_HEIGHT;
 let startPos = new THREE.Vector3(0, EYE_HEIGHT, 0);
 let startTurn = new THREE.Quaternion(); // which way you face at the start
@@ -133,6 +137,7 @@ let route = null;
 let plan = null;
 let objectList = null;
 let alerts = null;
+let filters = null;
 let selected = null;
 let boxesOn = true;
 let range = Number(params.get("range") ?? 3);
@@ -360,6 +365,58 @@ function focusOn(object) {
   selected = object;
   highlight.select(object);
   bim?.selectObject(object);
+}
+
+const FLIGHT_MS = 1100;
+// Glide the camera to a spot, looking at a point. Both are in world coordinates.
+function flyTo(position, lookAt) {
+  const look = new THREE.Matrix4().lookAt(position, lookAt, camera.up);
+  flight = {
+    from: camera.position.clone(),
+    fromTurn: camera.quaternion.clone(),
+    to: position.clone(),
+    toTurn: new THREE.Quaternion().setFromRotationMatrix(look),
+    started: performance.now(),
+  };
+  pacing.wake();
+  return new Promise((resolve) => (flight.done = resolve));
+}
+
+function updateFlight(now) {
+  const t = Math.min((now - flight.started) / FLIGHT_MS, 1);
+  const eased = t * t * (3 - 2 * t);
+  camera.position.lerpVectors(flight.from, flight.to, eased);
+  camera.quaternion.slerpQuaternions(flight.fromTurn, flight.toTurn, eased);
+  if (t === 1) {
+    const { done } = flight;
+    flight = null;
+    done();
+  }
+}
+
+// Go to where an object is best seen, and select it.
+async function goLookAt(object) {
+  if (route?.state.walking) $("follow").click();
+  showInfo(object);
+  const look = root.localToWorld(object.center.clone());
+  const reply = await fetch(`/api/objects/${object.asset.object_id}/view`)
+    .then((response) => (response.ok ? response.json() : null))
+    .catch(() => null);
+  let spot;
+  if (reply?.from) {
+    spot = root.localToWorld(new THREE.Vector3(...reply.from));
+  } else {
+    // No floor map: step back towards where we are now.
+    const back = camera.position.clone().sub(look).setY(0);
+    spot = look.clone().add(back.normalize().multiplyScalar(2));
+  }
+  spot.y = eyeY;
+  walkFloor.forget();
+  await flyTo(spot, look);
+  if (reply?.from && !reply.clear) {
+    $("status").textContent = `Something may be in the way of ${name(object.asset)}`;
+  }
+  return { ok: true, message: "" };
 }
 
 // Val's answers can point at objects, or ask for a route. Returns what went wrong, if anything.
@@ -683,12 +740,14 @@ async function duplicateObject(object) {
 function goBack() {
   if (!$("more-menu").hidden) showMenu(false);
   else if (!$("rename-form").hidden) $("rename-form").hidden = true;
+  else if (tour?.state.running) tour.stop();
   else if (!$("delete-confirm").hidden) $("delete-confirm").hidden = true;
   else if (!$("add-panel").hidden || adder.state.active) $("add-cancel").click();
   else if (objectLayer?.state.moving) $("manip-done").click();
   else if (route?.state.walking) $("follow").click();
   else if (!$("copilot").hidden) $("copilot-close").click();
-  else if (plan?.state.open) plan.close();
+  else if (plan?.state.expanded) plan.collapse();
+  else if (!$("filter-panel").hidden) $("filter-panel").hidden = true;
   else if (objectList?.state.open) objectList.close();
   else if (selected || !$("info").hidden) deselect();
   else return false;
@@ -727,6 +786,7 @@ window.addEventListener("keydown", (event) => {
   else if (key === "f") handled = press("mode");
   else if (key === "g") handled = press("go-fault");
   else if (key === "l") handled = press("open-list");
+  else if (key === "t") handled = press("open-filters");
   else if (key === "v") {
     // Talk to Val from anywhere.
     copilot.open();
@@ -830,7 +890,7 @@ $("manip-done").onclick = () => {
 function hit(ndc) {
   raycaster.setFromCamera(ndc, camera);
   const candidates = objects
-    .filter((o) => !o.gone && o.pick.layers.isEnabled(0))
+    .filter((o) => !o.gone && o.pick.layers.isEnabled(0) && (!filters || filters.passes(o)))
     .map((o) => ({
       mesh: o.pick,
       volume: o.volume,
@@ -989,9 +1049,12 @@ function chooseLabels() {
   for (const o of objects) {
     if (o.gone) continue;
     if (bim?.state.active && !bim.shows(o)) continue;
+    const filtering = filters?.isActive();
+    if (filtering && !filters.passes(o) && o !== selected) continue;
     pos.copy(o.center).applyMatrix4(root.matrixWorld);
     const dist = camera.position.distanceTo(pos);
-    if (dist > range) continue;
+    // Asking for "only pumps" means all of them, however far away.
+    if (dist > range && !filtering) continue;
     pos.project(camera);
     const onScreen = pos.z > 0 && pos.z < 1 && Math.abs(pos.x) <= 1 && Math.abs(pos.y) <= 1;
     // Fault and mapped objects show first, background labels last.
@@ -1043,15 +1106,16 @@ let frames = 0;
 let lastFps = performance.now();
 function animate(now) {
   const following = Boolean(route?.state.walking);
-  const busy = objectLayer?.state.moving || adder.state.active || following;
+  const busy = objectLayer?.state.moving || adder.state.active || following || flight;
   // Typing in the Plan screen's search box shouldn't walk the viewer around. While tracking, the
   // device's own movement moves the camera, so the other controls stay out.
   const tracked = tracking.state.active;
   // Keys typed into Val or a name box are for that box, not for walking.
   const typingNow = isTyping();
-  if (!phone.enabled && !busy && !tracked && !plan?.state.open && !typingNow) controls.update(camera);
+  if (!phone.enabled && !busy && !tracked && !plan?.state.expanded && !typingNow) controls.update(camera);
   const stepTime = lastStep ? (now - lastStep) / 1000 : 0;
   lastStep = now;
+  if (flight) updateFlight(now);
   if (following && !tracked) route.update(stepTime);
   else if (!tracked) phone.update(stepTime);
   if (walk && !tracked) camera.position.y = eyeY;
@@ -1060,7 +1124,7 @@ function animate(now) {
   if (hoverDue && (hoverChanged || (hoverAt && pacing.isMoving()))) {
     hoverChanged = false;
     lastHoverCheck = now;
-    if (!plan?.state.open) updateHover();
+    if (!plan?.state.expanded) updateHover();
   }
   if (!pacing.shouldDraw(now)) return;
 
@@ -1085,9 +1149,8 @@ function animate(now) {
   }
   const followText = following ? "Stop" : "Walk route";
   if ($("follow").textContent !== followText) $("follow").textContent = followText;
-  if (plan?.state.open) {
-    plan.draw(now); // The room is covered, so there's no need to draw it as well.
-  } else {
+  // Expanded, the map covers the room, so there's no need to draw that as well.
+  if (!plan?.state.expanded) {
     alerts?.update(now);
     renderer.render(scene, camera);
     alerts?.placeBadges();
@@ -1098,6 +1161,7 @@ function animate(now) {
     }
     placeLabels();
   }
+  plan?.draw(now);
   pacing.drew(now);
   frames++;
   if (DEBUG && now - lastFps > 1000) {
@@ -1262,6 +1326,29 @@ function commandHandlers() {
   const views = ["scan", "both", "objects"];
   return {
     select: ({ object_id }) => showInfo(find(object_id)),
+    focus_object: ({ object_id }) => goLookAt(find(object_id)),
+    start_demo: () => {
+      tour.start();
+    },
+    stop_demo: () => tour.stop(),
+    set_filter: ({ types, conditions, mobility }) => {
+      filters.set({ types, conditions, mobility });
+      return { ok: true, message: $("filter-count").textContent };
+    },
+    hide_types: ({ types }) => filters.hideTypes(types),
+    clear_filters: () => filters.clear(),
+    set_alerts: ({ level }) => filters.setAlerts(level),
+    open_map: () => plan.open(),
+    expand_map: () => plan.expand(),
+    close_map: () => plan.close(),
+    open_list: () => objectList.open(),
+    close_list: () => objectList.close(),
+    open_filters: () => ($("filter-panel").hidden = false),
+    find_on_map: async ({ text }) => {
+      await plan.expand();
+      $("plan-search").value = text;
+      plan.search(text);
+    },
     close_panels: () => {
       $("info-close").click();
       $("copilot-close").click();
@@ -1417,6 +1504,7 @@ async function load() {
   });
   $("go-fault").hidden = !objects.some((o) => kind(o.asset) === "fault");
   plan = setupPlan({
+    wake: () => pacing.wake(),
     ui: {
       panel: $("plan"),
       canvas: $("plan-canvas"),
@@ -1430,13 +1518,40 @@ async function load() {
     root,
     camera,
     route,
-    getFaultTag: () => faultTag,
     getSelected: () => selected,
     nameOf: (object) => name(object.asset),
+    filters: {
+      isActive: () => Boolean(filters?.isActive()),
+      passes: (object) => !filters || filters.passes(object),
+    },
     onSelect: showInfo,
   });
-  $("open-plan").onclick = () => plan.open();
+  $("open-plan").onclick = () => plan.toggle();
+  $("plan-expand").onclick = () => plan.expand();
+  $("plan-hide").onclick = () => plan.close();
+  // A minimap from the start with a mouse. A small touch screen has less room, so it's a toggle.
+  if (!TABLET) plan.open();
+  filters = setupFilters({
+    ui: {
+      panel: $("filter-panel"),
+      button: $("open-filters"),
+      types: $("filter-types"),
+      conditions: $("filter-conditions"),
+      mobility: $("filter-mobility"),
+      alerts: $("filter-alerts"),
+      count: $("filter-count"),
+      clear: $("filter-clear"),
+      close: $("filter-close"),
+    },
+    objects,
+    onChange: () => {
+      lastChosen = 0;
+      objectList?.refresh();
+      pacing.wake();
+    },
+  });
   objectList = setupObjectList({
+    filters,
     panel: $("object-list"),
     list: $("object-rows"),
     search: $("object-search"),
@@ -1445,10 +1560,16 @@ async function load() {
     count: $("object-count"),
     objects,
     nameOf: (object) => name(object.asset),
-    onSelect: (object) => showInfo(object),
+    onSelect: (object) => {
+      if (window.innerWidth < 700) objectList.close();
+      goLookAt(object);
+    },
   });
   $("open-list").onclick = () => objectList.toggle();
+  $("focus-object").onclick = () => selected && goLookAt(selected);
   alerts = setupAlerts({
+    filters,
+    isHidden: () => Boolean(bim?.state.active), // BIM shows a clean model, not the room's state
     root,
     camera,
     objects,
@@ -1459,10 +1580,10 @@ async function load() {
     },
   });
   $("object-list-close").onclick = () => objectList.close();
-  $("plan-close").onclick = () => plan.close();
+  $("plan-close").onclick = () => plan.collapse();
   // These work in the 3D view, so the Plan screen makes way for them.
   for (const id of ["move", "split-object", "combine-object"]) {
-    $(id).addEventListener("click", () => plan.close());
+    $(id).addEventListener("click", () => plan.collapse());
   }
   $("profile").hidden = false;
   const views = ["scan", "both", "objects"];
@@ -1481,6 +1602,8 @@ async function load() {
   };
   $("undo-last").onclick = undoLast;
   bim = await setupBim({
+    isShown: (object) => !filters || filters.passes(object),
+    isFiltering: () => Boolean(filters?.isActive()),
     root,
     renderer,
     objects,
@@ -1519,7 +1642,40 @@ async function load() {
   }
   await syncWithBackend();
   setupCommands(commandHandlers());
-  window.plantViewer = { objects, objectLayer, camera, route, copilot, showInfo, adder, bim, plan, pacing }; // For browser tests and debugging.
+  tour = setupTour({
+    ui: {
+      panel: $("tour"),
+      title: $("tour-title"),
+      text: $("tour-text"),
+      count: $("tour-count"),
+      pause: $("tour-pause"),
+      next: $("tour-next"),
+      stop: $("tour-stop"),
+    },
+    handlers: commandHandlers(),
+    press: (id) => $(id).click(),
+    view: {
+      objects,
+      filters,
+      plan,
+      route,
+      copilot,
+      objectList,
+      bim: () => bim,
+      nameOf: (object) => name(object.asset).replace(/\?$/, ""),
+      fault: () => objects.find((o) => kind(o.asset) === "fault" && !o.gone),
+      goLookAt,
+      range: () => range,
+      moveObject: (object, position) => objectLayer.moveTo(object, position),
+      undoLast,
+      closeInfo: () => $("info-close").click(),
+      closeFilters: () => ($("filter-panel").hidden = true),
+      openFilters: () => ($("filter-panel").hidden = false),
+    },
+  });
+  $("start-tour").onclick = () => tour.start();
+  if (params.has("demo")) tour.start();
+  window.plantViewer = { tour, filters, objects, objectLayer, camera, route, copilot, showInfo, adder, bim, plan, pacing }; // For browser tests and debugging.
   if (params.has("camera")) {
     const [x, y, z, yaw, pitch] = params.get("camera").split(",").map(Number);
     camera.position.set(x, y, z);

@@ -47,7 +47,7 @@ function pretty(text) {
   return (text ?? "").toLowerCase().replaceAll("_", " ").replace(/^\w/, (c) => c.toUpperCase());
 }
 
-export function setupObjectList({ panel, list, search, sort, unlinked, count, objects, nameOf, onSelect }) {
+export function setupObjectList({ panel, list, search, sort, unlinked, count, objects, nameOf, filters, onSelect }) {
   const state = { open: false, rows: [] };
 
   async function load() {
@@ -72,7 +72,8 @@ export function setupObjectList({ panel, list, search, sort, unlinked, count, ob
   function render() {
     const wanted = search.value.trim().toLowerCase();
     const rows = state.rows
-      .filter((row) => (unlinked.checked || row.condition) && matches(row, wanted))
+      .filter((row) => (unlinked.checked || filters.isActive() || row.condition))
+      .filter((row) => filters.passes(row.object) && matches(row, wanted))
       .sort((a, b) => {
         if (sort.value === "health") {
           return (a.condition?.health_score ?? 101) - (b.condition?.health_score ?? 101);
@@ -163,5 +164,5 @@ export function setupObjectList({ panel, list, search, sort, unlinked, count, ob
   sort.addEventListener("change", render);
   unlinked.addEventListener("change", render);
 
-  return { state, open, close, toggle };
+  return { state, open, close, toggle, refresh: () => state.open && render() };
 }

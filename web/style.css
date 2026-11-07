@@ -793,6 +793,8 @@ body:has(#plan:not([hidden])) #copilot {
 .object-kind { margin-left: auto; color: var(--muted); font-size: 12px; white-space: nowrap; }
 .object-health {
   position: relative;
+  display: flex; /* centres the number vertically, whatever the font's line height */
+  align-items: center;
   height: 16px;
   margin: 6px 0 4px;
   border-radius: 3px;
@@ -805,7 +807,7 @@ body:has(#plan:not([hidden])) #copilot {
   padding-left: 6px;
   font-size: 11px;
   font-style: normal;
-  line-height: 16px;
+  line-height: 1;
 }
 .object-facts { color: var(--muted); font-size: 12px; }
 .object-issue { margin-top: 2px; font-size: 13px; }

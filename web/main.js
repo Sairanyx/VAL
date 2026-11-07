@@ -703,12 +703,6 @@ $("move").onclick = () => {
     showManipBar("move");
   }
 };
-$("rotate").onclick = () => {
-  if (objectLayer?.startRotate(selected)) {
-    $("info").hidden = true;
-    showManipBar("rotate");
-  }
-};
 $("manip-mode-move").onclick = () => {
   objectLayer?.setMode("move");
   showManipBar("move");
@@ -1145,7 +1139,10 @@ function commandHandlers() {
       return objectLayer.moveTo(object, undefined, (object.yaw || 0) + (degrees * Math.PI) / 180);
     },
     start_move: ({ object_id }) => open(object_id, "move"),
-    start_rotate: ({ object_id }) => open(object_id, "rotate"),
+    start_rotate: ({ object_id }) => {
+      open(object_id, "move"); // Rotate is a mode of Move now
+      $("manip-mode-rotate").click();
+    },
     finish_moving: press("manip-done"),
     undo_changes: press("reset-moves"),
     duplicate_object: ({ object_id }) => duplicateObject(objects.find((o) => o.asset.object_id === object_id)),

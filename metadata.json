@@ -22,13 +22,13 @@
     "api_call_count": 6
   },
   "redaction": {
-    "replacements": 234,
+    "replacements": 241,
     "layers": {
-      "betterleaks": 121,
+      "betterleaks": 130,
       "connection_string": 0,
       "credential_key": 0,
       "credential_value": 28,
-      "credentialed_uri": 19,
+      "credentialed_uri": 20,
       "entropy": 16,
       "key_context": 114,
       "provider_token": 0,

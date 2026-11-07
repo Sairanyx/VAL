@@ -82,6 +82,7 @@ def asset_element(scene_id: str, asset: dict, shape: dict | None) -> dict:
             "Mobility": asset.get("mobility"),
             "MobilityReason": asset.get("mobility_reason"),
             "IdentityConfirmed": identity_confirmed(mapping),
+            "Status": asset.get("status"),
         },
         "Valmet_Geometry": {
             "Source": source,

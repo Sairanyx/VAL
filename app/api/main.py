@@ -7,6 +7,8 @@ SCENE_ASSETS=path/to/assets.json make api     # real objects
 """
 
 import hashlib
+import io
+import json
 import os
 import tempfile
 from pathlib import Path
@@ -15,7 +17,7 @@ from typing import Annotated, Any, Literal
 import numpy as np
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
 
 from app.api.collisions import MoveCheck, check_move
@@ -30,9 +32,13 @@ from app.api.select_object import (
     suggest_config,
 )
 from app.api.store import GONE, ChangeError, SceneStore
+from app.bim.ifc import ifc_text
+from app.bim.model import build_model
 from app.copilot.llm import load_writer
 from app.nav.grid import NavGrid, load_grid
 from app.nav.route import BODIES, NoRoute, placeholder_route, plan_route
+from app.plan.export_dxf import write_dxf
+from app.plan.layout import build_layout
 from app.scene.load import Splats, read_splats, write_splats
 from app.scene.split_movable import FLOOR_MARGIN, split_movable
 
@@ -272,7 +278,7 @@ def create_app(
         if not scene_splats:
             path = os.getenv("SCENE_PLY")
             if not path or not Path(path).exists():
-                raise HTTPException(503, "Selecting needs the scene: set SCENE_PLY to its file.")
+                raise HTTPException(503, "This needs the scene: set SCENE_PLY to its file.")
             scene_splats.append(read_splats(Path(path)))
         return scene_splats[0]
 
@@ -348,6 +354,63 @@ def create_app(
         """Suggest settings for part of a viewer screenshot."""
         crop = crop_selection(request.image, request.rectangle) if writer is not None else None
         return suggest_config(writer, crop, linked_tags())
+
+    plan_cache: dict[str, Any] = {}
+
+    def plan_layout() -> dict[str, Any]:
+        """Build the floor layout once, when first needed. It takes under a second."""
+        if not plan_cache:
+            up = tuple(store.scene.get("up") or (0.0, -1.0, 0.0))
+            floor_y = store.scene.get("floor_y", 0.0)
+            try:
+                image, description = build_layout(splats_for_selection(), floor_y, up)
+            except ValueError as error:
+                raise HTTPException(503, f"Couldn't work out the room: {error}") from error
+            buffer = io.BytesIO()
+            image.save(buffer, "PNG")
+            plan_cache.update(png=buffer.getvalue(), description=description, up=up)
+        return plan_cache
+
+    @app.get("/api/plan")
+    def plan() -> dict:
+        """Describe the floor layout: its extent, and the room estimated from the scan."""
+        return plan_layout()["description"]
+
+    @app.get("/api/plan/floor.png")
+    def plan_image() -> Response:
+        return Response(plan_layout()["png"], media_type="image/png")
+
+    @app.get("/api/plan/layout.dxf")
+    def plan_dxf() -> Response:
+        """Return the layout for CAD tools, with objects where they stand now."""
+        layout = plan_layout()
+        text = write_dxf(
+            layout["description"], store.visible(), store.scene.get("fault_tag"), layout["up"]
+        )
+        headers = {"Content-Disposition": 'attachment; filename="floor_layout.dxf"'}
+        return Response(text, media_type="application/dxf", headers=headers)
+
+    def shapes_where_they_stand() -> dict[str, dict]:
+        """Return the fitted shapes of objects still in the room, moved along with them."""
+        path = store.path.with_name("shapes.json")
+        shapes = json.loads(path.read_text()) if path.exists() else {}
+        placed = {}
+        for asset in store.visible():
+            object_id = asset["object_id"]
+            if object_id in shapes:
+                shift = np.subtract(asset["center"], store.home_box(object_id)["center"])
+                center = np.add(shapes[object_id]["center"], shift).tolist()
+                placed[object_id] = {**shapes[object_id], "center": center}
+        return placed
+
+    @app.get("/api/plan/model.ifc")
+    def plan_ifc() -> Response:
+        """Return the BIM model for BIM tools, with objects as they stand now."""
+        document = {**store.scene, "scene_id": store.scene_id, "assets": store.visible()}
+        room = plan_layout()["description"]["room"]
+        model = build_model(document, shapes_where_they_stand(), room)
+        headers = {"Content-Disposition": 'attachment; filename="model.ifc"'}
+        return Response(ifc_text(model), media_type="application/x-step", headers=headers)
 
     @app.post("/api/changes/reset")
     def reset() -> dict:

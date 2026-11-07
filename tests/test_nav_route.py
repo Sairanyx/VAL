@@ -6,7 +6,7 @@ np = pytest.importorskip("numpy")
 pytest.importorskip("scipy")
 
 from app.nav.grid import build_nav_grid  # noqa: E402
-from app.nav.route import NoRoute, line_is_clear, plan_route  # noqa: E402
+from app.nav.route import NoRoute, line_is_clear, plan_route, viewing_point  # noqa: E402
 
 
 def room():
@@ -78,3 +78,10 @@ def test_line_check_sees_blocked_cells():
     fits[5, :] = False
     assert not line_is_clear(fits, (0, 0), (9, 9))
     assert line_is_clear(fits, (0, 0), (4, 9))
+
+
+def test_viewing_point_stands_back_from_the_target_along_the_route():
+    points = [(0.0, 0.0, 0.0), (4.0, 0.0, 0.0), (6.0, 0.0, 0.0)]
+    point = viewing_point(GRID, points, (6.5, 1.0, 0.0), distance=2.0)
+    assert point[0] == pytest.approx(4.5, abs=GRID.cell)
+    assert viewing_point(GRID, points[:2], (4.5, 1.0, 0.0), distance=9.0) == points[0]

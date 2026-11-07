@@ -5,16 +5,21 @@
 A cell is free if floor was seen there and nothing solid is at body height. Everything else counts
 as blocked, including areas the scan never saw. Clearance is the distance to the nearest blocked
 cell, so one map serves every body size: a body fits where clearance is at least its radius.
+
+Dense scenes need `--views` to remove floaters (see `app.nav.carve`). `--walked` also opens the path
+the filming camera took.
 """
 
 import argparse
 import json
 from dataclasses import dataclass
+from itertools import chain
 from pathlib import Path
 
 import numpy as np
 from scipy import ndimage
 
+from app.nav.carve import carved_splats, load_views
 from app.scene.load import clean_mask, estimate_floor, read_splats
 
 CELL = 0.05
@@ -90,11 +95,15 @@ def build_nav_grid(
     cell: float = CELL,
     margin: float = 0.2,
     not_obstacles: np.ndarray | None = None,
+    walked: np.ndarray | None = None,
 ) -> NavGrid:
     """Build the map. `up` must point along one axis, such as (0, -1, 0).
 
     `not_obstacles` marks splats that don't block the permanent map, though they still count as
     floor having been seen. See `removable_splats`.
+
+    `walked` holds world positions of the camera that filmed the scene. Someone carried it there,
+    so a person's width around that path is free, whatever the splats suggest.
     """
     direction = np.asarray(up, dtype=np.float64)
     up_axis = int(np.argmax(np.abs(direction)))
@@ -122,6 +131,15 @@ def build_nav_grid(
     floor_seen = ndimage.binary_closing(floor_seen, iterations=2)
     free = floor_seen & ~blocked(BODY_BAND)
     low_free = floor_seen & ~blocked(LOW_BAND)
+    if walked is not None and len(walked):
+        steps = np.floor((walked[:, axes] - origin) / cell).astype(np.int64)
+        steps = steps[((steps >= 0) & (steps < np.asarray(shape))).all(axis=1)]
+        path = np.ones(shape, dtype=bool)
+        path[steps[:, 0], steps[:, 1]] = False
+        # One extra cell, so that clearance on the path itself reaches a person's radius.
+        corridor = ndimage.distance_transform_edt(path) * cell <= PERSON_RADIUS + cell
+        free |= corridor
+        low_free |= corridor
     return NavGrid(
         origin=origin,
         cell=cell,
@@ -199,6 +217,8 @@ def main() -> None:
     parser.add_argument("--up", type=float, nargs=3, default=(0.0, -1.0, 0.0))
     parser.add_argument("--labels", type=Path, help="splat_labels.npy, in the scene's splat order")
     parser.add_argument("--assets", type=Path, help="assets_final.json, needed with --labels")
+    parser.add_argument("--views", type=Path, nargs="*", help="render folders, to remove floaters")
+    parser.add_argument("--walked", type=Path, help="camera positions, from scripts/camera_path.py")
     args = parser.parse_args()
     splats = read_splats(args.scene)
     keep = clean_mask(splats)
@@ -211,7 +231,16 @@ def main() -> None:
         direction = np.asarray(up, dtype=np.float64)
         not_obstacles = removable_splats(np.load(args.labels)[keep], assets, direction, floor)
         print(f"{int(not_obstacles.sum())} splats left out of the permanent map")
-    grid = build_nav_grid(splats.positions, splats.opacities, up, not_obstacles=not_obstacles)
+    if args.views:
+        floor = estimate_floor(splats.positions, up)
+        views = chain.from_iterable(load_views(folder) for folder in args.views)
+        carved = carved_splats(splats.positions, views, up, floor, BODY_BAND)
+        print(f"{int(carved.sum())} floating splats left out of the permanent map")
+        not_obstacles = carved if not_obstacles is None else not_obstacles | carved
+    walked = np.load(args.walked) if args.walked else None
+    grid = build_nav_grid(
+        splats.positions, splats.opacities, up, not_obstacles=not_obstacles, walked=walked
+    )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     grid.save(args.out)
     if args.preview:

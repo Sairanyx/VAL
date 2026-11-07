@@ -107,6 +107,7 @@ def create_app(
                 "path": found.path,
                 "length": round(found.length, 3),
                 "stop_distance": round(found.stop_distance, 3),
+                "view_from": list(found.view_from),
                 "profile": request.profile,
                 "width": PROFILES[request.profile],
                 "placeholder": False,

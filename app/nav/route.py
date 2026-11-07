@@ -9,6 +9,8 @@ from scipy import ndimage
 
 from app.nav.grid import NavGrid
 
+VIEW_DISTANCE = 2.0  # metres across the floor from the object
+
 Point = tuple[float, float, float]
 
 
@@ -26,6 +28,7 @@ class Route:
     path: list[Point]  # Scene coordinates, on the floor.
     length: float
     stop_distance: float  # Metres from the route's end to the target object's box.
+    view_from: Point  # On the route, far enough back to see the whole object.
 
 
 class NoRoute(ValueError):
@@ -128,6 +131,30 @@ def shorten(cells: list[tuple[int, int]], fits: np.ndarray) -> list[tuple[int, i
     return result
 
 
+def viewing_point(
+    grid: NavGrid, points: list[Point], target: Point, distance: float = VIEW_DISTANCE
+) -> Point:
+    """Return the last point on the route at least `distance` metres from the target, across the
+    floor. Close up, a splat shows what the scan never saw, so the view is better from further back.
+    Doesn't check that nothing is in the way.
+    """
+    axes = list(grid.axes)
+    goal = np.asarray(target)[axes]
+
+    def away(point: Point) -> float:
+        return float(np.linalg.norm(np.asarray(point)[axes] - goal))
+
+    for near, far in zip(points[:0:-1], points[-2::-1], strict=True):
+        if away(far) >= distance:
+            # Step back along this piece of the route until the distance is reached.
+            steps = max(2, int(math.dist(near, far) / grid.cell) + 1)
+            for share in np.linspace(0, 1, steps):
+                point = tuple(float(a + (b - a) * share) for a, b in zip(near, far, strict=True))
+                if away(point) >= distance:
+                    return point
+    return points[0]
+
+
 def plan_route(
     grid: NavGrid,
     start: Point,
@@ -174,4 +201,5 @@ def plan_route(
     cells.reverse()
     points = [cell_to_point(grid, cell) for cell in shorten(cells, fits)]
     length = sum(math.dist(a, b) for a, b in zip(points, points[1:], strict=False))
-    return Route(points, length, float(distance[end]))
+    center = tuple((a + b) / 2 for a, b in zip(target_low, target_high, strict=True))
+    return Route(points, length, float(distance[end]), viewing_point(grid, points, center))

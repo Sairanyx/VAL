@@ -1,0 +1,13 @@
+Merge and lets move to the BIM stuff
+
+---
+
+Check the BIM branch and check what Sasha already implemented
+
+---
+
+Regarding moving an object (black chair) when we move it the path updates to take the moved chair into account but once we or the person moves the new location of the chair gets ignored and the shortest path/route goes through it (you can use an agent to work on this while you check BIM stuff)
+
+---
+
+Go ahead and do sashas fix + yours on top (do all steps)

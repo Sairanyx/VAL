@@ -53,6 +53,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         pieces = self.routes.get("/pieces/")
         if pieces and route.startswith("/pieces/"):
             return str(pieces / Path(route).name)
+        highlights = self.routes.get("/highlights/")
+        if highlights and route.startswith("/highlights/"):
+            return str(highlights / Path(route).name)
         return super().translate_path(path)
 
     def end_headers(self) -> None:
@@ -100,6 +103,7 @@ def main() -> None:
     p.add_argument("--assets", type=Path, default=ROOT / "fixtures/sample_assets.json")
     p.add_argument("--shapes", type=Path, help="fitted shapes for the objects view")
     p.add_argument("--pieces", type=Path, help="folder from app.scene.split_movable")
+    p.add_argument("--highlights", type=Path, help="segmented coloured splats from make highlights")
     p.add_argument("--host", default="0.0.0.0")
     p.add_argument("--port", type=int, default=8000)
     p.add_argument("--https", action="store_true", help="serve HTTPS, needed for phone sensors")
@@ -117,6 +121,11 @@ def main() -> None:
     if args.pieces:
         routes["/pieces.json"] = (args.pieces / "pieces.json").resolve()
         routes["/pieces/"] = (args.pieces / "pieces").resolve()
+    if args.highlights:
+        if not (args.highlights / "highlights.json").is_file():
+            p.error(f"not found: {args.highlights / 'highlights.json'}; run make highlights")
+        routes["/highlights.json"] = (args.highlights / "highlights.json").resolve()
+        routes["/highlights/"] = args.highlights.resolve()
     handler = functools.partial(Handler, routes=routes)
     with http.server.ThreadingHTTPServer((args.host, args.port), handler) as srv:
         scheme = "https" if args.https else "http"

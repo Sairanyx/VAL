@@ -65,3 +65,22 @@ def test_missing_backend_gets_a_clear_message(viewer, monkeypatch):
         post(f"{viewer}/api/route", {})
     assert missing.value.code == 502
     assert "make api" in json.load(missing.value)["detail"]
+
+
+def test_highlight_files_are_served(tmp_path):
+    (tmp_path / "highlights.json").write_text('{"obj-1": {"splats": 1}}')
+    (tmp_path / "obj-1.ply").write_bytes(b"ply\n")
+    server = start(
+        functools.partial(
+            serve.Handler,
+            routes={"/highlights.json": tmp_path / "highlights.json", "/highlights/": tmp_path},
+        )
+    )
+    url = f"http://127.0.0.1:{server.server_address[1]}"
+    try:
+        with urllib.request.urlopen(url + "/highlights.json") as response:
+            assert "obj-1" in json.load(response)
+        with urllib.request.urlopen(url + "/highlights/obj-1.ply") as response:
+            assert response.read() == b"ply\n"
+    finally:
+        server.shutdown()

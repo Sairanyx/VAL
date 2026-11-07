@@ -10,10 +10,12 @@ PIECES_OBJECTS ?= obj-0067 obj-0021 obj-0008 obj-0112
 PIECES_BOX ?= obj-0067
 PIECES_FROM ?= $(SCENE_DIR)/Equipment Room.ply
 PIECES_DIR ?= $(SCENE_DIR)/cut
+HIGHLIGHTS_DIR ?= $(SCENE_DIR)/highlights
+HIGHLIGHTS ?= $(if $(filter $(SCENE_DIR)/%,$(SCENE)),$(if $(wildcard $(HIGHLIGHTS_DIR)/highlights.json),$(HIGHLIGHTS_DIR)))
 MODEL ?= Qwen3.5-9B
 MODEL_DIR ?= data/models/$(MODEL)
 
-.PHONY: setup entire views scene scene-full model pieces pipeline gpu train tb web fmt lint test check up api floor mapping db nav-check
+.PHONY: setup entire views scene scene-full model pieces highlights pipeline gpu train tb web fmt lint test check up api floor mapping db nav-check
 
 setup:   ## install everything
 	uv sync
@@ -43,6 +45,8 @@ model:   ## download the copilot's language model once, before going offline (ab
 	uv run python -c "from huggingface_hub import snapshot_download as s; s('Qwen/$(MODEL)', local_dir='$(MODEL_DIR)', allow_patterns=['*.safetensors', '*.json', '*.txt', '*.jinja', 'merges*', 'vocab*'])"
 pieces:  ## cut movable objects out of a scene, so dragging moves the real thing. Then: make web SCENE=$(PIECES_DIR)/base.ply PIECES=$(PIECES_DIR)
 	uv run python -m app.scene.split_movable "$(PIECES_FROM)" $(SCENE_DIR)/assets_viewer.json $(PIECES_DIR) --objects $(PIECES_OBJECTS) --members $(SCENE_DIR)/members.npz --box $(PIECES_BOX)
+highlights: ## export segmented object surfaces for cyan selection highlighting
+	uv run python -m app.scene.highlights "$(SCENE_DIR)/Equipment Room.ply" $(SCENE_DIR)/assets_final.json $(SCENE_DIR)/splat_labels.npy $(HIGHLIGHTS_DIR)
 pipeline: ## run a scene through everything: make pipeline CONFIG=scenes/equipment_room.toml, DRY=1 to preview
 	uv run python scripts/pipeline.py $(or $(CONFIG),scenes/equipment_room.toml) $(if $(DRY),--dry-run)
 gpu:     ## check the GPU works
@@ -65,7 +69,7 @@ tb:      ## training graphs at http://localhost:6006
 	uv run tensorboard --logdir runs
 SCENE ?= data/scene/sample/scene.ply
 web:     ## web viewer on port 8000, SCENE= picks the splat, HTTPS=1 for phone sensors
-	uv run python web/serve.py --scene "$(SCENE)" $(if $(HTTPS),--https) $(if $(ASSETS),--assets "$(ASSETS)") $(if $(SHAPES),--shapes "$(SHAPES)") $(if $(PIECES),--pieces "$(PIECES)")
+	uv run python web/serve.py --scene "$(SCENE)" $(if $(HTTPS),--https) $(if $(ASSETS),--assets "$(ASSETS)") $(if $(SHAPES),--shapes "$(SHAPES)") $(if $(PIECES),--pieces "$(PIECES)") $(if $(HIGHLIGHTS),--highlights "$(HIGHLIGHTS)")
 fmt:     ## tidy code style and auto-fix lint
 	uv run --only-group dev ruff format .
 	uv run --only-group dev ruff check --fix .

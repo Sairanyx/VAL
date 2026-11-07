@@ -1,0 +1,54 @@
+<pasted_content id="7ac0">
+https://github.com/07LEE/gs-object-extraction
+GitHub
+GitHub - 07LEE/gs-object-extraction: Extract objects from 3D Gaussi...
+Extract objects from 3D Gaussian Splatting scenes and export them as standalone PLY files. - 07LEE/gs-object-extraction
+Extract objects from 3D Gaussian Splatting scenes and export them as standalone PLY files. - 07LEE/gs-object-extraction
+alpoer_5152 — 11:24 AM
+https://scantobimservice.com/point-cloud-to-bim-services/
+scantobimservice.com
+admin
+Point Cloud to BIM – 8+ Years of Accurate BIM Modeling
+With 8+ years of experience, we deliver Point Cloud to BIM services, creating Revit and MEP models that improve coordination and support project workflows Pro.
+Point Cloud to BIM – 8+ Years of Accurate BIM Modeling
+alpoer_5152 — 11:33 AM
+https://www.youtube.com/watch?v=NNZbTlPJS60
+YouTube
+Atlas Industrial BIM
+Scan-to-BIM Timelapse | Point Cloud to BIM Model | Industrial Facility
+Image
+https://www.youtube.com/watch?v=qWe0iKOOHxc
+YouTube
+ScantoBIM.Online
+From Point Cloud to 3D Walkthrough | Power Plant Scan to BIM Visual...
+Image
+alpoer_5152 — 11:47 AM
+https://www.youtube.com/watch?v=AQHyML8-h0s
+YouTube
+Dr. Florent Poux
+3D SCAN-TO-BIM Fully Automated: Point Cloud to IFC (Complete Workflow)
+Image
+If we have access to a BIM model, generating a semantic floor layout from it would be even more valuable. This would give service workers an overview of the factory layout in advance, helping them understand the spatial organization and locate specific assets more efficiently.
+Image
+point cloud is little bir nosiy to see from far perspective as you experience
+Mika from Valmet — 12:01 PM
+Lunch break 12-14
+Shery90 — 1:04 PM
+@alpoer_5152 the challenge documentation does not specify any task weightage related to having a BIM model output. So is it safe to consider that this is kind of a nice to have requirement?
+Alpo — 1:12 PM
+Yes, although it is not explicitly mentioned, this would improve usability and immersion while reducing the overall workload stress for service personnel. They can have overall factory spatial understanding over factory layout. İt gives bird eye view.
+</pasted_content id="7ac0">
+
+This is the discord chat alpo and mika are the representatives
+
+---
+
+Since we dont have CSC available do we need to use the 5090 to get the other objects movable?
+
+---
+
+We only have laptops available unless we use some other cloud compute - or the 5090
+
+---
+
+Can we use this somehow? https://github.com/FlorentPoux/3d-data-materials or the other repos and resources Alpo gave. Also for the merging and splitting feature once we merged the chair it made one object but when we moved it it didnt actually move the chair just the box if that makes sense

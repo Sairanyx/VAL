@@ -1,0 +1,89 @@
+merge
+
+---
+
+How is the agent going
+
+---
+
+<task-notification>
+<task-id>aef4b903dc16194fa</task-id>
+<tool-use-id>toolu_01KQPyrGGHnVM9bqRvTa7hgG</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/aef4b903dc16194fa.output</output-file>
+<status>completed</status>
+<summary>Agent "Fix routes ignoring moved objects" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Task: fix routes ignoring a moved object (the black chair) once the viewer moves, rebased on latest main and checked against Eduard's 7e60da7.
+
+**Result:** fixed and committed on `viktor/route-keeps-moved-objects`, one commit (`562d0f3`) on main 5c65da2. Not pushed, no PR, not merged. Eduard's commit fixes only part of the bug, so this is still needed. In a scratch test the two work together.
+
+**Root cause** (lines are main before the fix). The planner and backend were correct; once a move is saved, routes from 40 random starts all kept clear. The backend just wasn't getting the move.
+- **Wrong "last good spot":** `web/objects.js:228` recorded where the chair was when the check's answer arrived, not the spot the answer was about. Dragging into a refused area therefore made the first refused spot the "last good spot".
+- **Blocked queue:** that spot then got a 409, but the viewer kept showing the chair there. `web/route.js:279-285` kept the refused move first in the queue and returned, so no later move ever reached the backend.
+- **Why it looked fine at first:** previews send the position with each request, so the route avoided the chair during the drag. The first re-plan after the viewer moved used the backend's old position and went through the chair.
+- **Why it's common:** 381 of 743 floor spots are refused for this chair (`obj-0021`).
+- **Second trigger, same symptom:** `make api` runs `--reload` (`Makefile:65`). I confirmed that editing any `.py` under the repo, including `.claude/worktrees/`, restarts it and forgets moves unless `make db` is running. I can't tell which trigger the user hit; both are now handled.
+
+**Eduard's 7e60da7:** it fixes the blocked queue only.
+- After a refused drop, his build still leaves the chair on the refused spot with the route through it.
+- His Done button shows "Saved chair" even after that 409 (`web/main.js:455` on his branch).
+- His `showCheck` has the same wrong "last good spot".
+
+**Route clear of the chair and viewer in step with backend (9 checks, real pointer drags):**
+
+| Build | Passed | After a refused drop | Clean move after that |
+|---|---|---|---|
+| main 0cac793, no fix | 3 of 9 | 2.63 m apart, gap 0 | 1.81 m apart, gap 0 |
+| Eduard 7e60da7 | 6 of 9 | 2.63 m apart, gap 0 | fixed |
+| this fix | 9 of 9 | 0 m apart, gap ≥ 0.31 | 0 m apart, gap ≥ 0.27 |
+| copy of Eduard's branch + this fix | 9 of 9 | 0 m apart, gap ≥ 0.30 | 0 m apart, gap ≥ 0.27 |
+
+Gap is the smallest distance from the route to the chair's box; the planner aims for 0.3 m less grid rounding. Main's later commits (#28) don't touch this code.
+
+**Other checks on the final commit:**
+- 66 of 66 browser checks: viewer moving, walking the route, Fly, undo restoring the exact route (4.307 m), reload, forced refusal, failed save, real API restart, and a refusal leaving other saved moves alone.
+- The same case with real scan splats also passes; I checked a screenshot of it by eye on an earlier base.
+- `make lint` is clean. pytest shows 219 passed, 19 skipped (no torch or Excel pack here).
+
+**What changed:**
+- `web/objects.js`: only a spot that actually passed the check counts as good, and that exact spot is saved (no more rounding).
+- `web/route.js`: uses Eduard's queue shape. A refused move goes back on screen and the route re-plans. A failed save retries every 2 s. It notices a backend that lost moves and shows a warning for 8 s.
+- `web/main.js`: passes `onOutOfStep: syncWithBackend`, and a resync leaves the object being dragged alone.
+- `app/api/main.py`: route replies include a change count.
+- Also updated: `tests/test_api.py`, `docs/USAGE.md`, `docs/RESULTS.md`, `handoffs/viktortrilar.md`.
+
+**Conflicts with `origin/eduard`:**
+- He already conflicts with main in `Makefile`, `app/api/main.py`, `web/bim.js` and `web/main.js`.
+- My commit adds `web/route.js` (4 hunks), `web/objects.js` (3 hunks) and `tests/test_api.py` (keep both sides).
+- My `web/main.js` edit also lands in one of his existing hunks.
+- To resolve: keep my `saveChanges`, remember the checked yaw alongside the spot in `showCheck`, and stop rounding in his `recordChange`.
+- The tested resolved form is in `/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/scratchpad/route_fix/patch_eduard.py`. It was applied to his tree only, not to a real merge with main.
+
+**Not fixed or not verified:**
+- **The chair's old spot is still not walkable; that check from the brief fails.** This was already the case and is separate from this bug. Clearance there stays 0.0 m after the move because its second box, `obj-0090`, stays behind. Without any boxes the map still gives only 0.05 m, because of unlabelled chair splats. 47% of movable objects have under half their floor free in the map, so the `docs/USAGE.md` line saying movable objects aren't in the floor map is only partly true.
+- **Restarts are shown, not prevented.** After a restart without a database, objects jump back with a warning. I chose that over re-sending moves, which would undo someone's Undo on another screen. `--reload` is unchanged, and `./start` on Eduard's branch uses it, so agents' `.py` edits can still restart a running API.
+- **One edge case:** if Undo fails while the backend is down and a new move is made before it returns, the reset is skipped.
+- **Not tested:** `make check` itself (needs the torch environment), 5090, real GPU, tablet or touch, a real database restart.
+- **No automated viewer test:** the cause is mostly in the viewer, so the browser checks live in the scratchpad, not the repo. The only new repo tests cover the change count.
+
+**Paths:**
+- Worktree: `/home/viktor-trilar/Projects/Newbies/.claude/worktrees/agent-aef4b903dc16194fa`
+- Browser checks: `/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/scratchpad/route_fix/verify.py`
+- Bug comparison: `/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/scratchpad/route_fix/compare.py`
+
+All my test servers are stopped.</result>
+<usage><subagent_tokens>513824</subagent_tokens><tool_uses>297</tool_uses><duration_ms>5014171</duration_ms></usage>
+<worktree><worktreePath>/home/viktor-trilar/Projects/Newbies/.claude/worktrees/agent-aef4b903dc16194fa</worktreePath><worktreeBranch>worktree-agent-aef4b903dc16194fa</worktreeBranch></worktree>
+</task-notification>
+
+---
+
+Push and merge, we showed the project to the engineer and got some feedback. The viewer needs heavy optimization start bugfixing and improving the UI. Also the copilot will be named "Val" and it's functionality was heavily emphasized so let's work on that too.
+
+---
+
+Check ALL branches and resolve conflicts and merge them into main
+
+---
+
+The UI is "janky" so to speak and "clunky" make it more user friendly and simpler to use

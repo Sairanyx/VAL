@@ -79,7 +79,9 @@ export async function setupObjects({
   splat.edits = [hidden];
 
   async function loadPiece(object) {
-    const id = encodeURIComponent(object.asset.object_id);
+    // A copy shows its source's splats somewhere else, and the source stays in the scan.
+    const source = object.asset.duplicated_from;
+    const id = encodeURIComponent(source ?? object.asset.object_id);
     const response = await fetch(`/api/objects/${id}/home`);
     if (!response.ok) throw new Error(`Backend error ${response.status}`);
     const home = await response.json();
@@ -90,21 +92,40 @@ export async function setupObjects({
       piece.dispose();
       return;
     }
-    const low = new THREE.Vector3(...home.bbox_min);
-    const high = new THREE.Vector3(...home.bbox_max);
-    // Stop just above the floor, which stays. A box's bottom often sits above an object's base.
-    high.y = floorY - home.floor_margin;
-    const space = new SplatEditSdf({ type: SplatEditSdfType.BOX, opacity: 0 });
-    space.position.copy(low).add(high).multiplyScalar(0.5);
-    space.scale.copy(high).sub(low);
-    root.add(space);
-    hidden.addSdf(space);
-    piece.position.copy(object.center).sub(new THREE.Vector3(...home.center));
+    if (source) object.isCopy = true;
+    else {
+      const low = new THREE.Vector3(...home.bbox_min);
+      const high = new THREE.Vector3(...home.bbox_max);
+      // Stop just above the floor, which stays. A box's bottom often sits above an object's base.
+      high.y = floorY - home.floor_margin;
+      const space = new SplatEditSdf({ type: SplatEditSdfType.BOX, opacity: 0 });
+      space.position.copy(low).add(high).multiplyScalar(0.5);
+      space.scale.copy(high).sub(low);
+      root.add(space);
+      hidden.addSdf(space);
+      object.hiddenSpace = space;
+    }
+    object.pieceHome = new THREE.Vector3(...home.center);
     piece.visible = splat.visible;
     root.add(piece);
     pieces.push(piece);
     object.piece = piece;
-    object.hiddenSpace = space;
+    updateObjectVisuals(object, null);
+  }
+
+  // Objects made from one cut out in advance show its splats until they all have their own, as the
+  // scan has a hole there. Then it goes, or it would stay behind as a ghost.
+  async function retireInherited(object) {
+    for (const piece of object.inherited ?? []) {
+      if (piece.retiring) continue;
+      piece.retiring = true;
+      await Promise.all(piece.heirs.map(ensurePiece));
+      if (!piece.retiring) continue; // Undone in the meantime.
+      if (piece.heirs.every((heir) => heir.piece || heir.gone)) {
+        piece.dropped = true;
+        piece.visible = false;
+      } else piece.retiring = false;
+    }
   }
 
   // Waits for an object's real splats. If they can't be loaded, it moves as an outline instead.
@@ -114,28 +135,96 @@ export async function setupObjects({
       console.warn("Moving as an outline:", error.message);
       onMessage?.("Moving the outline only: the backend couldn't cut this object out of the scan");
     });
+    object.pieceLoading.then(() => retireInherited(object));
     return object.pieceLoading;
   }
 
-  // For an object that's gone, split, or combined: show the scan as it was there again.
-  function dropPiece(object) {
-    if (!object.piece) return;
-    if (!object.hiddenSpace) {
-      object.piece.visible = false; // Cut in advance: the scan has no splats to bring back.
-      return;
-    }
-    hidden.removeSdf(object.hiddenSpace);
-    root.remove(object.hiddenSpace);
+  function removePiece(object) {
     root.remove(object.piece);
     pieces.splice(pieces.indexOf(object.piece), 1);
     object.piece.dispose();
     object.piece = null;
-    object.hiddenSpace = null;
     object.pieceLoading = null;
   }
 
+  // For an object that's split or combined, or a copy that's gone: show the scan as it was again.
+  // `heirs` are the objects made from it.
+  function dropPiece(object, heirs = []) {
+    if (!object.piece) return;
+    if (!object.hiddenSpace && !object.isCopy) {
+      // Cut in advance, so the scan has no splats to bring back.
+      if (heirs.length) {
+        object.piece.heirs = heirs;
+        for (const heir of heirs) heir.inherited = [...(heir.inherited ?? []), object.piece];
+      } else {
+        object.piece.dropped = true;
+        object.piece.visible = false;
+      }
+      return;
+    }
+    if (object.hiddenSpace) {
+      hidden.removeSdf(object.hiddenSpace);
+      root.remove(object.hiddenSpace);
+      object.hiddenSpace = null;
+    }
+    removePiece(object);
+  }
+
+  // For a deleted object: its splats go too, and its space in the scan stays hidden until undone.
+  async function erase(object) {
+    await ensurePiece(object);
+    if (object.hiddenSpace) {
+      object.erasedSpace = object.hiddenSpace;
+      object.hiddenSpace = null;
+      removePiece(object);
+    } else dropPiece(object);
+    for (const piece of object.inherited ?? []) {
+      if (piece.heirs.every((heir) => heir === object || heir.gone)) {
+        piece.dropped = true;
+        piece.visible = false;
+      }
+    }
+  }
+
+  function unerase(object) {
+    if (!object.erasedSpace) return;
+    hidden.removeSdf(object.erasedSpace);
+    root.remove(object.erasedSpace);
+    object.erasedSpace = null;
+  }
+
+  function recordRemoval(object) {
+    state.changes.push({ op: "remove", object_id: object.asset.object_id });
+    onChange?.(state.changes);
+  }
+
+  // A copy looks like its source in every view, so it gets the source's fitted shape as well.
+  function addCopy(object) {
+    const sourceId = object.asset.duplicated_from;
+    const shape = shapes[sourceId];
+    const source = objects.find((candidate) => candidate.asset.object_id === sourceId);
+    if (shape?.use_shape && source) {
+      const mesh = makeMesh(shape);
+      group.add(mesh);
+      items.push({
+        object,
+        mesh,
+        home: mesh.position.clone(),
+        baseQuaternion: mesh.quaternion.clone(),
+        moved: object.center.clone().sub(new THREE.Vector3(...source.asset.center)),
+      });
+      object.shape = mesh;
+      placeAll();
+    }
+    return ensurePiece(object);
+  }
+
   function restorePiece(object) {
-    if (object.piece && !object.hiddenSpace) object.piece.visible = splat.visible;
+    if (object.piece && !object.hiddenSpace) {
+      object.piece.dropped = false;
+      object.piece.retiring = false;
+      object.piece.visible = splat.visible;
+    }
   }
 
   const roomCenter = new THREE.Vector3();
@@ -150,7 +239,7 @@ export async function setupObjects({
   function applyView() {
     const clean = state.view === "objects" || state.view === "bim";
     splat.visible = !clean;
-    for (const piece of pieces) piece.visible = splat.visible;
+    for (const piece of pieces) piece.visible = splat.visible && !piece.dropped;
     group.visible = state.view === "both" || state.view === "objects";
     lights.visible = state.view !== "scan";
     for (const item of items) {
@@ -285,7 +374,7 @@ export async function setupObjects({
     object.pick.rotation.y = object.yaw || 0;
 
     if (object.piece) {
-      const home = new THREE.Vector3(...object.asset.center);
+      const home = object.pieceHome ?? new THREE.Vector3(...object.asset.center);
       const yaw = object.yaw || 0;
       object.piece.quaternion.setFromAxisAngle(yAxis, yaw);
       const rotatedHome = home.clone().applyAxisAngle(yAxis, yaw);
@@ -512,6 +601,10 @@ export async function setupObjects({
   applyView();
   return {
     state,
+    erase,
+    unerase,
+    recordRemoval,
+    addCopy,
     setView,
     setApart,
     update,

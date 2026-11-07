@@ -13,7 +13,13 @@ OBJECT = {"object_id": "str"}
 
 ACTIONS: dict[str, dict[str, Any]] = {
     "select": {"args": OBJECT, "does": "Select an object and open its details"},
-    "close_panels": {"args": {}, "does": "Close the details and copilot windows"},
+    "close_panels": {"args": {}, "does": "Close the details and Val windows"},
+    "duplicate_object": {"args": OBJECT, "does": "Copy an object to a free spot beside it"},
+    "rename_object": {
+        "args": {"object_id": "str", "name": "str"},
+        "does": "Name an object with no record link",
+    },
+    "delete_object": {"args": OBJECT, "does": "Delete an object. Undo changes brings it back"},
     "route_to": {"args": OBJECT, "does": "Show a route to an object"},
     "go_to_fault": {"args": {}, "does": "Show a route to the faulty device"},
     "clear_route": {"args": {}, "does": "Remove the route"},
@@ -27,8 +33,8 @@ ACTIONS: dict[str, dict[str, Any]] = {
     "set_apart": {"args": {"on": "bool"}, "does": "Pull objects apart, or bring them together"},
     "set_bim": {"args": {"on": "bool"}, "does": "Show or leave the BIM model"},
     "reset_view": {"args": {}, "does": "Go back to the starting position"},
-    "open_copilot": {"args": {}, "does": "Open the copilot window"},
-    "ask_copilot": {"args": {"question": "str"}, "does": "Ask the copilot and show the answer"},
+    "open_copilot": {"args": {}, "does": "Open Val"},
+    "ask_copilot": {"args": {"question": "str"}, "does": "Ask Val and show the answer"},
     "move_object": {
         "args": {"object_id": "str", "position": "list"},
         "does": "Move an object, if the spot is free",

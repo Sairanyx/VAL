@@ -9,6 +9,7 @@ import { setupCommands } from "./commands.js";
 import { setupCopilot } from "./copilot.js";
 import { setupHighlight } from "./highlight.js";
 import { setupObjects } from "./objects.js";
+import { setupPacing } from "./pacing.js";
 import { setupPhone } from "./phone.js";
 import { setupPlan } from "./plan.js";
 import { setupWalkXR, xrSupported } from "./xr.js";
@@ -28,7 +29,11 @@ const TABLET_SPLATS = 500000;
 //   res     render resolution relative to the screen (default 1; 0.5 is about 4x fewer pixels)
 //   lod     1 = level of detail on: far-away areas use fewer, bigger splats (default 1)
 //   splats  how many splats LOD aims to draw per frame (default: Spark's choice for the device)
+//   adaptive  0 keeps the resolution fixed while moving (default 1)
+//   debug   1 shows the frame rate and object counts
 const params = new URLSearchParams(location.search);
+const DEBUG = params.has("debug");
+document.body.classList.toggle("debug", DEBUG);
 //   tablet  1 or 0 forces the touch layout and lighter defaults. Default: on for touch screens
 const TABLET = params.has("tablet")
   ? params.get("tablet") === "1"
@@ -37,15 +42,24 @@ document.body.classList.toggle("tablet", TABLET);
 const MAX_LABELS = TABLET ? 5 : 8;
 const RES = Number(params.get("res") ?? (TABLET ? TABLET_RES : 1));
 const LOD = params.get("lod") !== "0";
+const ADAPTIVE = params.get("adaptive") !== "0";
 const LOD_SPLATS = params.has("splats")
   ? Number(params.get("splats"))
   : TABLET
     ? TABLET_SPLATS
     : undefined;
-// Tablet mode also loads the light scene (every splat, base colour only, about 4x smaller) when
-// the server offers one. ?scene=full or ?scene=light overrides the choice on any device.
+// A separate graphics card can draw the full scene. Anything else draws much faster with the light
+// scene (every splat, base colour only, about 4x smaller), if the server offers one.
+function hasGraphicsCard() {
+  const gl = document.createElement("canvas").getContext("webgl2");
+  const info = gl?.getExtension("WEBGL_debug_renderer_info");
+  const name = info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : "";
+  return /nvidia|geforce|quadro|rtx|radeon rx|radeon pro|arc\b/i.test(name);
+}
+
+// ?scene=full or ?scene=light overrides the choice on any device.
 async function pickScene() {
-  const wanted = params.get("scene") ?? (TABLET ? "light" : "full");
+  const wanted = params.get("scene") ?? (TABLET || !hasGraphicsCard() ? "light" : "full");
   if (wanted === "light") {
     const head = await fetch("scene-light.ply", { method: "HEAD" }).catch(() => null);
     if (head?.ok) return { url: "scene-light.ply", label: "light" };
@@ -53,7 +67,6 @@ async function pickScene() {
   return { url: "scene.ply", label: "full" };
 }
 
-const PANEL_CONTROLS = "button, a, input, select, textarea, label, summary, form";
 const $ = (id) => document.getElementById(id);
 const canvas = $("view");
 
@@ -83,6 +96,20 @@ const phone = setupPhone({
 });
 const raycaster = new THREE.Raycaster();
 const objects = []; // { asset, box, pick, label, center, yaw, baseSize }
+const pacing = setupPacing({
+  renderer,
+  camera,
+  baseRes: RES,
+  adaptive: ADAPTIVE,
+  isBusy: () =>
+    phone.enabled ||
+    Boolean(objectLayer?.state.moving) ||
+    Boolean(adder?.state.active) ||
+    Boolean(route?.state.walking) ||
+    tracking.state.active,
+  isDragging: () => Boolean(objectLayer?.state.moving?.dragging),
+  isAnimated: () => Boolean(route?.state.route),
+});
 let walk = true;
 let eyeY = EYE_HEIGHT;
 let startPos = new THREE.Vector3(0, EYE_HEIGHT, 0);
@@ -128,7 +155,7 @@ const COLORS = { fault: 0xff4d4f, mapped: 0x38bdf8, plain: 0xd1d5db };
 // A link made by rule or by eye is a guess, so it reads as a question.
 function name(asset) {
   const link = asset.mapping;
-  if (!link) return asset.label;
+  if (!link) return asset.name || asset.label;
   const method = link.method ?? "";
   const guess = method.startsWith("procedural") || method.includes("unconfirmed");
   return guess ? `${link.tag}?` : link.tag;
@@ -198,6 +225,10 @@ async function showCondition(obj) {
   }
 }
 
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+}
+
 function showInfo(obj) {
   const a = obj.asset;
   const m = a.mapping;
@@ -209,15 +240,30 @@ function showInfo(obj) {
     ["Label confidence", a.label_grade ? undefined : a.label_confidence?.toFixed(2)],
     ["Mobility", a.mobility],
     ["Mobility reason", a.mobility_reason],
+    ["Name", a.name],
     ["Object", a.object_id],
     ["Tag", m?.tag ?? "not mapped"],
     ["Asset", m?.asset_id],
     ["Mapped by", m ? `${m.method}, confidence ${m.confidence}` : undefined],
   ].filter(([, v]) => v !== undefined);
+  const link = !m
+    ? "no record linked"
+    : name(a).endsWith("?")
+      ? "link to its record not confirmed"
+      : "linked to its record";
+  const urgent = kind(a) === "fault" ? "needs attention · " : "";
+  const origin = a.copied_name ? `copy of ${a.copied_name} · own ID ${a.object_id}` : link;
+  $("info-head").replaceChildren();
+  const title = document.createElement("h2");
+  title.textContent = name(a);
+  const note = document.createElement("p");
+  note.className = "sub";
+  note.textContent = `${a.label} · ${urgent}${origin}`;
+  $("info-head").append(title, note);
+  $("rename-object").hidden = Boolean(m);
+  $("rename-form").hidden = true;
   $("info-body").innerHTML =
-    `<h2>${name(a)}${kind(a) === "fault" ? " — fault" : ""}</h2><dl>` +
-    rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("") +
-    "</dl>";
+    "<dl>" + rows.map(([k, v]) => `<dt>${k}</dt><dd>${escapeHtml(v)}</dd>`).join("") + "</dl>";
   selected = obj;
   highlight.select(obj);
   bim?.selectObject(obj);
@@ -230,9 +276,13 @@ function showInfo(obj) {
   $("route-here").hidden = !route;
   $("split-object").hidden = !route || Boolean(m);
   $("combine-object").hidden = !route || Boolean(m);
+  $("info-fix").hidden = $("split-object").hidden;
+  $("delete-confirm").hidden = true;
   $("ask").hidden = false;
   showCondition(obj);
+  $("copilot").hidden = true;
   $("info").hidden = false;
+  copilot.refresh();
 }
 // A tap on the scene opens a window, and the browser then sends its own click to the same spot.
 // That click would land on the new window and close it at once (or press one of its buttons), so
@@ -240,8 +290,7 @@ function showInfo(obj) {
 const GHOST_CLICK_MS = 500;
 let lastSceneTap = 0;
 
-// On a tablet there's no close button: tapping a window anywhere except its controls closes it.
-function closeOnTap(panel, close) {
+function ignoreGhostClicks(panel) {
   panel.addEventListener(
     "click",
     (event) => {
@@ -252,14 +301,9 @@ function closeOnTap(panel, close) {
     },
     true, // capture: runs before the window's own buttons see the click
   );
-  panel.addEventListener("click", (event) => {
-    if (document.body.classList.contains("tablet") && !event.target.closest(PANEL_CONTROLS)) {
-      close.click();
-    }
-  });
 }
-closeOnTap($("info"), $("info-close"));
-closeOnTap($("copilot"), $("copilot-close"));
+ignoreGhostClicks($("info"));
+ignoreGhostClicks($("copilot"));
 $("info-close").onclick = () => {
   $("info").hidden = true;
   hideManipBar();
@@ -275,20 +319,97 @@ async function routeTo(obj) {
   $("follow").textContent = "Walk route";
   selected = obj;
   highlight.select(obj);
+  return found;
 }
 $("route-here").onclick = () => selected && routeTo(selected);
+$("duplicate-object").onclick = () => selected && duplicateObject(selected);
+$("delete-object").onclick = askToDelete;
+$("rename-object").onclick = () => {
+  $("rename-form").hidden = false;
+  $("rename-input").value = selected?.asset.name ?? "";
+  $("rename-input").focus();
+  $("rename-input").select();
+};
+$("rename-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (selected && $("rename-input").value.trim()) renameObject(selected, $("rename-input").value);
+});
+$("delete-cancel").onclick = () => ($("delete-confirm").hidden = true);
+$("delete-yes").onclick = () => selected && deleteObject(selected);
+function focusOn(object) {
+  selected = object;
+  highlight.select(object);
+  bim?.selectObject(object);
+}
+
+// Val's answers can point at objects, or ask for a route. Returns what went wrong, if anything.
+async function runValActions(actions) {
+  const find = (id) => objects.find((o) => o.asset.object_id === id && !o.gone);
+  let problem = null;
+  for (const action of actions) {
+    const object = find(action.object_id);
+    if (!object) continue;
+    if (action.type === "highlight") focusOn(object);
+    if (action.type === "navigate") {
+      const found = await routeTo(object);
+      if (!found) problem = `I couldn't plan the route: ${$("status").textContent}`;
+      else if (window.innerWidth < 700) $("copilot").hidden = true;
+    }
+  }
+  return problem;
+}
+
 const copilot = setupCopilot({
-  button: $("open-copilot"),
-  askButton: $("ask"),
   panel: $("copilot"),
   form: $("copilot-form"),
   input: $("copilot-input"),
-  answer: $("copilot-answer"),
+  messages: $("val-messages"),
+  suggestions: $("val-suggestions"),
+  context: $("val-context"),
   close: $("copilot-close"),
   speakButton: $("copilot-speak"),
-  getSelected: () => selected,
-  name,
+  getObject: () => selected,
+  clearObject: () => {
+    selected = null;
+    highlight.select(null);
+    bim?.selectObject(null);
+  },
+  nameOf: (object) => name(object.asset),
+  getFaultTag: () => faultTag,
+  onActions: runValActions,
 });
+$("open-copilot").onclick = () => {
+  $("info").hidden = true;
+  copilot.open();
+};
+$("ask").onclick = () => {
+  $("info").hidden = true;
+  const linked = selected?.asset.mapping;
+  copilot.open(linked ? "What's wrong with it, and what should I check first?" : "What is this?");
+};
+
+// The main buttons stay few. Everything else waits behind More.
+function showMenu(open) {
+  $("more-menu").hidden = !open;
+  $("more").setAttribute("aria-expanded", String(open));
+}
+$("more").onclick = () => showMenu($("more-menu").hidden);
+$("more-menu").addEventListener("click", (event) => {
+  const button = event.target.closest("button");
+  if (button && !("stay" in button.dataset)) showMenu(false);
+});
+canvas.addEventListener("pointerdown", () => showMenu(false));
+
+// Messages fade once they've been read, so they don't sit over the view. A warning stays.
+const STATUS_TIME = 6000;
+let statusTimer = null;
+new MutationObserver(() => {
+  $("hud").classList.remove("quiet");
+  clearTimeout(statusTimer);
+  statusTimer = setTimeout(() => {
+    if (!$("hud").classList.contains("blocked")) $("hud").classList.add("quiet");
+  }, STATUS_TIME);
+}).observe($("status"), { childList: true, characterData: true, subtree: true });
 
 const adder = setupAddObject({
   canvas,
@@ -315,12 +436,13 @@ const adder = setupAddObject({
   },
   onMessage: (message) => ($("status").textContent = message),
   onSplit: async (parent, parts) => {
-    hideObject(parent);
-    parent.splitAway = true;
-    for (const part of parts) {
+    const heirs = parts.map((part) => {
       addAsset(part);
       objects.at(-1).addedByOperator = true;
-    }
+      return objects.at(-1);
+    });
+    hideObject(parent, heirs);
+    parent.splitAway = true;
     selected = objects.at(-2);
     highlight.select(selected);
     const names = parts.map((part) => `${part.object_id} (${part.label})`).join(" and ");
@@ -332,13 +454,13 @@ const adder = setupAddObject({
     }
   },
   onCombine: async (first, other, combined) => {
-    for (const object of [first, other]) {
-      hideObject(object);
-      object.splitAway = true;
-    }
     addAsset(combined);
     selected = objects.at(-1);
     selected.addedByOperator = true;
+    for (const object of [first, other]) {
+      hideObject(object, [selected]);
+      object.splitAway = true;
+    }
     highlight.select(selected);
     const text = `Combined into ${combined.object_id} (${combined.label}), not confirmed`;
     $("status").textContent = text;
@@ -373,8 +495,8 @@ $("split-object").onclick = () => {
   adder.startSplit(selected);
 };
 
-function hideObject(object) {
-  objectLayer?.dropPiece(object);
+function hideObject(object, heirs) {
+  objectLayer?.dropPiece(object, heirs);
   object.gone = true;
   object.box.visible = false;
   object.pick.layers.disable(0);
@@ -383,19 +505,145 @@ function hideObject(object) {
 
 // Undo removes operator-added objects too, because the backend's reset forgets them.
 function removeAdded() {
+  // The backend's reset forgets names too, apart from what the scan's objects came with.
+  for (const object of objects) if (!object.addedByOperator) delete object.asset.name;
   for (const object of objects) {
     if (object.addedByOperator) {
       object.addedByOperator = false;
       hideObject(object);
-    } else if (object.splitAway) {
-      // The backend's reset brings back whatever was split.
+    }
+  }
+  // After that, as these may have been showing a piece the objects above inherited.
+  for (const object of objects) {
+    if (object.splitAway) {
+      // The backend's reset brings back whatever was split, combined or deleted.
       object.splitAway = false;
       object.gone = false;
       object.pick.layers.enable(0);
+      objectLayer?.unerase(object);
       objectLayer?.restorePiece(object);
     }
   }
 }
+
+function deselect() {
+  selected = null;
+  highlight.select(null);
+  bim?.selectObject(null);
+  $("info").hidden = true;
+  copilot.refresh();
+}
+
+// Delete asks first, in the panel. Undo changes brings an object back.
+async function renameObject(object, text) {
+  const response = await fetch("/api/changes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ op: "rename", object_id: object.asset.object_id, details: { name: text } }),
+  });
+  const reply = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    $("status").textContent = `Couldn't name it: ${reply.detail ?? `error ${response.status}`}`;
+    return { ok: false, message: reply.detail };
+  }
+  object.asset.name = text.trim();
+  bim?.rename(object);
+  if (selected === object) showInfo(object);
+  $("status").textContent = `Named ${object.asset.name}.`;
+  return { ok: true };
+}
+
+function askToDelete() {
+  if (!selected) return;
+  const tag = selected.asset.mapping?.tag;
+  $("delete-question").textContent = tag
+    ? `Delete ${name(selected.asset)} from the viewer? It's linked to the record for ${tag}.`
+    : `Delete this ${selected.asset.label} from the viewer?`;
+  $("delete-confirm").hidden = false;
+}
+
+async function deleteObject(object) {
+  const text = name(object.asset);
+  const routed = route?.state.target?.asset === object.asset;
+  await objectLayer.erase(object);
+  hideObject(object);
+  object.splitAway = !object.addedByOperator;
+  deselect();
+  if (routed) $("clear-route").click();
+  objectLayer.recordRemoval(object);
+  $("status").textContent = `Deleted ${text}. Undo changes in More brings it back.`;
+}
+
+// The first free spot beside an object, as a copy mustn't land on top of anything.
+async function freeSpotBeside(object) {
+  const { bbox_min: low, bbox_max: high } = object.asset;
+  const size = Math.max(Math.abs(high[0] - low[0]), Math.abs(high[2] - low[2]));
+  for (const reach of [1.2, 1.8, 2.6]) {
+    for (let step = 0; step < 8; step++) {
+      const angle = (step * Math.PI) / 4;
+      const spot = [
+        object.center.x + Math.cos(angle) * (size * reach + 0.1),
+        object.center.y,
+        object.center.z + Math.sin(angle) * (size * reach + 0.1),
+      ];
+      if ((await checkMove(object, spot, object.yaw || 0)).ok) return spot;
+    }
+  }
+  return null;
+}
+
+async function duplicateObject(object) {
+  $("status").textContent = `Copying ${name(object.asset)}...`;
+  const position = await freeSpotBeside(object);
+  if (!position) {
+    $("status").textContent = "There's no free spot beside it for a copy.";
+    return;
+  }
+  try {
+    const change = await fetch("/api/changes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ op: "duplicate", object_id: object.asset.object_id, position }),
+    }).then((response) => response.json());
+    const id = encodeURIComponent(change.parts[0]);
+    const asset = await fetch(`/api/assets/${id}`).then((response) => response.json());
+    addAsset(asset);
+  } catch (error) {
+    $("status").textContent = `Couldn't copy it: ${error.message}`;
+    return;
+  }
+  const copy = objects.at(-1);
+  copy.addedByOperator = true;
+  objectLayer.placeAt(copy, copy.asset.center, copy.asset.yaw ?? 0);
+  objectLayer.addCopy(copy);
+  showInfo(copy);
+  if (route?.state.target) await route.plan(route.state.target, route.state.start);
+  $("status").textContent = `Copied as ${name(copy.asset)}, with its own ID ${copy.asset.object_id}.`;
+}
+
+// Esc, or the back button on a phone: one step back, the most recent thing first.
+function goBack() {
+  if (!$("more-menu").hidden) showMenu(false);
+  else if (!$("rename-form").hidden) $("rename-form").hidden = true;
+  else if (!$("delete-confirm").hidden) $("delete-confirm").hidden = true;
+  else if (!$("add-panel").hidden || adder.state.active) $("add-cancel").click();
+  else if (objectLayer?.state.moving) $("manip-done").click();
+  else if (route?.state.walking) $("follow").click();
+  else if (!$("copilot").hidden) $("copilot-close").click();
+  else if (plan?.state.open) plan.close();
+  else if (selected || !$("info").hidden) deselect();
+  else return false;
+  return true;
+}
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") goBack();
+});
+// One spare history entry catches the back button. With nothing left to close, it leaves the page.
+history.pushState({ viewer: true }, "");
+window.addEventListener("popstate", () => {
+  if (goBack()) history.pushState({ viewer: true }, "");
+  else history.back();
+});
 $("go-fault").onclick = () => {
   const fault = objects.find((o) => kind(o.asset) === "fault");
   if (fault) routeTo(fault);
@@ -549,20 +797,43 @@ $("reset").onclick = () => {
 };
 
 const pos = new THREE.Vector3();
-function updateLabels() {
+// Choosing what to show looks at every object, so it runs a few times a second. Placing what's
+// shown runs every frame, as labels must stay on their objects.
+const CHOOSE_EVERY = 200; // milliseconds
+let lastChosen = 0;
+let shownLabels = [];
+
+function setLabel(object, text, visible) {
+  if (object.labelShown === visible && (!visible || object.labelText === text)) return;
+  object.labelShown = visible;
+  object.label.style.display = visible ? "block" : "none";
+  if (visible && object.labelText !== text) {
+    object.labelText = text;
+    object.label.textContent = text;
+  }
+}
+
+function placeLabels() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  for (const o of shownLabels) {
+    pos.copy(o.center).applyMatrix4(root.matrixWorld).project(camera);
+    const x = ((pos.x + 1) / 2) * w;
+    const y = ((-pos.y + 1) / 2) * h;
+    o.label.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
+  }
+}
+
+function chooseLabels() {
   const w = window.innerWidth;
   const h = window.innerHeight;
   const apart = objectLayer?.state.apart;
-  for (const o of objects) {
-    o.box.visible = false;
-    o.label.style.display = "none";
-  }
+  for (const o of objects) o.box.visible = false;
 
   const nearby = [];
   for (const o of objects) {
     if (o.gone) continue;
-    pos.copy(o.center);
-    root.localToWorld(pos);
+    pos.copy(o.center).applyMatrix4(root.matrixWorld);
     const dist = camera.position.distanceTo(pos);
     if (dist > range) continue;
     pos.project(camera);
@@ -593,35 +864,40 @@ function updateLabels() {
   }
   // A warning always shows, even past the limits or with boxes off.
   for (const o of objects) if (o.warning && !o.gone) o.box.visible = true;
-  for (const item of inView) {
+  const next = new Set();
+  inView.forEach((item, index) => {
     // Unconfirmed objects keep their frame, but don't crowd the view with a generic tag.
-    if (item.o.asset.status === "new, unconfirmed") continue;
-    if (inView.indexOf(item) >= MAX_LABELS && !item.pinned) continue;
-    const label = item.o.label;
-    label.textContent = name(item.o.asset);
-    label.style.left = `${item.x}px`;
-    label.style.top = `${item.y}px`;
-    label.style.display = "block";
-  }
+    if (item.o.asset.status === "new, unconfirmed") return;
+    if (index >= MAX_LABELS && !item.pinned) return;
+    next.add(item.o);
+  });
+  for (const o of objects) setLabel(o, name(o.asset), next.has(o));
+  shownLabels = [...next];
 }
 
 let lastTime = 0;
+let lastStep = 0;
 let frames = 0;
 let lastFps = performance.now();
 function animate(now) {
-  const dt = lastTime ? (now - lastTime) / 1000 : 0;
-  lastTime = now;
   const following = Boolean(route?.state.walking);
   const busy = objectLayer?.state.moving || adder.state.active || following;
   // Typing in the Plan screen's search box shouldn't walk the viewer around. While tracking, the
   // device's own movement moves the camera, so the other controls stay out.
   const tracked = tracking.state.active;
   if (!phone.enabled && !busy && !tracked && !plan?.state.open) controls.update(camera);
+  const stepTime = lastStep ? (now - lastStep) / 1000 : 0;
+  lastStep = now;
+  if (following && !tracked) route.update(stepTime);
+  else if (!tracked) phone.update(stepTime);
+  if (walk && !tracked) camera.position.y = eyeY;
+  if (!pacing.shouldDraw(now)) return;
+
+  const dt = lastTime ? (now - lastTime) / 1000 : 0;
+  lastTime = now;
   objectLayer?.update(dt);
   highlight.update();
   bim?.update();
-  if (following && !tracked) route.update(dt);
-  else if (!tracked) phone.update(dt);
   route?.animate(dt);
   if (!following && !adder.state.active) {
     const moving = objectLayer?.state.moving;
@@ -636,19 +912,26 @@ function animate(now) {
       walk,
     );
   }
-  $("follow").textContent = following ? "Stop" : "Walk route";
-  if (walk && !tracked) camera.position.y = eyeY;
+  const followText = following ? "Stop" : "Walk route";
+  if ($("follow").textContent !== followText) $("follow").textContent = followText;
   if (plan?.state.open) {
     plan.draw(); // The room is covered, so there's no need to draw it as well.
   } else {
     renderer.render(scene, camera);
     tracking.update();
-    updateLabels();
+    if (now - lastChosen > CHOOSE_EVERY) {
+      lastChosen = now;
+      chooseLabels();
+    }
+    placeLabels();
   }
+  pacing.drew(now);
   frames++;
-  if (now - lastFps > 1000) {
+  if (DEBUG && now - lastFps > 1000) {
     const fps = Math.round((frames * 1000) / (now - lastFps));
-    $("stats").textContent = `${fps} fps` + (phone.enabled ? ` · ${phone.steps} steps` : "");
+    $("stats").textContent =
+      `${fps} fps · sharpness ${pacing.stats.scale.toFixed(2)}` +
+      (phone.enabled ? ` · ${phone.steps} steps` : "");
     frames = 0;
     lastFps = now;
   }
@@ -674,10 +957,17 @@ async function syncWithBackend() {
   }
   let changed = 0;
   const present = new Set(current.map((asset) => asset.object_id));
+  const saved = await fetch("/api/changes")
+    .then((response) => response.json())
+    .catch(() => ({ changes: [] }));
+  const removedIds = new Set(
+    saved.changes.filter((change) => change.op === "remove").map((change) => change.object_id),
+  );
   for (const object of objects) {
     if (!present.has(object.asset.object_id)) {
       hideObject(object);
       object.splitAway = true;
+      if (removedIds.has(object.asset.object_id)) objectLayer.erase(object);
       changed += 1;
     }
   }
@@ -689,8 +979,10 @@ async function syncWithBackend() {
     if (!object) {
       addAsset(asset);
       objects.at(-1).addedByOperator = true;
+      if (asset.duplicated_from) objectLayer.addCopy(objects.at(-1));
       changed += 1;
     } else if (object !== dragged) {
+      object.asset.name = asset.name;
       const posDiff = object.center.distanceTo(new THREE.Vector3(...asset.center)) > 0.001;
       const yawDiff = Math.abs((object.yaw || 0) - (asset.yaw || 0)) > 0.001;
       if (posDiff || yawDiff) {
@@ -786,6 +1078,10 @@ function commandHandlers() {
     start_rotate: ({ object_id }) => open(object_id, "rotate"),
     finish_moving: press("manip-done"),
     undo_changes: press("reset-moves"),
+    duplicate_object: ({ object_id }) => duplicateObject(objects.find((o) => o.asset.object_id === object_id)),
+    rename_object: ({ object_id, name: text }) =>
+      renameObject(objects.find((o) => o.asset.object_id === object_id), text),
+    delete_object: ({ object_id }) => deleteObject(objects.find((o) => o.asset.object_id === object_id)),
     set_bim: ({ on }) => {
       if (!bim) throw new Error("No BIM model: run make bim");
       pressIf(bim.state.active !== on, "bim");
@@ -816,16 +1112,29 @@ async function load() {
   camera.position.copy(startPos);
 
   const sceneFile = await pickScene();
-  const splat = new SplatMesh({ url: sceneFile.url, lod: LOD });
+  const splat = new SplatMesh({
+    url: sceneFile.url,
+    lod: LOD,
+    onProgress: (event) => {
+      if (!event.total) return;
+      const done = Math.min(event.loaded / event.total, 1);
+      $("loading-bar").firstElementChild.style.width = `${Math.round(done * 100)}%`;
+      if (done === 1) $("loading-text").textContent = "Preparing the room...";
+    },
+  });
   root.add(splat);
   renderer.setAnimationLoop(animate);
   await splat.initialized;
+  $("loading").hidden = true;
   const count = splat.packedSplats?.numSplats || splat.splats?.numSplats; // 0 or missing with LOD
-  $("status").textContent =
-    `${data.assets.length} objects · ${sceneFile.label} scene · ` +
-    `${count ? `${count.toLocaleString()} splats · ` : ""}` +
-    `res ${RES}, LOD ${LOD ? "on" : "off"}${LOD_SPLATS ? ` (${LOD_SPLATS})` : ""} · ` +
-    "drag to look, WASD to move";
+  if (DEBUG) {
+    console.info(
+      `${data.assets.length} objects, ${sceneFile.label} scene, ${count ?? "?"} splats, res ${RES}, LOD ${LOD}`,
+    );
+  }
+  $("status").textContent = TABLET
+    ? "Tap a device to see it, or ask Val. Use the circle to walk."
+    : "Click a device to see it, or ask Val. Drag to look, WASD to move.";
 
   objectLayer = await setupObjects({
     root,
@@ -938,7 +1247,7 @@ async function load() {
   }
   await syncWithBackend();
   setupCommands(commandHandlers());
-  window.plantViewer = { objects, objectLayer, camera, route, copilot, showInfo, adder, bim, plan }; // For browser tests and debugging.
+  window.plantViewer = { objects, objectLayer, camera, route, copilot, showInfo, adder, bim, plan, pacing }; // For browser tests and debugging.
   if (params.has("camera")) {
     const [x, y, z, yaw, pitch] = params.get("camera").split(",").map(Number);
     camera.position.set(x, y, z);

@@ -42,6 +42,10 @@ canvas#view {
 }
 #status { font-weight: 600; }
 #stats, #in-view { color: var(--muted); font-size: 12px; }
+body:not(.debug) #stats { display: none; }
+#hud { transition: opacity 0.6s; }
+#hud:has(#status:empty) { display: none; }
+#hud.quiet { opacity: 0; }
 
 #crosshair {
   position: fixed;
@@ -65,7 +69,10 @@ canvas#view {
 }
 .label {
   position: absolute;
-  transform: translate(-50%, -100%);
+  top: 0;
+  left: 0;
+  will-change: transform;
+  display: none;
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 11px;
@@ -104,14 +111,13 @@ canvas#view {
   #joystick { display: none; }
 }
 
-/* Wraps upwards on narrow screens, so no button slides off the edge. */
 #buttons {
   position: fixed;
   left: 12px;
   right: 12px;
   bottom: 12px;
   display: flex;
-  flex-wrap: wrap-reverse;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
   pointer-events: none;
@@ -130,15 +136,132 @@ button {
   font: inherit;
 }
 
+button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #06222a;
+  font-weight: 600;
+}
+button.danger { color: #fca5a5; }
+button.danger-solid {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: #fff;
+  font-weight: 600;
+}
+#rename-form {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+#rename-form[hidden] { display: none; }
+#rename-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid #3a4652;
+  border-radius: 6px;
+  background: #0f1419;
+  color: #e5e7eb;
+  font-size: 16px;
+}
+#delete-confirm { margin: 6px 0; }
+#delete-confirm[hidden] { display: none; }
+#delete-confirm p { margin: 0 0 6px; font-size: 13px; }
+#more[aria-expanded="true"] {
+  border-color: var(--accent);
+}
+#more-menu {
+  position: fixed;
+  right: 12px;
+  bottom: 68px;
+  z-index: 6;
+  width: min(420px, calc(100vw - 24px));
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
+  padding: 10px 14px 14px;
+  border-radius: 8px;
+  background: rgba(17, 22, 28, 0.96);
+}
+#more-menu[hidden] { display: none; }
+#more-menu h3 {
+  margin: 8px 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.menu-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.menu-grid button {
+  text-align: left;
+}
+#view-mode {
+  text-transform: capitalize;
+}
+.menu-grid button[hidden] { display: none; }
+.menu-grid button[data-label]::before {
+  content: attr(data-label) ": ";
+  color: var(--muted);
+}
+#loading {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 7;
+  width: min(320px, calc(100vw - 48px));
+  padding: 16px 20px;
+  border-radius: 8px;
+  background: var(--panel);
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+#loading[hidden] { display: none; }
+#loading p { margin: 0 0 10px; font-weight: 600; }
+#loading-bar {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.15);
+}
+#loading-bar div {
+  width: 0;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s;
+}
+details summary {
+  min-height: 32px;
+  padding-top: 6px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.sub { margin: 0 0 8px; color: var(--muted); font-size: 13px; }
+
 #info {
   position: fixed;
   top: 12px;
   right: 12px;
-  width: min(300px, calc(100vw - 24px));
+  width: min(320px, calc(100vw - 24px));
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
   padding: 12px 14px;
-  border-radius: 6px;
-  background: var(--panel);
+  border-radius: 8px;
+  background: rgba(17, 22, 28, 0.94);
 }
+#info .action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+#info .action-row[hidden],
+#info-fix[hidden],
+#info button[hidden] { display: none; }
+#info .action-row button { flex: 1; }
 #info-close {
   position: absolute;
   top: 4px;
@@ -149,7 +272,7 @@ button {
   background: none;
   font-size: 20px;
 }
-#info h2 { margin: 0 0 6px; font-size: 16px; }
+#info h2 { margin: 0 32px 2px 0; font-size: 18px; }
 #info dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; }
 #info dt { color: var(--muted); }
 #info dd { margin: 0; }
@@ -157,10 +280,11 @@ button {
 #copilot {
   position: fixed;
   top: 12px;
-  left: 12px;
+  right: 12px;
+  bottom: 68px;
+  display: flex;
+  flex-direction: column;
   width: min(420px, calc(100vw - 24px));
-  max-height: calc(100vh - 90px);
-  overflow-y: auto;
   padding: 12px 14px;
   border-radius: 8px;
   background: rgba(17, 22, 28, 0.94);
@@ -171,14 +295,79 @@ button {
 #info[hidden] {
   display: none;
 }
-#copilot h2 {
-  margin: 0 0 8px;
-  font-size: 16px;
+#val-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: 36px;
 }
-#copilot h3 {
-  margin: 10px 0 2px;
+#val-head h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 18px;
+}
+#val-head button {
+  min-height: 32px;
+  font-size: 12px;
+}
+#val-context {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  color: var(--muted);
+  font-size: 12px;
+}
+#val-context .clear-context {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 15px;
+}
+#val-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.bubble {
+  margin: 8px 0;
+  padding: 8px 11px;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.bubble p { margin: 0; white-space: pre-line; }
+.bubble.you {
+  width: fit-content;
+  max-width: 85%;
+  margin-left: auto;
+  background: #164e63;
+}
+.bubble.val { background: rgba(255, 255, 255, 0.07); }
+.bubble.warning p:first-child { color: #fbbf24; }
+.bubble.thinking p { color: var(--muted); font-style: italic; }
+.bubble .rewording { margin-top: 6px; color: var(--muted); font-size: 12px; font-style: italic; }
+.bubble .plain-words { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.bubble .unsure { margin-top: 6px; color: #fbbf24; font-size: 13px; }
+.bubble .sources { margin-top: 6px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.bubble h4 { margin: 6px 0 2px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.bubble .note { margin-top: 6px; color: var(--muted); font-size: 12px; }
+#val-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0;
+}
+#val-suggestions .chip {
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 17px;
   font-size: 13px;
-  color: #9ca3af;
 }
 #copilot ul {
   margin: 4px 0 0 18px;
@@ -216,18 +405,8 @@ button {
   color: #e5e7eb;
   font-size: 16px;
 }
-#copilot-answer p {
-  margin: 8px 0;
-  font-size: 14px;
-  line-height: 1.4;
-}
-#copilot-answer .warning,
 #info-condition {
   color: #fbbf24;
-}
-#copilot-answer .note {
-  color: #9ca3af;
-  font-size: 12px;
 }
 #info-condition {
   margin: 8px 0;
@@ -385,11 +564,7 @@ button {
   font-size: 13px;
 }
 
-/* Lenovo tablet: fingers, not a mouse. Tapping a window closes it, so it has no close button. */
-.tablet #info-close,
-.tablet #copilot-close {
-  display: none;
-}
+/* Lenovo tablet: fingers, not a mouse. */
 .tablet button {
   min-height: 44px;
   min-width: 44px;
@@ -397,26 +572,16 @@ button {
 .tablet #view {
   touch-action: none;
 }
-/* Phones and tablets: the buttons become one row along the bottom that scrolls sideways, so none
-   fall off the screen, and the joystick sits just above it. */
+/* Phones and tablets: one row of buttons along the bottom, with the joystick just above it. */
 .tablet #buttons {
   left: 0;
   right: 0;
   bottom: 0;
-  flex-wrap: nowrap;
-  justify-content: flex-start;
-  overflow-x: auto;
   padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
   background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
   pointer-events: auto;
-  touch-action: pan-x;
-  scrollbar-width: none;
-}
-.tablet #buttons::-webkit-scrollbar {
-  display: none;
 }
 .tablet #buttons button {
-  flex: 0 0 auto;
   white-space: nowrap;
 }
 .tablet #joystick {

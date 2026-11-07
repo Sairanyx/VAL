@@ -236,7 +236,10 @@ def suggest_config(writer: Any, crop: Any, tags: list[str]) -> dict[str, Any]:
         "possible_tag": None,
     }
     if writer is not None and crop is not None:
-        reply = writer.look(crop, LOOK_PROMPT.format(labels=", ".join(LABELS)))
+        try:
+            reply = writer.look(crop, LOOK_PROMPT.format(labels=", ".join(LABELS)))
+        except OSError:  # A small laptop model may not see images, so the operator just chooses.
+            reply = ""
         answer = parse_answer(reply)
         if answer["label"] != "unknown":
             config["label"] = answer["label"]

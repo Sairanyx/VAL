@@ -4,9 +4,11 @@ import copy
 import json
 import math
 from pathlib import Path
+from typing import Any
 
 NEW_OBJECT_SIZE = 0.5
 GONE = {"removed", "split", "combined"}
+MAX_NAME_LENGTH = 40
 COMBINE_FIELDS = {"label", "label_source", "mobility", "mobility_reason"}
 OPERATOR_FIELDS = {
     "bbox_min",
@@ -139,11 +141,22 @@ class SceneStore:
             if asset is None or asset["status"] in GONE:
                 raise KeyError(object_id)
             parts = [self._combine(asset, details)]
+        elif op == "duplicate":
+            asset = self.assets.get(object_id or "")
+            if asset is None or asset["status"] in GONE:
+                raise KeyError(object_id)
+            parts = [self._duplicate(asset, position)]
+        elif op == "rename":
+            asset = self.assets.get(object_id or "")
+            if asset is None or asset["status"] in GONE:
+                raise KeyError(object_id)
+            self._rename(asset, (details or {}).get("name"))
         else:
             asset = self.assets.get(object_id or "")
             if asset is None or asset["status"] in GONE:
                 raise KeyError(object_id)
-            if asset["mobility"] != "movable":
+            # Anything can be deleted, as detection makes mistakes. Undo brings it back.
+            if op != "remove" and asset["mobility"] != "movable":
                 raise ChangeError(f"{object_id} is {asset['mobility']}, so it can't change")
             if op in ("move", "rotate"):
                 if position is not None:
@@ -209,6 +222,8 @@ class SceneStore:
 
     def _refuse_if_moved(self, asset: dict, action: str) -> None:
         # Its box no longer matches where its splats are in the scan.
+        if asset.get("duplicated_from"):
+            raise ChangeError(f"{asset['object_id']} is a copy, so it can't {action}")
         if self.has_moved(asset):
             raise ChangeError(f"{asset['object_id']} has been moved. Undo that, then {action} it")
 
@@ -244,6 +259,42 @@ class SceneStore:
             ids.append(object_id)
         parent["status"] = "split"
         return ids
+
+    def _duplicate(self, source: dict, position: list[float] | None) -> str:
+        """Copy an object to a new spot. A copy isn't the same device, so it has no record link."""
+        if position is None:
+            raise ChangeError("duplicate needs a position")
+        root = source.get("duplicated_from") or source["object_id"]
+        count = sum(a.get("duplicated_from") == root for a in self.assets.values()) + 1
+        object_id = f"{root}-copy{count}"
+        tag = (source.get("mapping") or {}).get("tag")
+        original = source.get("copied_name") or tag or source.get("name") or source.get("label")
+        asset = copy.deepcopy(source)
+        asset.update(
+            object_id=object_id,
+            mapping=None,
+            status="new, unconfirmed",
+            duplicated_from=root,
+            copied_name=original,
+            name=f"{original} copy {count}",
+        )
+        self._move(asset, position)
+        self._remember_home(asset)
+        self.assets[object_id] = asset
+        return object_id
+
+    def _rename(self, asset: dict, name: Any) -> None:
+        """Give an object a name to show. A name is a label, and never a link to a record."""
+        name = name.strip() if isinstance(name, str) else ""
+        if not name or len(name) > MAX_NAME_LENGTH:
+            raise ChangeError(f"A name needs 1 to {MAX_NAME_LENGTH} characters")
+        if asset.get("mapping"):
+            raise ChangeError(f"{asset['object_id']} is named by its record")
+        for other in self.assets.values():
+            tag = (other.get("mapping") or {}).get("tag")
+            if tag and tag.lower() == name.lower():
+                raise ChangeError(f"{tag} is a record's tag, so it can't name another object")
+        asset["name"] = name
 
     def _combine(self, first: dict, details: dict | None) -> str:
         """Replace two objects with one around both. Record links aren't merged or guessed."""

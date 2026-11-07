@@ -83,6 +83,8 @@ def asset_element(scene_id: str, asset: dict, shape: dict | None, mesh: dict | N
             "MobilityReason": asset.get("mobility_reason"),
             "IdentityConfirmed": identity_confirmed(mapping),
             "Status": asset.get("status"),
+            "OperatorName": asset.get("name"),
+            "CopiedFrom": asset.get("duplicated_from"),
         },
         "Valmet_Geometry": {
             "Source": f"scan surface mesh, {mesh['voxel'] * 100:.1f} cm voxels" if mesh else source,
@@ -102,7 +104,7 @@ def asset_element(scene_id: str, asset: dict, shape: dict | None, mesh: dict | N
         }
     tag = mapping.get("tag") if mapping else None
     unsure = tag and not identity_confirmed(mapping)
-    title = f"{tag}?" if unsure else tag or label
+    title = f"{tag}?" if unsure else tag or asset.get("name") or label
     return {
         "guid": ifc_guid(scene_id, asset["object_id"]),
         "object_id": asset["object_id"],

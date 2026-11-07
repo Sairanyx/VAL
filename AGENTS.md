@@ -86,7 +86,8 @@ their area.
 | `make fmt` | Auto-fix style |
 | `make scene` | Get objects, floor map, and light scenes: then `make mapping` |
 | `make pieces` | Cut movable objects out of the scene |
-| `make model` | Get the copilot's language model, before going offline |
+| `make laptop-model` | Get Val's small model, for a laptop with no GPU |
+| `make model` | Get Val's larger model, for a GPU, before going offline |
 | `make pipeline` | Run a scene through everything, from `scenes/*.toml` |
 | `make train` | Train a model |
 

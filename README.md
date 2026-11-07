@@ -34,7 +34,8 @@ Should end by printing your GPU name.
 | `make pieces` | Cut movable objects out of the scene, so dragging moves the real thing |
 | `make bim` | Build the simulated BIM model for BIM mode, and its IFC file |
 | `make pipeline` | Run a scene through everything, from `scenes/*.toml` |
-| `make model` | Download the copilot's language model (about 20 GB), before going offline |
+| `make laptop-model` | Get Val's small model for a laptop with no GPU, before going offline. Needs Ollama |
+| `make model` | Download Val's larger model for a GPU (about 20 GB), before going offline |
 | `make up` | Train inside Docker |
 
 ## Team workflow

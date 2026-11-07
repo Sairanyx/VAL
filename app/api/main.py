@@ -36,7 +36,7 @@ from app.api.select_object import (
 from app.api.store import GONE, ChangeError, SceneStore
 from app.bim.ifc import ifc_text
 from app.bim.model import build_model
-from app.copilot.llm import load_writer
+from app.copilot.llm import can_reword, load_writer, warm_up
 from app.nav.grid import NavGrid, load_grid
 from app.nav.route import BODIES, NoRoute, placeholder_route, plan_route
 from app.plan.export_dxf import write_dxf
@@ -63,7 +63,7 @@ class RouteRequest(BaseModel):
 
 
 class ChangeRequest(BaseModel):
-    op: Literal["add", "move", "rotate", "remove", "split", "combine"]
+    op: Literal["add", "move", "rotate", "remove", "split", "combine", "duplicate", "rename"]
     object_id: str | None = None
     position: Position | None = None
     yaw: float | None = None
@@ -100,6 +100,7 @@ class SelectionRequest(BaseModel):
 class CopilotRequest(BaseModel):
     question: str
     object_id: str | None = None
+    quick: bool = False  # answer at once from the records, without the language model
 
 
 def shifted_box(
@@ -165,12 +166,14 @@ def create_app(
 ) -> FastAPI:
     engine = engine or load_engine()
     writer = load_writer() if engine else None
+    if engine:
+        warm_up(engine, writer)
     database = database or open_database()
     store = SceneStore(Path(assets_path or os.getenv("SCENE_ASSETS", DEFAULT_ASSETS)), database)
     grid = grid or os.getenv("SCENE_GRID")
     if isinstance(grid, str | Path):
         grid = load_grid(Path(grid))
-    app = FastAPI(title="Field-service copilot API")
+    app = FastAPI(title="Val field-service API")
     # The viewer is served from another port on the local network.
     app.add_middleware(
         CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
@@ -304,10 +307,12 @@ def create_app(
         if request.object_id:
             require(request.object_id)
         if engine:
-            answer = ask(engine, store.visible(), request.question, request.object_id, writer)
-            return {**answer, "placeholder": False}
+            model = None if request.quick else writer
+            answer = ask(engine, store.visible(), request.question, request.object_id, model)
+            better = bool(request.quick and writer) and can_reword(engine, answer, request.question)
+            return {**answer, "placeholder": False, "can_reword": better}
         return {
-            "answer": "The copilot isn't connected yet.",
+            "answer": "Val isn't connected yet: the plant records aren't loaded.",
             "observations": [],
             "hypotheses": [],
             "citations": [],
@@ -483,10 +488,11 @@ def create_app(
         placed = {}
         for asset in store.visible():
             object_id = asset["object_id"]
-            if object_id in shapes:
-                shift = np.subtract(asset["center"], store.home_box(object_id)["center"])
-                center = np.add(shapes[object_id]["center"], shift).tolist()
-                placed[object_id] = {**shapes[object_id], "center": center}
+            source = asset.get("duplicated_from") or object_id
+            if source in shapes:
+                shift = np.subtract(asset["center"], store.home_box(source)["center"])
+                center = np.add(shapes[source]["center"], shift).tolist()
+                placed[object_id] = {**shapes[source], "center": center}
         return placed
 
     @app.get("/api/plan/model.ifc")

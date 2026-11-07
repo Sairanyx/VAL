@@ -264,19 +264,28 @@ def search_service_cases(
     return [asdict(c) for c in cases]
 
 
+COMMON_WORDS = {
+    "the", "and", "for", "are", "was", "were", "you", "your", "what", "when", "where", "which",
+    "who", "why", "how", "this", "that", "these", "those", "with", "from", "have", "has", "had",
+    "can", "could", "should", "would", "will", "does", "did", "not", "any", "all", "about", "there",
+    "here", "its", "it's", "what's", "tell", "show", "give", "need", "want", "please", "thanks",
+}  # fmt: skip
+
+
 def search_docs(
     store: DataStore, query: str = "", scope: str | None = None
 ) -> list[dict[str, Any]]:
     """Search knowledge and guidance documents."""
     docs = store.list_docs(scope=scope)
-    q_words = [w.lower() for w in query.split() if len(w) > 2]
-    if not q_words:
+    if not query.strip():
         return [asdict(d) for d in docs]
+    # Whole words only, or "hi" would match "this", and common words would match every document.
+    q_words = [w for w in re.findall(r"[a-z0-9-]{3,}", query.lower()) if w not in COMMON_WORDS]
 
     scored = []
     for d in docs:
-        text = (d.title + " " + d.content).lower()
-        score = sum(1 for w in q_words if w in text)
+        words = set(re.findall(r"[a-z0-9-]+", (d.title + " " + d.content).lower()))
+        score = sum(1 for w in q_words if w in words)
         if score > 0:
             scored.append((score, d))
     scored.sort(key=lambda s: s[0], reverse=True)

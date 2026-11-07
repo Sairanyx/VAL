@@ -62,6 +62,30 @@ class SceneStore:
         if self.database:
             self.database.clear_changes(self.scene_id)
 
+    def undo_last(self) -> dict | None:
+        """Take back the latest change, by replaying all the others onto the base scan.
+
+        Returns the change taken back, or None if there was nothing to undo.
+        """
+        if not self.changes:
+            return None
+        last = self.changes[-1]
+        kept = self.changes[:-1]
+        self._restore_base()
+        for change in kept:
+            self._apply(
+                change["op"],
+                change["object_id"],
+                change.get("position"),
+                change.get("details"),
+                yaw=change.get("yaw"),
+            )
+        if self.database:
+            self.database.clear_changes(self.scene_id)
+            self.unsaved = list(self.changes)
+            self.save_pending()
+        return last
+
     def _restore_base(self) -> None:
         self.assets = {a["object_id"]: copy.deepcopy(a) for a in self.scene["assets"]}
         for asset in self.assets.values():

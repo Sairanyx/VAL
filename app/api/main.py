@@ -504,6 +504,14 @@ def create_app(
         headers = {"Content-Disposition": 'attachment; filename="model.ifc"'}
         return Response(ifc_text(model), media_type="application/x-step", headers=headers)
 
+    @app.post("/api/changes/undo")
+    def undo() -> dict:
+        """Take back only the latest change. Reset takes back all of them."""
+        undone = store.undo_last()
+        if undone is None:
+            raise HTTPException(409, "Nothing to undo")
+        return {"undone": undone, "changes": store.changes}
+
     @app.post("/api/changes/reset")
     def reset() -> dict:
         store.reset()

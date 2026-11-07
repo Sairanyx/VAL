@@ -539,7 +539,7 @@ function deselect() {
   copilot.refresh();
 }
 
-// Delete asks first, in the panel. Undo changes brings an object back.
+// Delete asks first, in the panel. Undo (or Ctrl+Z) brings an object back.
 async function renameObject(object, text) {
   const response = await fetch("/api/changes", {
     method: "POST",
@@ -576,7 +576,7 @@ async function deleteObject(object) {
   deselect();
   if (routed) $("clear-route").click();
   objectLayer.recordRemoval(object);
-  $("status").textContent = `Deleted ${text}. Undo changes in More brings it back.`;
+  $("status").textContent = `Deleted ${text}. Undo (Ctrl+Z) brings it back.`;
 }
 
 // The first free spot beside an object, as a copy mustn't land on top of anything.
@@ -1045,6 +1045,14 @@ async function syncWithBackend() {
       objects.at(-1).addedByOperator = true;
       if (asset.duplicated_from) objectLayer.addCopy(objects.at(-1));
       changed += 1;
+    } else if (object.gone && object.splitAway) {
+      // Back again, such as after Undo took back a delete, split or combine.
+      object.splitAway = false;
+      object.gone = false;
+      object.pick.layers.enable(0);
+      objectLayer.unerase(object);
+      objectLayer.restorePiece(object);
+      changed += 1;
     } else if (object !== dragged) {
       object.asset.name = asset.name;
       const posDiff = object.center.distanceTo(new THREE.Vector3(...asset.center)) > 0.001;
@@ -1057,6 +1065,31 @@ async function syncWithBackend() {
     }
   }
   if (changed) $("status").textContent = `Restored ${changed} saved change(s) from the backend`;
+}
+
+// Take back the latest change: the backend replays the others, and the viewer catches up.
+async function undoLast() {
+  hideManipBar();
+  let reply;
+  try {
+    const response = await fetch("/api/changes/undo", { method: "POST" });
+    reply = await response.json();
+    if (!response.ok) throw new Error(reply.detail ?? `error ${response.status}`);
+  } catch (error) {
+    $("status").textContent = `Nothing undone: ${error.message}`;
+    return;
+  }
+  // The viewer keeps its own list of what it has sent; drop the change it just lost.
+  const sent = objectLayer.state.changes;
+  const last = sent.at(-1);
+  if (last && last.op === reply.undone.op && last.object_id === reply.undone.object_id) {
+    sent.pop();
+    route.state.posted = Math.min(route.state.posted, sent.length);
+  }
+  await syncWithBackend();
+  if (route.state.target) await route.plan(route.state.target, route.state.start);
+  const what = { remove: "delete", move: "move", rotate: "turn" }[reply.undone.op] ?? reply.undone.op;
+  $("status").textContent = `Undid the ${what} of ${reply.undone.object_id ?? "an object"}`;
 }
 
 // Ask the backend whether an object can stand here. Without a backend, nothing can be saved anyway.
@@ -1275,6 +1308,7 @@ async function load() {
     hideManipBar();
     objectLayer.resetMoves();
   };
+  $("undo-last").onclick = undoLast;
   bim = await setupBim({
     root,
     renderer,

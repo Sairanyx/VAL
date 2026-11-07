@@ -458,3 +458,26 @@ def test_a_copy_has_its_own_id_and_the_operator_can_name_it(tmp_path):
     assert rename(copy_id, "p-005") == 409  # A record's tag would look like that device.
     assert rename(copy_id, "   ") == 409
     assert rename("pump", "Something else") == 409  # Its record names it.
+
+
+def test_undo_takes_back_only_the_latest_change(client):
+    first = {"op": "move", "object_id": "near", "position": [2, 1, 0]}
+    second = {"op": "move", "object_id": "near", "position": [3, 1, 0]}
+    client.post("/api/changes", json=first)
+    client.post("/api/changes", json=second)
+
+    undone = client.post("/api/changes/undo").json()
+    assert undone["undone"]["position"] == [3, 1, 0]
+    assert [c["position"] for c in undone["changes"]] == [[2, 1, 0]]
+    assert client.get("/api/assets/near").json()["center"] == [2, 1, 0]
+
+    client.post("/api/changes/undo")
+    assert client.get("/api/assets/near").json()["center"] == [1, 1, 0]
+    assert client.post("/api/changes/undo").status_code == 409
+
+
+def test_undo_brings_back_a_deleted_object(client):
+    client.post("/api/changes", json={"op": "remove", "object_id": "near"})
+    assert "near" not in [a["object_id"] for a in client.get("/api/assets").json()["assets"]]
+    client.post("/api/changes/undo")
+    assert "near" in [a["object_id"] for a in client.get("/api/assets").json()["assets"]]

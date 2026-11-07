@@ -1,0 +1,20 @@
+Regarding adding objects, we should add an option to "split"  and tag an object since for example in the viewer the green chair is bound together with a small table next to it even though it should be 2 objects. Attaching screenshot, also we should have "less transparency" regarding bounding boxes (they should not overlap) so lets take the green chair for example theres a tank behind it but we shouldnt have it's box visible in the same place that there is already a box "in front of it"
+
+---
+
+There should also be a combine option, also an update from roihu - 
+
+<pasted_content id="7ac0">
+Dear Roihu users, 
+
+Because of a newly discovered security vulnerability, the login nodes and web interface of Roihu have been closed. 
+
+Jobs that started prior to the closing will keep running over the weekend. 
+
+More information will follow on Monday. 
+
+We are sorry for the inconvenience. 
+
+Best regards, 
+CSC computing services
+</pasted_content id="7ac0">

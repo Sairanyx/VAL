@@ -3,6 +3,7 @@
 // both served by web/serve.py.
 import * as THREE from "three";
 import { SparkControls, SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
+import { setupCopilot } from "./copilot.js";
 import { setupObjects } from "./objects.js";
 import { setupPhone } from "./phone.js";
 import { setupRoute } from "./route.js";
@@ -103,6 +104,27 @@ function addAsset(asset) {
   objects.push({ asset, box, pick, label, volume, center: new THREE.Vector3(...asset.center) });
 }
 
+// Live condition from the backend, for objects linked to an Excel record.
+async function showCondition(obj) {
+  $("info-condition").replaceChildren();
+  if (!obj.asset.mapping) return;
+  try {
+    const response = await fetch(`/api/assets/${encodeURIComponent(obj.asset.object_id)}`);
+    if (!response.ok || selected !== obj) return;
+    const condition = (await response.json()).condition;
+    if (!condition) return;
+    const text = [
+      condition.issue_summary,
+      `health ${condition.health_score}`,
+      `urgency ${condition.urgency}`,
+      condition.recommended_next_check && `next: ${condition.recommended_next_check}`,
+    ].filter(Boolean);
+    $("info-condition").textContent = text.join(" · ");
+  } catch {
+    // Without a backend, the panel still shows what the scene files know.
+  }
+}
+
 function showInfo(obj) {
   const a = obj.asset;
   const m = a.mapping;
@@ -126,6 +148,8 @@ function showInfo(obj) {
   selected = obj;
   $("move").hidden = a.mobility !== "movable" || !objectLayer;
   $("route-here").hidden = !route;
+  $("ask").hidden = false;
+  showCondition(obj);
   $("info").hidden = false;
 }
 $("info-close").onclick = () => ($("info").hidden = true);
@@ -140,6 +164,20 @@ async function routeTo(obj) {
   selected = obj;
 }
 $("route-here").onclick = () => selected && routeTo(selected);
+const copilot = setupCopilot({
+  panel: $("copilot"),
+  form: $("copilot-form"),
+  input: $("copilot-input"),
+  answer: $("copilot-answer"),
+  close: $("copilot-close"),
+  getObject: () => selected,
+});
+$("ask").onclick = () => {
+  $("info").hidden = true;
+  const about = selected ? name(selected.asset) : "this";
+  copilot.open(`Why is ${about} flagged, and what should I check first?`);
+};
+$("open-copilot").onclick = () => copilot.open();
 $("go-fault").onclick = () => {
   const fault = objects.find((o) => kind(o.asset) === "fault");
   if (fault) routeTo(fault);
@@ -330,7 +368,7 @@ async function load() {
     objectLayer.setApart(true);
     $("apart").textContent = "Together";
   }
-  window.plantViewer = { objects, objectLayer, camera, route }; // For browser tests and debugging.
+  window.plantViewer = { objects, objectLayer, camera, route, copilot, showInfo }; // For browser tests and debugging.
   if (params.has("camera")) {
     const [x, y, z, yaw, pitch] = params.get("camera").split(",").map(Number);
     camera.position.set(x, y, z);

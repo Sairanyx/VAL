@@ -689,6 +689,8 @@ window.addEventListener("keydown", (event) => {
   else if (key === "r" && !$("manip-bar").hidden) handled = press("manip-mode-rotate");
   else if (key === "c" && selected) handled = press("duplicate-object");
   else if (key === "n" && selected) handled = press("rename-object");
+  else if (key === "pageup" && !$("manip-bar").hidden) handled = press("manip-raise");
+  else if (key === "pagedown" && !$("manip-bar").hidden) handled = press("manip-lower");
   else if (key === "f") handled = press("mode");
   else if (key === "g") handled = press("go-fault");
   if (handled) event.preventDefault();
@@ -753,6 +755,19 @@ $("move").onclick = () => {
     showManipBar("move");
   }
 };
+// Height: 10 cm a press. The object being moved, or the selected one.
+const RAISE_STEP = 0.1;
+async function raiseObject(metres) {
+  const object = objectLayer?.state.moving?.object ?? selected;
+  if (!object) return;
+  const result = await objectLayer.raise(object, metres);
+  $("status").textContent = result.ok
+    ? `${name(object.asset)} ${metres > 0 ? "raised" : "lowered"} ${Math.abs(metres) * 100} cm`
+    : result.message;
+}
+$("manip-raise").onclick = () => raiseObject(RAISE_STEP);
+$("manip-lower").onclick = () => raiseObject(-RAISE_STEP);
+
 $("manip-mode-move").onclick = () => {
   objectLayer?.setMode("move");
   showManipBar("move");

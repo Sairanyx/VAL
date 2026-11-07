@@ -499,3 +499,11 @@ def test_removing_only_the_info_keeps_a_movable_object_in_the_way(tmp_path):
     client.post("/api/changes/undo")
     client.post("/api/changes", json={"op": "remove", "object_id": "bucket"})
     assert client.post("/api/route", json=request).status_code == 200  # really gone
+
+
+def test_raising_an_object_moves_its_whole_box_up(client):
+    raised = {"op": "move", "object_id": "near", "position": [1, 0.5, 0]}  # +y is down: 0.5 m up
+    assert client.post("/api/changes", json=raised).status_code == 200
+    asset = client.get("/api/assets/near").json()
+    assert asset["center"] == [1, 0.5, 0]
+    assert asset["bbox_min"][1] == 0.0 and asset["bbox_max"][1] == 1.0

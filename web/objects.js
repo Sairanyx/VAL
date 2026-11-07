@@ -585,6 +585,19 @@ export async function setupObjects({
     return { ok: true, message: "" };
   }
 
+  // Raise (+) or lower (-) an object by `metres`, never below the floor. Dragging keeps the height.
+  // The scan's +y points down, so raising lowers y. Checked and saved like any move.
+  async function raise(object, metres) {
+    const offset = object.center.y - object.asset.center[1];
+    const bottom = object.asset.bbox_max[1] + offset; // the lowest point, as +y is down
+    const room = bottom - floorY; // negative while above the floor
+    const step = metres > 0 ? metres : Math.max(metres, room);
+    if (Math.abs(step) < 0.005) return { ok: false, message: "It's already on the floor" };
+    const center = object.center.clone();
+    center.y -= step;
+    return moveTo(object, center.toArray(), object.yaw || 0);
+  }
+
   function resetMoves() {
     for (const object of objects) {
       const item = items.find((candidate) => candidate.object === object);
@@ -618,6 +631,7 @@ export async function setupObjects({
     finishManipulation,
     resetMoves,
     moveTo,
+    raise,
     placeAt,
     ensurePiece,
     dropPiece,

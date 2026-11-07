@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.13.1",
+  "checkpoint_id": "01M6V51B7Y3RPGM95KA1SY66P7",
+  "strategy": "manual-commit",
+  "branch": "viktor/merge-all",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "handoffs/benjamin-sundell.md",
+    "web/main.js",
+    "web/style.css"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2,
+    "cache_creation_tokens": 1505,
+    "cache_read_tokens": 412784,
+    "output_tokens": 1094,
+    "api_call_count": 1
+  },
+  "redaction": {
+    "replacements": 187,
+    "layers": {
+      "betterleaks": 21,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 18,
+      "credentialed_uri": 4,
+      "entropy": 22,
+      "key_context": 140,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

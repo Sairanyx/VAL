@@ -3,7 +3,8 @@
     python -m app.extract.label_objects ASSETS.json MASKS_DIR OUT.jsonl --model PATH --views 3
 
 MASKS_DIR holds images/, object_mask/ and object_mask_json/. Each object in ASSETS.json lists its
-largest masks in `source_masks`. `--only-ids` limits a run to a benchmark set.
+largest masks in `source_masks`. `--only-ids` limits a run to a benchmark set. `--crops-dir` uses
+crops from `app.extract.frame_crops` where an object has them, falling back to its masks otherwise.
 """
 
 import argparse
@@ -60,6 +61,14 @@ def object_crops(
     return crops
 
 
+def saved_crops(object_id: str, crops_dir: Path | None, views: int) -> list[Image.Image]:
+    """Return an object's saved crops, best first, or nothing if it has none."""
+    if crops_dir is None:
+        return []
+    paths = sorted(crops_dir.glob(f"{object_id}_*.jpg"))[:views]
+    return [Image.open(path).convert("RGB") for path in paths]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("assets", type=Path)
@@ -68,6 +77,7 @@ def main() -> None:
     parser.add_argument("--model", required=True)
     parser.add_argument("--views", type=int, default=3)
     parser.add_argument("--only-ids", type=Path, help="JSON list of object IDs to label")
+    parser.add_argument("--crops-dir", type=Path, help="real-frame crops, named OBJECT_RANK.jpg")
     args = parser.parse_args()
 
     assets = json.loads(args.assets.read_text())["assets"]
@@ -84,7 +94,9 @@ def main() -> None:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with args.out.open("w") as file:
         for asset in assets:
-            crops = object_crops(asset, args.masks_dir, args.views)
+            crops = saved_crops(asset["object_id"], args.crops_dir, args.views)
+            source = "frames" if crops else "renders"
+            crops = crops or object_crops(asset, args.masks_dir, args.views)
             if not crops:
                 continue
             prompt = PROMPT.format(count=len(crops))
@@ -95,6 +107,7 @@ def main() -> None:
                 "sam_label": asset["label"],
                 **answer,
                 "views_used": len(crops),
+                "crop_source": source,
                 "raw": reply[:300],
             }
             file.write(json.dumps(record) + "\n")

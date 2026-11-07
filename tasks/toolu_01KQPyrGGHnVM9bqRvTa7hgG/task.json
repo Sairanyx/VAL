@@ -1,0 +1,7 @@
+{
+  "tool_use_id": "toolu_01KQPyrGGHnVM9bqRvTa7hgG",
+  "agent_id": "aef4b903dc16194fa",
+  "subagent_type": "fork",
+  "task_description": "Fix routes ignoring moved objects",
+  "started_at": "2026-11-07T14:19:37.874563991+02:00"
+}

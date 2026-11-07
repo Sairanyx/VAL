@@ -1,0 +1,50 @@
+{
+  "cli_version": "0.13.1",
+  "checkpoint_id": "01M6V0TC27H0KEZEFQ0W4B4HB3",
+  "strategy": "manual-commit",
+  "branch": "viktor/bim-model-fixes",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "Makefile",
+    "app/extract/primitives.py",
+    "docs/RESULTS.md",
+    "tests/test_primitives.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 18,
+    "cache_creation_tokens": 56710,
+    "cache_read_tokens": 2037023,
+    "output_tokens": 35175,
+    "api_call_count": 9,
+    "subagent_tokens": {
+      "input_tokens": 34,
+      "cache_creation_tokens": 132519,
+      "cache_read_tokens": 4759446,
+      "output_tokens": 86159,
+      "api_call_count": 17
+    }
+  },
+  "redaction": {
+    "replacements": 185,
+    "layers": {
+      "betterleaks": 21,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 18,
+      "credentialed_uri": 4,
+      "entropy": 22,
+      "key_context": 138,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

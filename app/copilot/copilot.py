@@ -11,6 +11,7 @@ Enforces:
 from __future__ import annotations
 
 import logging
+import os
 import re
 from dataclasses import asdict, dataclass, field
 from typing import Any
@@ -94,6 +95,7 @@ class CopilotEngine:
         store: DataStore | None = None,
         sample_assets: list[dict[str, Any]] | None = None,
         mapping: dict[str, dict[str, Any]] | None = None,
+        fault_tag: str | None = None,
     ) -> None:
         self.store = store or DataStore.load()
         self.sample_assets = (
@@ -104,6 +106,8 @@ class CopilotEngine:
         self.mapping = mapping if mapping is not None else load_mapping("fixtures/mapping.json")
         self.focused_asset_tag: str | None = None
         self.focused_object_id: str | None = None
+        # The device to talk about when a question names none. Each site chooses its own.
+        self.fault_tag = fault_tag or os.getenv("COPILOT_FAULT_TAG", "P-005")
 
     def set_focus(self, tag_or_object_id: str) -> None:
         """Set the active equipment focus (e.g. when user taps a 3D box)."""
@@ -273,7 +277,7 @@ class CopilotEngine:
     def _handle_navigation(self, target_tag: str | None, question: str) -> CopilotResponse:
         """Handle location and pathfinding requests."""
         if not target_tag:
-            target_tag = "P-005"
+            target_tag = self.fault_tag
 
         matches = find_assets(target_tag, self.store, self.sample_assets, self.mapping)
         if not matches:
@@ -331,7 +335,7 @@ class CopilotEngine:
     def _handle_diagnosis(self, tag: str | None) -> CopilotResponse:
         """Handle diagnosis and current condition queries (enforcing DOC-RAG-GUIDE)."""
         if not tag:
-            tag = "P-005"
+            tag = self.fault_tag
 
         status = get_status(tag, self.store, self.mapping)
         if not status:
@@ -427,7 +431,7 @@ class CopilotEngine:
     def _handle_maintenance(self, tag: str | None) -> CopilotResponse:
         """Handle maintenance history inquiries with work order citations."""
         if not tag:
-            tag = "P-005"
+            tag = self.fault_tag
 
         history = get_maintenance_history(tag, self.store, limit=5)
         if not history:
@@ -480,7 +484,7 @@ class CopilotEngine:
     def _handle_next_steps(self, tag: str | None) -> CopilotResponse:
         """Handle check recommendation requests citing Knowledge_Docs and safety."""
         if not tag:
-            tag = "P-005"
+            tag = self.fault_tag
 
         status = get_status(tag, self.store, self.mapping)
         asset_class = status["asset_class"] if status else None

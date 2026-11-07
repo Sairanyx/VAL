@@ -9,7 +9,7 @@ import { setupObjects } from "./objects.js";
 import { setupPhone } from "./phone.js";
 import { setupRoute } from "./route.js";
 
-const FAULT_TAG = "P-005"; // the pre-chosen faulty device (docs/PLAN.md)
+let faultTag = "P-005"; // the pre-chosen faulty device, unless the scene's file names another
 const EYE_HEIGHT = 1.6; // metres above the floor in walk mode (scene units look close to metres)
 const RANGES = [2, 3, 5, 10]; // metres the Range button cycles through, for frames and labels
 const MAX_LABELS = 8;
@@ -35,10 +35,10 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(70, 1, 0.05, 200);
 scene.add(new SparkRenderer({ renderer, lodSplatCount: LOD_SPLATS }));
 
-// The scene's +y points down. Turn it upright once here, and put everything in scene
-// coordinates inside `root`, so file coordinates can be used as they are.
+// Turn the scene upright once here, and put everything in scene coordinates inside `root`, so
+// file coordinates can be used as they are. Scenes name their up direction in the assets file.
 const root = new THREE.Group();
-root.rotation.x = Math.PI;
+root.rotation.x = Math.PI; // Equipment Room's +y points down, the default until the file loads.
 scene.add(root);
 
 const controls = new SparkControls({ canvas });
@@ -70,7 +70,7 @@ window.addEventListener("resize", resize);
 resize();
 
 function kind(asset) {
-  if (asset.mapping?.tag === FAULT_TAG) return "fault";
+  if (asset.mapping?.tag === faultTag) return "fault";
   return asset.mapping ? "mapped" : "plain";
 }
 const COLORS = { fault: 0xff4d4f, mapped: 0x38bdf8, plain: 0xd1d5db };
@@ -233,7 +233,7 @@ function removeAdded() {
 $("go-fault").onclick = () => {
   const fault = objects.find((o) => kind(o.asset) === "fault");
   if (fault) routeTo(fault);
-  else $("status").textContent = `No object is mapped to ${FAULT_TAG}`;
+  else $("status").textContent = `No object is mapped to ${faultTag}`;
 };
 $("profile").onclick = async () => {
   const next = route.state.profile === "person" ? "robot" : "person";
@@ -377,6 +377,13 @@ function animate(now) {
 
 async function load() {
   const data = await (await fetch("assets.json")).json();
+  faultTag = data.fault_tag ?? faultTag;
+  $("go-fault").textContent = `Go to ${faultTag}`;
+  if (data.up) {
+    const up = new THREE.Vector3(...data.up).normalize();
+    root.quaternion.setFromUnitVectors(up, new THREE.Vector3(0, 1, 0));
+    root.updateMatrixWorld(true);
+  }
   data.assets.forEach(addAsset);
 
   // Floor and start are in scene coordinates; convert to the upright world.

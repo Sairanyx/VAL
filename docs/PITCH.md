@@ -8,8 +8,10 @@ measured numbers from `docs/RESULTS.md`.
 2. **Solution:** turn a scan into a navigable digital twin, on a tablet, running entirely on site.
 3. **Live demo:** tap an object, navigate to `P-005`, see nearby assets, get a cited diagnosis. Keep a
    recorded backup ready.
-4. **3D semantic extraction:** how a splat becomes framed, labelled assets, and how many.
-5. **Pathfinding:** floor, obstacles, and a route that doesn't pass through anything.
+4. **3D semantic extraction:** how a splat becomes framed, labelled assets, and how many. Show the count
+   with the precision sample, not the count alone.
+5. **Pathfinding:** floor, obstacles, and a route that doesn't pass through anything. Show the route check
+   and the live detour when the roll cage moves.
 6. **Metadata mapping:** how Excel records attach to objects, with confidence and no invented IDs.
 7. **AI approach:** local copilot with citations, confidence, and safe next steps, not autonomous
    action.

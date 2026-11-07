@@ -62,8 +62,8 @@ was mapped and with what confidence).
 
 ## Scene input rule
 The brief names Valmet's PLY as the input, but we have confirmation (reported by Viktor, 2026-11-06)
-that we may use our own splat. Use it only if it beats `Equipment Room.ply`, and state which scene
-the demo uses in the technical note.
+that we may use our own splat. We compared them and the demo uses the uncleaned `Equipment Room.ply`,
+so say that in the technical note.
 
 ## Known data problems (as of 2026-11-06)
 - **`Industrial Boiler Room (1).ply` is damaged.** 67% of its records look like random bytes.

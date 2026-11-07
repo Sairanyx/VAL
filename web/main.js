@@ -13,6 +13,7 @@ import { THIN_LABELS, pickFront } from "./pick.js";
 import { setupObjects } from "./objects.js";
 import { setupPacing } from "./pacing.js";
 import { setupPhone } from "./phone.js";
+import { setupObjectList } from "./objectlist.js";
 import { setupPlan } from "./plan.js";
 import { setupWalkable } from "./walkable.js";
 import { setupWalkXR, xrSupported } from "./xr.js";
@@ -128,6 +129,7 @@ let objectLayer = null;
 let bim = null;
 let route = null;
 let plan = null;
+let objectList = null;
 let selected = null;
 let boxesOn = true;
 let range = Number(params.get("range") ?? 3);
@@ -661,6 +663,7 @@ function goBack() {
   else if (route?.state.walking) $("follow").click();
   else if (!$("copilot").hidden) $("copilot-close").click();
   else if (plan?.state.open) plan.close();
+  else if (objectList?.state.open) objectList.close();
   else if (selected || !$("info").hidden) deselect();
   else return false;
   return true;
@@ -697,6 +700,7 @@ window.addEventListener("keydown", (event) => {
   else if (key === "pagedown" && !$("manip-bar").hidden) handled = press("manip-lower");
   else if (key === "f") handled = press("mode");
   else if (key === "g") handled = press("go-fault");
+  else if (key === "l") handled = press("open-list");
   if (handled) event.preventDefault();
 });
 // One spare history entry catches the back button. With nothing left to close, it leaves the page.
@@ -1384,6 +1388,19 @@ async function load() {
     onSelect: showInfo,
   });
   $("open-plan").onclick = () => plan.open();
+  objectList = setupObjectList({
+    panel: $("object-list"),
+    list: $("object-rows"),
+    search: $("object-search"),
+    sort: $("object-sort"),
+    unlinked: $("object-unlinked"),
+    count: $("object-count"),
+    objects,
+    nameOf: (object) => name(object.asset),
+    onSelect: (object) => showInfo(object),
+  });
+  $("open-list").onclick = () => objectList.toggle();
+  $("object-list-close").onclick = () => objectList.close();
   $("plan-close").onclick = () => plan.close();
   // These work in the 3D view, so the Plan screen makes way for them.
   for (const id of ["move", "split-object", "combine-object"]) {

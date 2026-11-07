@@ -155,7 +155,7 @@ const COLORS = { fault: 0xff4d4f, mapped: 0x38bdf8, plain: 0xd1d5db };
 // A link made by rule or by eye is a guess, so it reads as a question.
 function name(asset) {
   const link = asset.mapping;
-  if (!link) return asset.label;
+  if (!link) return asset.name || asset.label;
   const method = link.method ?? "";
   const guess = method.startsWith("procedural") || method.includes("unconfirmed");
   return guess ? `${link.tag}?` : link.tag;
@@ -225,6 +225,10 @@ async function showCondition(obj) {
   }
 }
 
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+}
+
 function showInfo(obj) {
   const a = obj.asset;
   const m = a.mapping;
@@ -236,6 +240,7 @@ function showInfo(obj) {
     ["Label confidence", a.label_grade ? undefined : a.label_confidence?.toFixed(2)],
     ["Mobility", a.mobility],
     ["Mobility reason", a.mobility_reason],
+    ["Name", a.name],
     ["Object", a.object_id],
     ["Tag", m?.tag ?? "not mapped"],
     ["Asset", m?.asset_id],
@@ -247,9 +252,18 @@ function showInfo(obj) {
       ? "link to its record not confirmed"
       : "linked to its record";
   const urgent = kind(a) === "fault" ? "needs attention · " : "";
-  $("info-head").innerHTML = `<h2>${name(a)}</h2><p class="sub">${a.label} · ${urgent}${link}</p>`;
+  const origin = a.copied_name ? `copy of ${a.copied_name} · own ID ${a.object_id}` : link;
+  $("info-head").replaceChildren();
+  const title = document.createElement("h2");
+  title.textContent = name(a);
+  const note = document.createElement("p");
+  note.className = "sub";
+  note.textContent = `${a.label} · ${urgent}${origin}`;
+  $("info-head").append(title, note);
+  $("rename-object").hidden = Boolean(m);
+  $("rename-form").hidden = true;
   $("info-body").innerHTML =
-    "<dl>" + rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("") + "</dl>";
+    "<dl>" + rows.map(([k, v]) => `<dt>${k}</dt><dd>${escapeHtml(v)}</dd>`).join("") + "</dl>";
   selected = obj;
   highlight.select(obj);
   bim?.selectObject(obj);
@@ -310,6 +324,16 @@ async function routeTo(obj) {
 $("route-here").onclick = () => selected && routeTo(selected);
 $("duplicate-object").onclick = () => selected && duplicateObject(selected);
 $("delete-object").onclick = askToDelete;
+$("rename-object").onclick = () => {
+  $("rename-form").hidden = false;
+  $("rename-input").value = selected?.asset.name ?? "";
+  $("rename-input").focus();
+  $("rename-input").select();
+};
+$("rename-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (selected && $("rename-input").value.trim()) renameObject(selected, $("rename-input").value);
+});
 $("delete-cancel").onclick = () => ($("delete-confirm").hidden = true);
 $("delete-yes").onclick = () => selected && deleteObject(selected);
 function focusOn(object) {
@@ -481,6 +505,8 @@ function hideObject(object, heirs) {
 
 // Undo removes operator-added objects too, because the backend's reset forgets them.
 function removeAdded() {
+  // The backend's reset forgets names too, apart from what the scan's objects came with.
+  for (const object of objects) if (!object.addedByOperator) delete object.asset.name;
   for (const object of objects) {
     if (object.addedByOperator) {
       object.addedByOperator = false;
@@ -509,6 +535,24 @@ function deselect() {
 }
 
 // Delete asks first, in the panel. Undo changes brings an object back.
+async function renameObject(object, text) {
+  const response = await fetch("/api/changes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ op: "rename", object_id: object.asset.object_id, details: { name: text } }),
+  });
+  const reply = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    $("status").textContent = `Couldn't name it: ${reply.detail ?? `error ${response.status}`}`;
+    return { ok: false, message: reply.detail };
+  }
+  object.asset.name = text.trim();
+  bim?.rename(object);
+  if (selected === object) showInfo(object);
+  $("status").textContent = `Named ${object.asset.name}.`;
+  return { ok: true };
+}
+
 function askToDelete() {
   if (!selected) return;
   const tag = selected.asset.mapping?.tag;
@@ -574,13 +618,13 @@ async function duplicateObject(object) {
   objectLayer.addCopy(copy);
   showInfo(copy);
   if (route?.state.target) await route.plan(route.state.target, route.state.start);
-  $("status").textContent =
-    `Copied to ${copy.asset.object_id}, with everything except any record link.`;
+  $("status").textContent = `Copied as ${name(copy.asset)}, with its own ID ${copy.asset.object_id}.`;
 }
 
 // Esc, or the back button on a phone: one step back, the most recent thing first.
 function goBack() {
   if (!$("more-menu").hidden) showMenu(false);
+  else if (!$("rename-form").hidden) $("rename-form").hidden = true;
   else if (!$("delete-confirm").hidden) $("delete-confirm").hidden = true;
   else if (!$("add-panel").hidden || adder.state.active) $("add-cancel").click();
   else if (objectLayer?.state.moving) $("manip-done").click();
@@ -938,6 +982,7 @@ async function syncWithBackend() {
       if (asset.duplicated_from) objectLayer.addCopy(objects.at(-1));
       changed += 1;
     } else if (object !== dragged) {
+      object.asset.name = asset.name;
       const posDiff = object.center.distanceTo(new THREE.Vector3(...asset.center)) > 0.001;
       const yawDiff = Math.abs((object.yaw || 0) - (asset.yaw || 0)) > 0.001;
       if (posDiff || yawDiff) {
@@ -1034,6 +1079,8 @@ function commandHandlers() {
     finish_moving: press("manip-done"),
     undo_changes: press("reset-moves"),
     duplicate_object: ({ object_id }) => duplicateObject(objects.find((o) => o.asset.object_id === object_id)),
+    rename_object: ({ object_id, name: text }) =>
+      renameObject(objects.find((o) => o.asset.object_id === object_id), text),
     delete_object: ({ object_id }) => deleteObject(objects.find((o) => o.asset.object_id === object_id)),
     set_bim: ({ on }) => {
       if (!bim) throw new Error("No BIM model: run make bim");

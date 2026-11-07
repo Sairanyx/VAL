@@ -117,8 +117,10 @@ screens only pick up changes when reloaded.
 
 ## Duplicate or delete an object
 Tap an object to find both buttons.
-- **Duplicate** puts a copy on a free spot beside it, with its real splats and type, in the scan and in BIM
-  mode. A copy has no record link: it isn't the same device, so it never shows as `P-005`.
+- **Duplicate** puts a copy on a free spot beside it, in the scan and in BIM mode. It's the same object with its
+  own ID, named like `P-005 copy 1`. Records and history stay with the original.
+- **Name it** names any object with no record link, in labels, Plan, BIM mode and the IFC. A name can't be
+  a record's tag, such as `P-005`, because it would look like that device.
 - **Delete** asks first, then removes the object from the scan, the routes, BIM mode and the exports.
   **Undo changes** brings it back. It hides the object's whole box, so a neighbour inside it goes too.
 

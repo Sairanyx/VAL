@@ -339,9 +339,10 @@ class CopilotEngine:
 
     def _handle_navigation_to_object(self, object_id: str) -> CopilotResponse:
         """Route to a selected object that has no record."""
-        label = self._scene_object(object_id).get("label", "object")
+        found = self._scene_object(object_id)
+        label = found.get("name") or f"this {found.get('label', 'object')}"
         return CopilotResponse(
-            answer=f"I've marked this {label} and drawn the route to it.",
+            answer=f"I've marked {label} and drawn the route to it.",
             observations=[f"Detected object {object_id}, with no linked plant record."],
             citations=["DOC-3D-MAPPING"],
             confidence=float(self._scene_object(object_id).get("confidence") or 0.0),
@@ -358,12 +359,22 @@ class CopilotEngine:
         found = self._scene_object(object_id)
         label = found.get("label", "object")
         confidence = float(found.get("confidence") or 0.0)
+        name = found.get("name")
+        copied = found.get("copied_name")
+        if copied:
+            answer = (
+                f"This is {name}, a copy of {copied}, showing a {label}. It's a separate object "
+                f"with its own ID, and the records and history belong to {copied}, not this copy."
+            )
+        else:
+            answer = (
+                f"The scan shows this as: {name + ', a ' + label if name else label}. It isn't "
+                "linked to a plant record, so I have no condition, measurements or service "
+                "history for it, and I won't guess which device it is. I can take you to it so "
+                "you can check its nameplate."
+            )
         return CopilotResponse(
-            answer=(
-                f"The scan shows this as: {label}. It isn't linked to a plant record, so I have "
-                "no condition, measurements or service history for it, and I won't guess which "
-                "device it is. I can take you to it so you can check its nameplate."
-            ),
+            answer=answer,
             observations=[f"Detected object {object_id}, labelled {label}."],
             citations=["DOC-3D-MAPPING"],
             confidence=confidence,

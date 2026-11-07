@@ -63,7 +63,7 @@ class RouteRequest(BaseModel):
 
 
 class ChangeRequest(BaseModel):
-    op: Literal["add", "move", "rotate", "remove", "split", "combine", "duplicate"]
+    op: Literal["add", "move", "rotate", "remove", "split", "combine", "duplicate", "rename"]
     object_id: str | None = None
     position: Position | None = None
     yaw: float | None = None

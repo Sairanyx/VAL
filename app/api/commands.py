@@ -15,6 +15,10 @@ ACTIONS: dict[str, dict[str, Any]] = {
     "select": {"args": OBJECT, "does": "Select an object and open its details"},
     "close_panels": {"args": {}, "does": "Close the details and Val windows"},
     "duplicate_object": {"args": OBJECT, "does": "Copy an object to a free spot beside it"},
+    "rename_object": {
+        "args": {"object_id": "str", "name": "str"},
+        "does": "Name an object with no record link",
+    },
     "delete_object": {"args": OBJECT, "does": "Delete an object. Undo changes brings it back"},
     "route_to": {"args": OBJECT, "does": "Show a route to an object"},
     "go_to_fault": {"args": {}, "does": "Show a route to the faulty device"},

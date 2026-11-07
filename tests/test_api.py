@@ -436,3 +436,25 @@ def test_a_duplicate_is_the_same_object_elsewhere_without_the_record_link(tmp_pa
     assert all(
         a["object_id"] != copy["object_id"] for a in client.get("/api/assets").json()["assets"]
     )
+
+
+def test_a_copy_has_its_own_id_and_the_operator_can_name_it(tmp_path):
+    source = box("pump", [1, 1, 0], "movable")
+    source["mapping"] = {"tag": "P-005", "asset_id": "A", "method": "manual", "confidence": 0.3}
+    path = tmp_path / "assets.json"
+    path.write_text(json.dumps({"scene_id": "t", "assets": [source]}))
+    client = TestClient(create_app(path, database=FakeDatabase()))
+    change = {"op": "duplicate", "object_id": "pump", "position": [3, 1, 0]}
+    copy_id = client.post("/api/changes", json=change).json()["parts"][0]
+    assert copy_id != "pump"
+    assert client.get(f"/api/assets/{copy_id}").json()["name"] == "P-005 copy 1"
+
+    def rename(object_id, name):
+        change = {"op": "rename", "object_id": object_id, "details": {"name": name}}
+        return client.post("/api/changes", json=change).status_code
+
+    assert rename(copy_id, "  Spare pump ") == 200
+    assert client.get(f"/api/assets/{copy_id}").json()["name"] == "Spare pump"
+    assert rename(copy_id, "p-005") == 409  # A record's tag would look like that device.
+    assert rename(copy_id, "   ") == 409
+    assert rename("pump", "Something else") == 409  # Its record names it.

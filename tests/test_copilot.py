@@ -248,3 +248,20 @@ def test_object_with_no_record_is_never_treated_as_the_fault(copilot):
     assert "isn't linked" in reply.answer and "P-005" not in reply.answer
     route = copilot.query("Take me there", object_id="cart-1")
     assert [a["object_id"] for a in route.actions if a["type"] == "navigate"] == ["cart-1"]
+
+
+def test_val_says_a_copy_is_a_separate_object(copilot):
+    copilot.sample_assets = [
+        {
+            "object_id": "pump-copy1",
+            "label": "pump",
+            "confidence": 0.5,
+            "name": "Spare pump",
+            "copied_name": "P-005",
+        }
+    ]
+    copilot.mapping = {}
+    copilot.focused_asset_tag = None
+    reply = copilot.query("What's wrong with it?", object_id="pump-copy1")
+    assert "Spare pump" in reply.answer and "belong to P-005" in reply.answer
+    assert "health" not in reply.answer

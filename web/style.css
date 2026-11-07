@@ -149,6 +149,23 @@ button.danger-solid {
   color: #fff;
   font-weight: 600;
 }
+#rename-form {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+#rename-form[hidden] { display: none; }
+#rename-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid #3a4652;
+  border-radius: 6px;
+  background: #0f1419;
+  color: #e5e7eb;
+  font-size: 16px;
+}
 #delete-confirm { margin: 6px 0; }
 #delete-confirm[hidden] { display: none; }
 #delete-confirm p { margin: 0 0 6px; font-size: 13px; }

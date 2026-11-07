@@ -110,7 +110,7 @@ export async function setupBim({
         ...source.element,
         guid: "assigned on export",
         object_id: id,
-        name: `${label} (${id})`,
+        name: `${object.asset.name || label} (${id})`,
         splat_group: undefined,
         psets: {
           ...psets,
@@ -427,6 +427,13 @@ export async function setupBim({
     update,
     pick,
     selectObject,
+    rename(object) {
+      const item = items.find((candidate) => candidate.object === object);
+      if (!item) return;
+      const { name, label, object_id: id } = object.asset;
+      item.element.name = `${name || label} (${id})`;
+      if (state.selected === item) showProperties(item.element);
+    },
     items, // For browser tests.
     elementCount: items.length,
   };
@@ -456,7 +463,7 @@ function scanGeometry(ref, data) {
 }
 
 function plainElement(object) {
-  const { label, object_id: id, bbox_min: first, bbox_max: second } = object.asset;
+  const { name, label, object_id: id, bbox_min: first, bbox_max: second } = object.asset;
   const low = first.map((value, axis) => Math.min(value, second[axis]));
   const high = first.map((value, axis) => Math.max(value, second[axis]));
   return {
@@ -464,7 +471,7 @@ function plainElement(object) {
     object_id: id,
     ifc_class: "IfcBuildingElementProxy",
     predefined_type: "NOTDEFINED",
-    name: `${label} (${id})`,
+    name: `${name || label} (${id})`,
     geometry: {
       type: "box",
       center: low.map((value, axis) => (value + high[axis]) / 2),

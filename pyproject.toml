@@ -8,7 +8,7 @@ dependencies = [
     "torch>=2.15",
     "torchvision>=0.29",
     # models + training
-    "transformers>=4.46",
+    "transformers>=5.22",
     "datasets>=3.1",
     "accelerate>=1.1",
     "timm>=1.0",

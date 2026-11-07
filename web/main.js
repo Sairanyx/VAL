@@ -9,6 +9,7 @@ import { setupCommands } from "./commands.js";
 import { setupCopilot } from "./copilot.js";
 import { setupHighlight } from "./highlight.js";
 import { createHoverShell } from "./hover.js";
+import { THIN_LABELS, pickFront } from "./pick.js";
 import { setupObjects } from "./objects.js";
 import { setupPhone } from "./phone.js";
 import { setupPlan } from "./plan.js";
@@ -156,7 +157,8 @@ function addAsset(asset) {
   root.add(box);
 
   // Invisible solid box, so taps and the crosshair can hit the object.
-  const pick = new THREE.Mesh(geom, new THREE.MeshBasicMaterial({ visible: false }));
+  // Two-sided, so a pick ray also finds where it leaves the box (see pick.js).
+  const pick = new THREE.Mesh(geom, new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide }));
   pick.position.copy(mid);
   pick.userData.index = objects.length;
   root.add(pick);
@@ -478,10 +480,16 @@ $("manip-done").onclick = () => {
 
 function hit(ndc) {
   raycaster.setFromCamera(ndc, camera);
-  const hits = raycaster.intersectObjects(objects.map((o) => o.pick));
-  // A pipe's box can span the room, so the smallest box under the pointer is the likely target.
-  const found = hits.map((h) => objects[h.object.userData.index]);
-  return found.length ? found.reduce((a, b) => (b.volume < a.volume ? b : a)) : null;
+  const candidates = objects
+    .filter((o) => !o.gone && o.pick.layers.isEnabled(0))
+    .map((o) => ({
+      mesh: o.pick,
+      volume: o.volume,
+      thin: THIN_LABELS.has(o.asset.label),
+      surface: (rc) => bim?.surfaceDistance(o, rc) ?? null,
+      object: o,
+    }));
+  return pickFront(raycaster, candidates)?.object ?? null;
 }
 
 // A mouse shows what a tap would pick, in BIM mode and in the scan. Checked once a frame, so it

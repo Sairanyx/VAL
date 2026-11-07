@@ -77,8 +77,9 @@ including all of those changes, but with simple shapes rather than scan meshes. 
 the file `make bim` built, which has the scan meshes but none of the changes.
 
 ## Move an object
-1. Tap the object. The smallest box under your finger is selected. With a mouse, that object's
-   simple shape shows as a faint outline before you click, in the scan as in BIM mode.
+1. Tap the object. The nearest object under your finger is selected, never one behind it. Pipes,
+   hoses and cables only count where their scanned surface is, since their boxes are mostly empty.
+   With a mouse, the object's simple shape shows as a faint outline before you click.
 2. Press **Move on floor**. Only movable objects have this button.
 3. Drag anywhere on the screen. The object follows your drag across the floor.
 4. Release to save. If a route is showing, it plans again.

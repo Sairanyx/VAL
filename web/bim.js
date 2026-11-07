@@ -7,6 +7,7 @@
 import * as THREE from "three";
 import { SplatMesh } from "@sparkjsdev/spark";
 import { createHoverShell } from "./hover.js";
+import { THIN_LABELS, pickFront } from "./pick.js";
 
 const UP = new THREE.Vector3(0, 1, 0);
 const CLASS_COLORS = {
@@ -344,22 +345,42 @@ export async function setupBim({
 
   // Taps and hovering use each element's simple shape in every look, even when it isn't drawn:
   // scan meshes and splats have gaps, so a tap in the middle of a bucket could miss it.
-  // Equipment is preferred over walls and floor. Bounding boxes can overlap, so the smallest one
-  // under the pointer wins, but nothing behind the first fitted shape is picked.
+  // Equipment comes before walls and floor; among it, the front shape wins (see pick.js).
   function candidate(raycaster) {
-    const boxes = items.filter((item) => visible(item)).map((item) => item.box);
-    const hits = raycaster
-      .intersectObjects(boxes, false)
-      .filter((hit) => state.cut === null || section.distanceToPoint(hit.point) >= 0)
-      .map((hit) => hit.object.userData.item);
-    const equipment = [];
-    for (const item of hits) {
-      if (ROOM.has(item.element.ifc_class)) continue;
-      equipment.push(item);
-      if (!item.box.userData.base.transparent) break;
-    }
-    const pool = equipment.length ? equipment : hits.slice(0, 1);
-    return pool.length ? pool.reduce((a, b) => (b.volume < a.volume ? b : a)) : null;
+    const shown = items.filter((item) => visible(item));
+    const inCut = (hit) => state.cut === null || section.distanceToPoint(hit.point) >= 0;
+    const front = (list) =>
+      pickFront(
+        raycaster,
+        list.map((item) => ({
+          mesh: item.box,
+          volume: item.volume,
+          thin: THIN_LABELS.has(item.element.psets.Valmet_Identification?.DetectedLabel),
+          surface: (rc) => surfaceAt(item, rc, inCut),
+          item,
+        })),
+        inCut,
+      )?.item ?? null;
+    const equipment = shown.filter((item) => !ROOM.has(item.element.ifc_class));
+    const room = shown.filter((item) => ROOM.has(item.element.ifc_class));
+    return front(equipment) ?? front(room);
+  }
+
+  // Distance to an element's real surface along a ray: its fitted shape, or its scan mesh.
+  function surfaceAt(item, raycaster, keep = () => true) {
+    const fitted = !item.box.userData.base.transparent;
+    const real = fitted ? item.box : item.scan;
+    if (!real) return null;
+    const hit = raycaster.intersectObject(real, false).find(keep);
+    return hit ? hit.distance : null;
+  }
+
+  // The same, for the scan view, where shapes are only placed when needed.
+  function surfaceDistance(object, raycaster) {
+    const item = items.find((candidate) => candidate.object === object);
+    if (!item || object.gone) return null;
+    placeShapes(item);
+    return surfaceAt(item, raycaster);
   }
 
   function pick(raycaster) {
@@ -404,6 +425,7 @@ export async function setupBim({
     pick,
     hover,
     hoverObject,
+    surfaceDistance,
     selectObject,
     elementCount: items.length,
   };

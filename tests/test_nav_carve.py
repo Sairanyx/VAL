@@ -47,10 +47,10 @@ def test_views_load_from_a_render_folder(tmp_path):
     assert intrinsics[0, 0] == 100 and world_to_camera[0, 0] == 1 and depth.shape == (4, 4)
 
 
-def test_walked_path_opens_a_way_through_a_wall():
+def test_walked_path_opens_a_way_under_a_low_pipe():
     xs, zs = np.meshgrid(np.arange(0, 4, 0.02), np.arange(0, 2, 0.02))
     floor = np.stack([xs.ravel(), np.zeros(xs.size), zs.ravel()], axis=1)
-    wall = floor[np.abs(floor[:, 0] - 2) < 0.1] + [0, 1, 0]
+    wall = floor[np.abs(floor[:, 0] - 2) < 0.1] + [0, 1.6, 0]  # A pipe overhead, in the body band.
     points = np.concatenate([floor, wall])
     opacities = np.ones(len(points))
     closed = build_nav_grid(points, opacities, UP, floor_height=0.0)
@@ -60,3 +60,14 @@ def test_walked_path_opens_a_way_through_a_wall():
     assert not closed.free[cell[0], cell[1]]
     assert opened.free[cell[0], cell[1]]
     assert opened.clearance[cell[0], cell[1]] >= 0.3
+
+
+def test_walked_path_does_not_clear_objects_at_waist_height():
+    xs, zs = np.meshgrid(np.arange(0, 4, 0.02), np.arange(0, 2, 0.02))
+    floor = np.stack([xs.ravel(), np.zeros(xs.size), zs.ravel()], axis=1)
+    chair = floor[np.abs(floor[:, 0] - 2) < 0.1] + [0, 0.5, 0]
+    points = np.concatenate([floor, chair])
+    walked = np.array([[x, 1.3, 1.0] for x in np.arange(1, 3, 0.05)])
+    grid = build_nav_grid(points, np.ones(len(points)), UP, floor_height=0.0, walked=walked)
+    cell = np.floor((np.array([2.0, 1.0]) - grid.origin) / grid.cell).astype(int)
+    assert not grid.free[cell[0], cell[1]]

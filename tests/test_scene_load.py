@@ -88,3 +88,18 @@ def test_clean_mask_keeps_faint_splats_that_build_up_surfaces():
     splats = make_splats(400)
     splats.data["opacity"][:] = -3.0  # About 5% opaque, as most of a floor can be.
     assert clean_mask(splats).mean() > 0.9
+
+
+def test_labels_from_a_cleaned_scene_map_back_to_the_original_order():
+    import importlib.util
+    from pathlib import Path
+
+    spec = importlib.util.spec_from_file_location(
+        "remap_labels", Path(__file__).parent.parent / "scripts" / "remap_labels.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    kept = np.array([True, False, True, False])
+    assert module.remap(np.array([7, 8]), kept).tolist() == [7, -1, 8, -1]
+    with pytest.raises(ValueError):
+        module.remap(np.array([7]), kept)

@@ -20,7 +20,6 @@ import { setupFilters } from "./filters.js";
 import { setupPlan } from "./plan.js";
 import { setupWalkable } from "./walkable.js";
 import { setupWalkXR, xrSupported } from "./xr.js";
-import { setupAvatar } from "./avatar.js";
 import { setupRoute } from "./route.js";
 import { setupTour } from "./tour.js";
 import { setupViews } from "./views.js";
@@ -137,7 +136,7 @@ const pacing = setupPacing({
     Boolean(route?.state.walking) ||
     tracking.state.active,
   isDragging: () => Boolean(objectLayer?.state.moving?.dragging),
-  isAnimated: () => Boolean(route?.state.route || flight),
+  isAnimated: () => Boolean(route?.state.route || flight || alerts?.isActive()),
 });
 let walk = true;
 let flight = null; // the camera on its way to an object's best view
@@ -934,6 +933,119 @@ async function nudgeObject(key, far) {
   }
 }
 
+// On the floor, from where you look: forward is away from you, right is to your right.
+function floorDirection(direction) {
+  const ahead = camera.getWorldDirection(new THREE.Vector3()).setY(0).normalize();
+  const right = new THREE.Vector3().crossVectors(ahead, camera.up).normalize();
+  const world = {
+    forward: ahead,
+    back: ahead.clone().negate(),
+    right,
+    left: right.clone().negate(),
+  }[direction];
+  const toScene = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  return world.clone().transformDirection(toScene);
+}
+
+const MOVE_STEP_M = 0.1; // how finely a move looks for the furthest free spot
+const MOVE_CHECKS = 30; // checks at a time, so a long move can't flood the backend
+const MOVE_MAX_M = 15; // further than that leaves the room anyway
+
+// Move an object a measured distance. If the end is blocked, it goes as far as it can.
+async function moveBy(object, metres, direction) {
+  if (direction === "up" || direction === "down") {
+    const result = await objectLayer.raise(object, direction === "up" ? metres : -metres);
+    return result.ok ? { ok: true, message: "" } : result;
+  }
+  const step = floorDirection(direction);
+  const yaw = object.yaw || 0;
+  const start = object.center.clone();
+  const at = (distance) => start.clone().addScaledVector(step, distance).toArray();
+  const wanted = Math.min(metres, MOVE_MAX_M);
+  // Coarse first, then finer between the furthest free spot and the next one.
+  const tryAlong = async (from, to) => {
+    const count = Math.max(1, Math.min(MOVE_CHECKS, Math.round((to - from) / MOVE_STEP_M)));
+    const distances = Array.from({ length: count }, (_, i) => from + ((to - from) * (i + 1)) / count);
+    const checks = await Promise.all(distances.map((d) => checkMove(object, at(d), yaw)));
+    const last = checks.findLastIndex((check) => check.ok);
+    return { distances, checks, last };
+  };
+  const coarse = await tryAlong(0, wanted);
+  let furthest = coarse.last >= 0 ? coarse.distances[coarse.last] : 0;
+  const next = coarse.distances[coarse.last + 1];
+  if (next !== undefined && next - furthest > MOVE_STEP_M * 1.5) {
+    const fine = await tryAlong(furthest, next);
+    if (fine.last >= 0) furthest = fine.distances[fine.last];
+  }
+  const checks = coarse.checks;
+  if (furthest === 0) {
+    return { ok: false, message: `${name(object.asset)} can't move ${direction}: ${checks[0].reason}` };
+  }
+  const result = await objectLayer.moveTo(object, at(furthest), yaw);
+  if (!result.ok) return result;
+  const message =
+    furthest < metres - 1e-6 && checks.at(-1).reason
+      ? `Moved ${name(object.asset)} ${furthest.toFixed(1)} m ${direction}, as far as it can go: ${checks.at(-1).reason}`
+      : `Moved ${name(object.asset)} ${metres} m ${direction}.`;
+  $("status").textContent = message;
+  return { ok: true, message };
+}
+
+// Find the object someone means by "P-005", "Bob", "the cart" or "the other chair": a tag or a
+// given name first, then the nearest object of that type that isn't the one being moved.
+function findNamed(text, besides) {
+  const words = text.toLowerCase().replace(/^(?:the|a|an|that|this)\s+/, "");
+  const other = words.replace(/^other\s+/, "");
+  const live = objects.filter((o) => !o.gone && o !== besides);
+  const exact = live.find(
+    (o) =>
+      (o.asset.mapping?.tag ?? "").toLowerCase() === other ||
+      (o.asset.name ?? "").toLowerCase() === other ||
+      o.asset.object_id === other,
+  );
+  if (exact) return exact;
+  const singular = other.replace(/e?s$/, "");
+  const sameType = live.filter((o) => {
+    const label = (o.asset.label ?? "").toLowerCase();
+    return label === other || label === singular || label.split(" ").includes(singular);
+  });
+  const distance = (o) => o.center.distanceTo(besides.center);
+  return sameType.sort((a, b) => distance(a) - distance(b))[0] ?? null;
+}
+
+const NEAR_GAP_M = 0.05; // space left between the two
+const NEAR_SEARCH_M = 2; // how far beyond touching to look for a free spot
+const NEAR_ANGLES = 16;
+
+// Move an object as close as it can go to another, on the side nearest where it is now.
+async function moveNear(object, text) {
+  const other = findNamed(text, object);
+  if (!other) return { ok: false, message: `I can't find ${text} in the room.` };
+  const half = (o) =>
+    Math.hypot(o.asset.bbox_max[0] - o.asset.bbox_min[0], o.asset.bbox_max[2] - o.asset.bbox_min[2]) / 2;
+  const yaw = object.yaw || 0;
+  const touching = half(object) * 0.75 + half(other) * 0.75 + NEAR_GAP_M;
+  for (let reach = touching; reach <= touching + NEAR_SEARCH_M; reach += MOVE_STEP_M) {
+    const spots = Array.from({ length: NEAR_ANGLES }, (_, i) => {
+      const angle = (i / NEAR_ANGLES) * Math.PI * 2;
+      return [other.center.x + Math.cos(angle) * reach, object.center.y, other.center.z + Math.sin(angle) * reach];
+    });
+    const checks = await Promise.all(spots.map((spot) => checkMove(object, spot, yaw)));
+    const free = spots.filter((_, i) => checks[i].ok);
+    if (!free.length) continue;
+    const here = object.center;
+    free.sort((a, b) => Math.hypot(a[0] - here.x, a[2] - here.z) - Math.hypot(b[0] - here.x, b[2] - here.z));
+    const result = await objectLayer.moveTo(object, free[0], yaw);
+    if (!result.ok) return result;
+    // Two chairs are both "chair", so say which one.
+    const which = name(other.asset) === name(object.asset) ? ` (${other.asset.object_id})` : "";
+    const message = `Moved ${name(object.asset)} next to ${name(other.asset)}${which}.`;
+    $("status").textContent = message;
+    return { ok: true, message };
+  }
+  return { ok: false, message: `There's no free spot near ${name(other.asset)}.` };
+}
+
 // Height: 10 cm a press. The object being moved, or the selected one.
 const RAISE_STEP = 0.1;
 async function raiseObject(metres) {
@@ -1188,7 +1300,7 @@ function chooseLabels() {
     if (index >= MAX_LABELS && !item.pinned) return;
     next.add(item.o);
   });
-  for (const o of objects) setLabel(o, labelText(o), next.has(o));
+  for (const o of objects) setLabel(o, labelText(o), next.has(o) && !alerts?.isShowing(o));
   shownLabels = [...next];
 }
 
@@ -1425,6 +1537,14 @@ function commandHandlers() {
   return {
     select: ({ object_id }) => showInfo(find(object_id)),
     focus_object: ({ object_id }) => goLookAt(find(object_id)),
+    move_by: ({ object_id, metres, direction }) => {
+      needsMovable(object_id);
+      return moveBy(find(object_id), metres, direction);
+    },
+    move_near: ({ object_id, near }) => {
+      needsMovable(object_id);
+      return moveNear(find(object_id), near);
+    },
     set_stage: ({ stage }) => stages.set(stage),
     next_stage: () => stages.next(),
     start_demo: () => {
@@ -1601,7 +1721,6 @@ async function load() {
       if (!$("hud").classList.contains("blocked")) $("status").textContent = message;
     },
     onOutOfStep: syncWithBackend,
-    avatar: setupAvatar({ parent: scene }),
     // Reaching the faulty device starts the diagnosis, without being asked.
     onArrive: (target) => {
       if (kind(target.asset) !== "fault") return;

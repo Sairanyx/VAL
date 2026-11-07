@@ -111,6 +111,12 @@ Others are cut by their box when you press **Move**, which takes a moment. Anyth
 moves too, and the floor they leave may look dark. If it can't be cut, the outline moves instead, and the
 panel says so. This needs `Equipment Room.ply` in `data/scene/equipment_room/`.
 
+By voice or typed to Val, with the object selected or named: "Move it 2 metres left", "Push it 30 cm forward",
+"Move P-002 10 cm up", "Move it as close as possible to the other chair", "Put the cart next to P-005". Left, right,
+forward and back are as you see it. If the spot is taken, it goes as far as it can and says what's in the way. "The
+other chair" means the nearest other chair, and Val says which one it used. Distances are in the scan's units, which
+are close to metres but haven't been checked on site.
+
 With the keyboard while moving: **arrow keys** move it away from you and to the side, 5 cm a press, or 25 cm
 with Shift. **Page Up** and **Page Down** raise and lower it. **R** switches to rotating, where the left and right
 arrow keys turn it by 5 degrees, or 15 with Shift. Objects only turn around the upright axis. Each press is checked
@@ -237,7 +243,7 @@ The main buttons are **Go to P-005**, **?**, **Filters**, **Objects**, **Map**, 
 |---|---|
 | **Go to P-005** | Plans a route to the faulty device from where you stand. Arrows show the way |
 | **Movement: Walk / Fly** | In **Walk** the route starts from wherever you move to. In **Fly** you can look around from anywhere, and the route keeps its start |
-| **Walk route** | A worker walks the route and you follow, or a robot with **Route for: Robot**. Reaching the faulty device starts Val's diagnosis |
+| **Walk route** | Walks the route as the operator sees it, around what's in the way. Reaching the faulty device starts Val's diagnosis |
 | **Route for: Person / Robot** | Changes the body size and height for routes |
 | **Map** | Shows or hides the minimap. Click the minimap for the full map |
 | **Range** | How far away frames and labels show |

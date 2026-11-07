@@ -477,7 +477,10 @@ class CopilotEngine:
             unknown = self._check_unmapped_or_unknown(question, None)
             if unknown:
                 return unknown
-            tag = self._resolve_target_asset(question)
+            # "Move P-002 next to P-005" moves P-002: look for the device before the other one.
+            near = found.args.get("near")
+            subject = question[: question.lower().rfind(near)] if near else question
+            tag = self._resolve_target_asset(subject)
             if tag:
                 matches = find_assets(tag, self.store, self.sample_assets, self.mapping)
                 target = matches[0].object_id if matches else None

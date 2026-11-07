@@ -66,6 +66,55 @@ FILTER_VERB = r"\b(?:only|just|filter|show|display|highlight|see|list)\b"
 GENERIC_THINGS = r"(?:equipment|devices?|objects?|things?|items?|assets?)"
 
 
+# Measured moves. Distances are in the scan's units, which look close to metres but aren't checked.
+NUMBER_WORDS = {
+    "half a": 0.5,
+    "a half": 0.5,
+    "one": 1,
+    "a": 1,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "five": 5,
+    "six": 6,
+    "seven": 7,
+    "eight": 8,
+    "nine": 9,
+    "ten": 10,
+}
+UNITS = {"m": 1.0, "metre": 1.0, "meter": 1.0, "cm": 0.01, "centimetre": 0.01, "centimeter": 0.01}
+DIRECTIONS = {
+    "left": "left",
+    "right": "right",
+    "forward": "forward",
+    "forwards": "forward",
+    "ahead": "forward",
+    "away": "forward",
+    "back": "back",
+    "backward": "back",
+    "backwards": "back",
+    "closer": "back",
+    "towards me": "back",
+    "toward me": "back",
+    "up": "up",
+    "higher": "up",
+    "down": "down",
+    "lower": "down",
+}
+_NUMBERS = "|".join(sorted(NUMBER_WORDS, key=len, reverse=True))
+_UNIT_WORDS = r"m|metres?|meters?|cm|centimetres?|centimeters?"
+AMOUNT = rf"(\d+(?:\.\d+)?|{_NUMBERS})\s*({_UNIT_WORDS})\b"
+NEAR = (
+    r"(?:as close as (?:possible|you can|it can go) to|next to|close to|closer to|beside|near"
+    r"|up against|by)"
+)
+
+
+def _distance(amount: str, unit: str) -> float:
+    value = float(NUMBER_WORDS[amount]) if amount in NUMBER_WORDS else float(amount)
+    return value * UNITS[unit.rstrip("s")]
+
+
 @dataclass
 class Match:
     """An action to run. `needs_object` means it acts on a device or object."""
@@ -240,6 +289,31 @@ def _on_object(question: str) -> Match | None:
         return Match("rename_object", f"Named it {text}.", {"name": text}, needs_object=True)
     if re.match(r"(?:rename|name|call)\b", question):
         return Match("rename_object", "What should I call it?", needs_object=False)
+    measured = re.match(
+        rf"(?:move|drag|push|shift|slide)\b.*?\b{AMOUNT}(?:\s+to\s+the)?\s+(.+)$", question
+    )
+    if measured:
+        amount, unit, rest = measured.groups()
+        direction = next(
+            (key for word, key in DIRECTIONS.items() if re.match(rf"{word}\b", rest.strip())), None
+        )
+        if direction:
+            metres = round(_distance(amount, unit), 3)
+            return Match(
+                "move_by",
+                f"Moving {{name}} {metres:g} m {direction}.",
+                {"metres": metres, "direction": direction},
+                needs_object=True,
+            )
+    near = re.match(rf"(?:move|drag|put|push|place|bring)\b.*?\b{NEAR}\s+(.+)$", question)
+    if near:
+        other = near.group(1).strip(" '\"")
+        return Match(
+            "move_near",
+            f"Moving {{name}} next to {other}.",
+            {"near": other},
+            needs_object=True,
+        )
     position = re.match(
         r"(?:move|drag)\b.*?\bto\s+(-?\d+(?:\.\d+)?)[\s,]+(-?\d+(?:\.\d+)?)[\s,]+(-?\d+(?:\.\d+)?)$",
         question,

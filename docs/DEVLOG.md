@@ -62,9 +62,11 @@ functionality was heavily emphasized. So:
 ## Saturday night: robust, clear, and runnable by someone else (21:00 onwards)
 We compared the project against the brief line by line, which found two real gaps:
 - The diagnosis didn't start when the worker arrived. Now it does.
-- Nobody could see a worker, because the walk was first-person. Now one walks the route ahead of you.
+- Nobody could see a worker, because the walk was first-person. We tried a figure walking ahead, then took it
+  out again: the camera is the operator's own view, and the minimap shows where they are.
 
-Also from the fix list: filters that narrow frames, labels, the list, the map and BIM at once, and by
+Also from the fix list: Val can move things by measure, like "2 metres left" or "next to the other chair".
+Benjamin's glowing, pulsing alerts came back after we'd toned them down too far. filters that narrow frames, labels, the list, the map and BIM at once, and by
 voice. Plain alerts in place of glowing ones. A see-through minimap, with the full map on a click.
 Focus, which flies to an object's best view. One control through darkness, simple BIM, blob BIM, point
 cloud and the real view. A guided demo button, arrow keys for moving objects, and a help panel.

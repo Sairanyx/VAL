@@ -210,7 +210,9 @@ Only after the rehearsal, and only if tests pass.
 - [x] Focus flies to an object's best view, from the list, the panel and by voice (Viktor)
 - [x] View goes through darkness, simple BIM, blob BIM, point cloud, real view (Viktor)
 - [x] Demo button runs start to finish and puts everything back. Stop works midway (Viktor)
-- [x] A worker or robot walks the route, and arrival at the fault starts Val (Viktor)
+- [x] Walking the route ends with Val starting by itself at the fault (Viktor)
+- [x] Val moves objects by measure, and next to other objects (Viktor)
+- [x] Glowing, pulsing alerts are back (Viktor)
 - [x] Arrow keys move and turn an object only in those modes, and ? shows help (Viktor)
 - [ ] Someone other than Viktor tries all of these
 
@@ -248,7 +250,7 @@ Submit at sinceai.app. Any member can submit, and it stays editable until the de
 - [ ] **Extraction slide and technical note:** Sasha
 - [ ] **AI slide:** Hannu
 - [ ] **Slide deck owner and video:** Benjamin
-- [ ] **Short video, 5 minutes at most:** avatar walks, nearby objects framed, fault diagnosed
+- [ ] **Short video, 5 minutes at most:** the route walked from the operator's view, nearby objects framed, fault diagnosed
 - [ ] **Technical note:** models, libraries, components
 - [ ] **Only measured numbers:** from `docs/RESULTS.md`
 - [ ] **Say it accurately:** see "Say this accurately" in `docs/PLAN.md`. Position is simulated, links are procedural

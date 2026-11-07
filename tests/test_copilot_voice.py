@@ -107,3 +107,38 @@ def test_turning_off_alerts_is_not_refused_as_operating_equipment():
 def test_focusing_on_a_device_asks_which_one():
     found = match_action("Focus on P-005")
     assert found is not None and found.action == "focus_object" and found.needs_object
+
+
+@pytest.mark.parametrize(
+    ("said", "args"),
+    [
+        ("Move it 5 metres left", {"metres": 5.0, "direction": "left"}),
+        ("Move the chair 2 m to the right", {"metres": 2.0, "direction": "right"}),
+        ("Push it 30 cm forward", {"metres": 0.3, "direction": "forward"}),
+        ("Move it two meters back", {"metres": 2.0, "direction": "back"}),
+        ("Move it half a metre closer", {"metres": 0.5, "direction": "back"}),
+        ("Move P-002 10 cm up", {"metres": 0.1, "direction": "up"}),
+    ],
+)
+def test_measured_moves(said, args):
+    found = match_action(said)
+    assert found is not None and found.action == "move_by" and found.args == args
+    assert found.needs_object
+
+
+@pytest.mark.parametrize(
+    ("said", "near"),
+    [
+        ("Move it as close as possible to the other chair", "the other chair"),
+        ("Move the cart next to P-005", "p-005"),
+        ("Put it beside the ladder", "the ladder"),
+    ],
+)
+def test_moves_next_to_something(said, near):
+    found = match_action(said)
+    assert found is not None and found.action == "move_near" and found.args == {"near": near}
+
+
+def test_a_position_move_still_works():
+    found = match_action("Move it to 1, 0.5, -2")
+    assert found is not None and found.action == "move_object"

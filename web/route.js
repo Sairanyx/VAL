@@ -69,28 +69,7 @@ function pathToViewPoint(path, viewFrom) {
   return [...points.slice(0, best.index + 1), view];
 }
 
-const STEP_ASIDE = 0.8; // metres the worker moves out of the way of the device, at the end
-const STEP_ASIDE_OVER = 1.2; // over this many metres of the walk
-
-// Where a walker is after `distance` along a route of THREE.Vector3 points, and which way it faces.
-function alongPath(points, distance) {
-  let left = Math.max(distance, 0);
-  for (let i = 0; i + 1 < points.length; i++) {
-    const length = points[i].distanceTo(points[i + 1]);
-    if (left <= length || i + 2 === points.length) {
-      const facing = points[i + 1].clone().sub(points[i]);
-      const at = Math.min(left / Math.max(length, 1e-6), 1);
-      return { point: points[i].clone().lerp(points[i + 1], at), facing };
-    }
-    left -= length;
-  }
-  return { point: points[0].clone(), facing: null };
-}
-
-const lengthOf = (points) =>
-  points.slice(1).reduce((sum, point, i) => sum + point.distanceTo(points[i]), 0);
-
-export function setupRoute({ root, camera, floorY, getEyeY, onMessage, onOutOfStep, onArrive, avatar }) {
+export function setupRoute({ root, camera, floorY, getEyeY, onMessage, onOutOfStep, onArrive }) {
   const group = new THREE.Group();
   group.renderOrder = 10;
   root.add(group);
@@ -313,11 +292,9 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage, onOutOfSt
 
   function stopWalking() {
     state.walking = null;
-    avatar?.hide();
   }
 
   function clear() {
-    avatar?.hide();
     live.version += 1;
     state.walking = null;
     state.route = null;
@@ -394,7 +371,6 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage, onOutOfSt
     focus.copy(state.target.center);
     root.localToWorld(focus);
     if (walking.index >= last) {
-      placeAvatar(walking);
       // At the viewing point: finish turning towards the object.
       if (faceTowards(focus, dt) < 0.02) {
         state.walking = null;
@@ -403,7 +379,6 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage, onOutOfSt
       }
       return;
     }
-    placeAvatar(walking);
     let remaining = WALK_SPEED * dt;
     while (walking.index < last && remaining > 0) {
       const length = walking.points[walking.index].distanceTo(walking.points[walking.index + 1]);
@@ -433,28 +408,6 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage, onOutOfSt
       next.y = eyeY;
       faceTowards(next, dt);
     }
-  }
-
-  // The worker walks the whole route, right up to the device, and the camera follows it to the
-  // viewing point further back, so both arrive together.
-  function placeAvatar(walking) {
-    const whole = state.route.path.map((point) => new THREE.Vector3(...point));
-    const ahead = Math.max(lengthOf(whole) - lengthOf(walking.points), 0);
-    let walked = walking.along;
-    for (let i = 0; i < walking.index; i++) {
-      walked += walking.points[i].distanceTo(walking.points[i + 1]);
-    }
-    const { point, facing } = alongPath(whole, walked + ahead);
-    // Near the end, step to the left, so the device stays in view.
-    const end = walking.points.at(-1);
-    const toDevice = state.target.center.clone().sub(end).setY(0).normalize();
-    const left = lengthOf(walking.points) - walked;
-    const aside = Math.max(0, 1 - left / STEP_ASIDE_OVER) * STEP_ASIDE;
-    point.add(new THREE.Vector3(-toDevice.z, 0, toDevice.x).multiplyScalar(aside)); // The scan is mirrored
-    point.y = floorY;
-    root.localToWorld(point);
-    const direction = facing && facing.clone().transformDirection(root.matrixWorld);
-    avatar?.place(state.profile, point, direction);
   }
 
   function setProfile(profile) {

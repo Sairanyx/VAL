@@ -13,6 +13,14 @@ OBJECT = {"object_id": "str"}
 
 ACTIONS: dict[str, dict[str, Any]] = {
     "select": {"args": OBJECT, "does": "Select an object and open its details"},
+    "move_by": {
+        "args": {**OBJECT, "metres": "float", "direction": "str"},
+        "does": "Move an object a distance: left, right, forward or back as seen, or up or down",
+    },
+    "move_near": {
+        "args": {**OBJECT, "near": "str"},
+        "does": "Move an object as close as it can go to another, named by tag, name or type",
+    },
     "focus_object": {"args": OBJECT, "does": "Go to an object's best view and select it"},
     "set_stage": {
         "args": {"stage": "str"},

@@ -183,7 +183,7 @@ export function setupTour({ ui, handlers, press, view }) {
         },
         {
           title: "Walk there",
-          text: "A worker walks the route, on the floor and around what's in the way. Nearby equipment shows its frame and details as they pass.",
+          text: "Walking the route, on the floor and around what's in the way. Nearby equipment shows its frame and details as you pass.",
           run: async () => {
             handlers.walk_route();
             await until(() => !view.route.state.walking, WALK_LIMIT_MS);

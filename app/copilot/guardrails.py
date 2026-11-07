@@ -16,7 +16,8 @@ from typing import Any
 
 AUTONOMOUS_CONTROL_PATTERNS = [
     r"\b(?:turn|switch)\s+(?:on|off)\b",
-    r"\b(?:start|stop|restart|shutdown)\s+(?:the\s+)?(?:[a-z0-9_\-]+\s+)?(?:pump|motor|valve|equipment|machine|compressor)\b",
+    r"\b(?:start|stop|restart|shut\s*down)\s+(?:the\s+)?(?:[a-z0-9_\-]+\s+)?"
+    r"(?:pump|motor|valve|equipment|machine|compressor|(?:p|m|cv|pt|vs)-\d+)\b",
     r"\b(?:open|close)\s+(?:the\s+)?(?:[a-z0-9_\-]+\s+)?valve\b",
     r"\b(?:increase|decrease|change|set)\s+(?:the\s+)?(?:[a-z0-9_\-]+\s+)?(?:pressure|speed|flow|setpoint|power|rpm)\b",
     r"\b(?:override|bypass|disable|clear|acknowledge|reset)\s+(?:the\s+)?(?:[a-z0-9_\-]+\s+)?(?:alarm|interlock|safety|trip)\b",

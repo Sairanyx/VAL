@@ -1,4 +1,6 @@
-"""Backend API for the viewer and copilot. Route and copilot answers are placeholders for now.
+"""Backend API for the viewer and copilot.
+
+The copilot needs the Excel pack in data/, and returns a marked placeholder without it.
 
 make api                                      # fixture, on http://localhost:8001/docs
 SCENE_ASSETS=path/to/assets.json make api     # real objects
@@ -10,8 +12,10 @@ from typing import Annotated, Literal
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
+from app.api.copilot_link import ask, condition, details, load_engine
 from app.api.store import ChangeError, SceneStore
 from app.nav.grid import NavGrid, load_grid
 from app.nav.route import BODIES, NoRoute, placeholder_route, plan_route
@@ -49,8 +53,11 @@ def footprints(store: SceneStore, target_id: str) -> list[tuple[list[float], lis
 
 
 def create_app(
-    assets_path: Path | str | None = None, grid: NavGrid | Path | str | None = None
+    assets_path: Path | str | None = None,
+    grid: NavGrid | Path | str | None = None,
+    engine=None,
 ) -> FastAPI:
+    engine = engine or load_engine()
     store = SceneStore(Path(assets_path or os.getenv("SCENE_ASSETS", DEFAULT_ASSETS)))
     grid = grid or os.getenv("SCENE_GRID")
     if isinstance(grid, str | Path):
@@ -67,25 +74,34 @@ def create_app(
             raise HTTPException(404, f"No object {object_id}")
         return asset
 
+    def with_condition(asset: dict) -> dict:
+        return {**asset, "condition": condition(asset, engine.store) if engine else None}
+
+    @app.get("/", include_in_schema=False)
+    def home() -> RedirectResponse:
+        return RedirectResponse("/docs")
+
     @app.get("/api/assets")
     def list_assets() -> dict:
         return {
             "scene_id": store.scene.get("scene_id"),
             "floor_y": store.scene.get("floor_y"),
             "start": store.scene.get("start"),
-            "assets": store.visible(),
+            "assets": [with_condition(asset) for asset in store.visible()],
         }
 
     @app.get("/api/assets/{object_id}")
     def get_asset(object_id: str) -> dict:
-        # Hannu's data store fills these lists.
-        return {**require(object_id), "telemetry": [], "events": [], "documents": []}
+        asset = with_condition(require(object_id))
+        if engine:
+            return {**asset, **details(asset, engine.store)}
+        return {**asset, "telemetry": [], "events": [], "maintenance": [], "documents": []}
 
     @app.get("/api/nearby")
     def nearby(
         x: float, y: float, z: float, radius: Annotated[float, Query(gt=0, le=100)] = 3.0
     ) -> dict:
-        return {"assets": store.nearby((x, y, z), radius)}
+        return {"assets": [with_condition(a) for a in store.nearby((x, y, z), radius)]}
 
     @app.post("/api/route")
     def route(request: RouteRequest) -> dict:
@@ -126,6 +142,9 @@ def create_app(
     def copilot(request: CopilotRequest) -> dict:
         if request.object_id:
             require(request.object_id)
+        if engine:
+            answer = ask(engine, store.visible(), request.question, request.object_id)
+            return {**answer, "placeholder": False}
         return {
             "answer": "The copilot isn't connected yet.",
             "observations": [],

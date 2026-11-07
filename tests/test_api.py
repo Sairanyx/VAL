@@ -148,3 +148,49 @@ def test_real_route_reroutes_when_a_movable_object_is_moved(tmp_path):
     assert route.status_code == 200
     assert route.json()["placeholder"] is False
     assert route.json()["stop_distance"] < 0.8
+
+
+class FakeResponse:
+    def __init__(self, question):
+        self.question = question
+
+    def to_dict(self):
+        return {"answer": self.question, "citations": ["DOC-1"], "confidence": 0.5}
+
+
+class FakeStore:
+    def get_asset(self, _):
+        return None
+
+    def get_current_state(self, _):
+        return None
+
+
+class FakeEngine:
+    def __init__(self):
+        self.store = FakeStore()
+        self.focused_asset_tag = "P-005"
+        self.focused_object_id = "old"
+        self.sample_assets = []
+        self.mapping = {}
+
+    def query(self, question, object_id=None):
+        return FakeResponse(question)
+
+
+def test_copilot_uses_scene_and_clears_old_focus(tmp_path):
+    path = tmp_path / "assets.json"
+    path.write_text(json.dumps({"scene_id": "t", "assets": [box("near", [1, 1, 0], "fixed")]}))
+    engine = FakeEngine()
+    client = TestClient(create_app(path, engine=engine))
+    body = client.post(
+        "/api/copilot/query", json={"question": "What is this?", "object_id": "near"}
+    ).json()
+    assert body["placeholder"] is False
+    assert body["citations"] == ["DOC-1"]
+    assert engine.sample_assets[0]["box"]["min"] == [0.5, 0.5, -0.5]
+    assert engine.focused_asset_tag is None
+
+
+def test_home_redirects_to_docs(client):
+    assert client.get("/", follow_redirects=False).headers["location"] == "/docs"

@@ -25,6 +25,13 @@ def copilot():
 # -------------------------------------------------------------------------
 
 
+@pytest.mark.parametrize(
+    "prompt", ["Shut down pump P-005 now", "shutdown the motor", "Stop P-005", "restart cv-003"]
+)
+def test_safety_guardrail_blocks_shutdown_and_tags(prompt):
+    assert not check_safety(prompt).passed
+
+
 def test_safety_guardrail_blocks_autonomous_control():
     # Attempting physical shutdown
     res1 = check_safety("Stop pump P-005 right now")

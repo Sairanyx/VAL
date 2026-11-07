@@ -27,6 +27,7 @@ Should end by printing your GPU name.
 | `make entire` | Install and enable Entire |
 | `make views` | Download rendered views for the scene |
 | `make scene` | Download the demo scene, floor map, and objects |
+| `make scene-full` | Also download the full-quality scene (513 MB) |
 | `make up` | Train inside Docker |
 
 ## Team workflow

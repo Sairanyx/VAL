@@ -1,7 +1,7 @@
-# viktortrilar: viktor/viewer-objects (draft PR #3)
+# viktortrilar: viktor/scene-full
 **Goal:** demo on own splat: real objects, floor, routes, P-005
-**Done:** app/nav/carve.py removes floaters using rendered views; grid.py takes `--views` and `--walked`; scripts/camera_path.py exports the camera path; routes return `view_from` (2 m back). P-005 candidate is obj-0048 with `manual_visual_unconfirmed`, confidence 0.3
-**Verified:** lint passes; 99 tests passed, 2 skipped (no torch). Real grid: 6.6 m2 connected at 0.6 m (was 0.2). 7 rendered views along the route look clear, by eye. /api/route tested locally on the real grid and assets
-**Roihu:** `data/scene/splat_v2/{clean.ply,light_full.ply,nav_grid_carved.npz,walked.npy}`, `runs/lift_v2`, `runs/floor_v2`. Local overrides: scratchpad `overrides_v2.json`. Cert valid to 2026-11-07 20:41
-**Next:** a person confirms P-005 and which of the two pumps. `make scene` downloads Release `scene-v2`. Viewer doesn't draw routes yet (Benjamin's area). Decide on Eduard's PR #2, which duplicates A*. Redo the AI label review for the new scene
-**Blockers:** none. Open: whether scene units are truly metres; object labels are mostly `unsure`/`unknown` on the new scene
+**Done:** PR #3 is merged by Eduard, who kept Viktor's routing and added heights. This branch adds `make scene-full`, which gets `clean.ply` (513 MB, view-dependent color) from Release `scene-v2`. Local branch viktor/viewer-objects holds an unused merge, 9338915: don't push or merge it
+**Verified:** on main's code with `make scene` data: person route to obj-0048 6.8 m, robot 6.7 m. main's CI passes; 113 tests passed, 17 skipped locally
+**Roihu:** `data/scene/splat_v2/{clean.ply,render,render_detail}`, `runs/lift_v2`, `runs/floor_v2`. Cert valid to 2026-11-07 20:41
+**Next:** a person confirms P-005 and which of the two pumps (obj-0048 is an unconfirmed pick, confidence 0.3). Viewer doesn't draw routes yet (Benjamin's area). `make floor` doesn't pass `--views`/`--walked`. Redo the AI label review for the new scene
+**Blockers:** none. Open: whether the video was really walked, and whether units are metres. Full scene not tested on a tablet

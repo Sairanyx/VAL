@@ -21,8 +21,13 @@
   <div id="labels"></div>
   <div id="crosshair"></div>
 
+  <div id="loading">
+    <p id="loading-text">Loading the room...</p>
+    <div id="loading-bar"><div></div></div>
+  </div>
+
   <div id="hud">
-    <div id="status">Loading scene...</div>
+    <div id="status"></div>
     <div id="stats"></div>
     <div id="in-view"></div>
   </div>
@@ -30,38 +35,73 @@
   <div id="joystick" aria-label="Move"><div></div></div>
 
   <div id="buttons">
-    <button id="go-fault" hidden>Go to P-005</button>
-    <button id="open-copilot">Copilot</button>
-    <button id="open-plan">Plan</button>
-    <button id="add-object">Add object</button>
     <button id="follow" hidden>Walk route</button>
     <button id="clear-route" hidden>Clear route</button>
-    <button id="profile" hidden>Person</button>
-    <button id="track" hidden>Track</button>
-    <button id="phone">Phone</button>
-    <button id="mode">Walk</button>
-    <button id="boxes">Boxes on</button>
-    <button id="range">Range 3 m</button>
-    <button id="reset">Start</button>
-    <button id="view-mode">Scan</button>
-    <button id="bim" hidden>BIM</button>
-    <button id="apart">Apart</button>
-    <button id="reset-moves">Undo changes</button>
+    <button id="go-fault" hidden>Go to P-005</button>
+    <button id="open-plan">Plan</button>
+    <button id="open-copilot" class="primary">Ask Val</button>
+    <button id="more" aria-expanded="false">More</button>
+  </div>
+
+  <div id="more-menu" hidden>
+    <h3>Getting around</h3>
+    <div class="menu-grid">
+      <button id="mode" data-label="Movement" data-stay>Walk</button>
+      <button id="reset">Back to start</button>
+      <button id="profile" data-label="Route for" data-stay hidden>Person</button>
+      <button id="phone" data-stay>Phone</button>
+      <button id="track" hidden>Track</button>
+    </div>
+    <h3>What you see</h3>
+    <div class="menu-grid">
+      <button id="view-mode" data-label="View" data-stay>Scan</button>
+      <button id="bim" hidden>BIM</button>
+      <button id="boxes" data-stay>Boxes on</button>
+      <button id="range" data-stay>Range 3 m</button>
+      <button id="apart" data-stay>Apart</button>
+    </div>
+    <h3>Change the room</h3>
+    <div class="menu-grid">
+      <button id="add-object">Add object</button>
+      <button id="reset-moves">Undo changes</button>
+    </div>
   </div>
 
   <div id="info" hidden>
     <button id="info-close" aria-label="Close">&times;</button>
-    <div id="info-body"></div>
+    <div id="info-head"></div>
     <p id="info-condition"></p>
-    <button id="ask" hidden>Ask copilot</button>
-    <button id="route-here" hidden>Route here</button>
-    <button id="split-object" hidden>Split into two</button>
-    <button id="combine-object" hidden>Combine with...</button>
-    <div id="move-actions" class="action-row" hidden>
-      <button id="move">Move on floor</button>
-      <button id="rotate">Rotate on floor</button>
+    <div class="action-row">
+      <button id="ask" class="primary" hidden>Ask Val</button>
+      <button id="route-here" hidden>Route here</button>
     </div>
-    <p id="cant-move" hidden></p>
+    <div id="move-actions" class="action-row" hidden>
+      <button id="move">Move</button>
+      <button id="rotate">Rotate</button>
+    </div>
+    <div class="action-row">
+      <button id="duplicate-object">Duplicate</button>
+      <button id="delete-object" class="danger">Delete</button>
+    </div>
+    <div id="delete-confirm" hidden>
+      <p id="delete-question"></p>
+      <div class="action-row">
+        <button id="delete-cancel">Keep it</button>
+        <button id="delete-yes" class="danger-solid">Delete</button>
+      </div>
+    </div>
+    <details>
+      <summary>Details</summary>
+      <div id="info-body"></div>
+      <p id="cant-move" hidden></p>
+    </details>
+    <details id="info-fix">
+      <summary>Fix this object</summary>
+      <div class="action-row">
+        <button id="split-object" hidden>Split into two</button>
+        <button id="combine-object" hidden>Combine with...</button>
+      </div>
+    </details>
   </div>
 
   <div id="manip-bar" hidden>
@@ -75,14 +115,17 @@
 
   <div id="bim-panel" hidden>
     <h2>BIM model <small>simulated from the scan</small></h2>
-    <p class="bim-note">Look: Real is each object's own scan, Mesh is a shape built from it, Box is a simple box or cylinder; see-through boxes are bounding boxes only. Walls are estimates.</p>
-    <div id="bim-classes"></div>
-    <label class="bim-section">Section <input id="bim-section" type="range" min="0.3" max="2.6" step="0.1" value="2.6"> <span id="bim-section-value">off</span></label>
     <div class="bim-actions">
       <button id="bim-look" hidden>Look: Real</button>
       <button id="bim-isolate">Isolate</button>
       <a id="bim-download" href="model.ifc" download="model.ifc">Download IFC</a>
     </div>
+    <p class="bim-note">Solid shapes come from the scan. See-through boxes are rough. Walls are estimates.</p>
+    <details>
+      <summary>Show or hide types</summary>
+      <div id="bim-classes"></div>
+    </details>
+    <label class="bim-section">Section <input id="bim-section" type="range" min="0.3" max="2.6" step="0.1" value="2.6"> <span id="bim-section-value">off</span></label>
     <div id="bim-props"></div>
   </div>
 
@@ -129,13 +172,17 @@
 
   <div id="copilot" hidden>
     <button id="copilot-close" aria-label="Close">&times;</button>
-    <h2>Copilot</h2>
-    <form id="copilot-form">
-      <input id="copilot-input" placeholder="Ask about the selected object" autocomplete="off">
-      <button type="submit">Ask</button>
+    <div id="val-head">
+      <h2>Val</h2>
       <button type="button" id="copilot-speak">Voice on</button>
+    </div>
+    <div id="val-context"></div>
+    <div id="val-messages"></div>
+    <div id="val-suggestions"></div>
+    <form id="copilot-form">
+      <input id="copilot-input" placeholder="Ask Val" autocomplete="off">
+      <button type="submit" class="primary">Ask</button>
     </form>
-    <div id="copilot-answer"></div>
   </div>
 
   <script type="module" src="main.js"></script>

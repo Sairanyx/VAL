@@ -6,12 +6,16 @@ failure, or a slow or missing model, leaves the template answer in place, and th
 kind of answer it is.
 """
 
+import base64
+import io
 import json
 import logging
 import os
 import re
 import threading
 import time
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -31,6 +35,11 @@ log = logging.getLogger(__name__)
 MAX_NEW_TOKENS = 300
 MAX_SECONDS = 30.0
 MAX_ITEMS = 5
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
+OLLAMA_SECONDS = 60.0  # a laptop's CPU is much slower than a GPU
+OLLAMA_CONTEXT = 4096
+OLLAMA_MAX_FACTS = 12  # reading the facts is most of the wait on a CPU
+MIN_ANSWER_WORDS = 4
 MAX_FIELD_LENGTH = 300
 ID_PATTERN = re.compile(r"\b[A-Z][A-Z0-9_]*(?:-[A-Z0-9_]+)*-\d+[A-Z0-9_]*\b|\bDOC-[A-Z0-9_-]+\b")
 NUMBER_PATTERN = re.compile(r"(?<![\w.])\d+(?:\.\d+)?")
@@ -110,8 +119,57 @@ class QwenWriter:
         )[0]
 
 
+class OllamaWriter:
+    """Runs a small model through a local Ollama, for laptops with no GPU."""
+
+    max_facts = OLLAMA_MAX_FACTS
+
+    def __init__(self, model: str, url: str = OLLAMA_URL, seconds: float = OLLAMA_SECONDS) -> None:
+        self.model = model
+        self.url = url
+        self.seconds = seconds
+        # Answers wait for the model to load unless it's already there, so load it now.
+        threading.Thread(target=self._post, args=({"model": model, "keep_alive": -1},)).start()
+
+    def _post(self, body: dict[str, Any]) -> str:
+        request = urllib.request.Request(
+            f"{self.url}/api/generate",
+            data=json.dumps(body).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(request, timeout=self.seconds) as reply:
+            return json.loads(reply.read()).get("response", "")
+
+    def _generate(self, prompt: str, images: list[str] | None = None) -> str:
+        options = {"temperature": 0, "num_predict": MAX_NEW_TOKENS, "num_ctx": OLLAMA_CONTEXT}
+        body: dict[str, Any] = {
+            "model": self.model,
+            "prompt": prompt,
+            "stream": False,
+            "format": "json",
+            "think": False,
+            "keep_alive": -1,
+            "options": options,
+        }
+        if images:
+            body["images"] = images
+        return self._post(body)
+
+    def write(self, prompt: str) -> str:
+        return self._generate(prompt)
+
+    def look(self, image: Any, prompt: str) -> str:
+        """Answer a question about an image. Not every small model can see, so this may fail."""
+        buffer = io.BytesIO()
+        image.save(buffer, "JPEG")
+        return self._generate(prompt, [base64.b64encode(buffer.getvalue()).decode()])
+
+
 def load_writer() -> Writer | None:
-    """Return the model named by COPILOT_MODEL. Without one, the copilot uses its templates."""
+    """Return the COPILOT_OLLAMA or COPILOT_MODEL model. Without one, Val uses its templates."""
+    small = os.getenv("COPILOT_OLLAMA")
+    if small:
+        return OllamaWriter(small)
     path = os.getenv("COPILOT_MODEL")
     if not path:
         return None
@@ -197,12 +255,35 @@ def clean_citations(citations: Any) -> Any:
     return [c.strip().strip("[]") if isinstance(c, str) else c for c in citations]
 
 
+def fewer_facts(facts: list[Fact], limit: int) -> list[Fact]:
+    """Keep a share of each kind of fact, so any question still has something to go on.
+
+    The order never depends on the question, so a model can reuse what it has already read.
+    """
+    if len(facts) <= limit:
+        return facts
+    kinds: dict[str, list[Fact]] = {}
+    for fact in facts:
+        kinds.setdefault(fact.id.split("-")[0], []).append(fact)
+    kept: set[int] = set()
+    while len(kept) < limit:
+        for group in kinds.values():
+            if group and len(kept) < limit:
+                kept.add(id(group.pop(0)))
+    return [fact for fact in facts if id(fact) in kept]
+
+
+def real_words(text: str) -> int:
+    """Count an answer's words, leaving out IDs, as a reply can be nothing but a citation."""
+    return len(re.findall(r"[A-Za-z]{2,}", ID_PATTERN.sub(" ", re.sub(r"\[[^\]]*\]", " ", text))))
+
+
 def check_reply(reply: dict[str, Any] | None, facts: list[Fact]) -> str | None:
     """Return why a reply can't be shown, or None if it passes every check."""
     if reply is None:
         return "not valid JSON"
     answer = reply.get("answer")
-    if not isinstance(answer, str) or not answer.strip():
+    if not isinstance(answer, str) or real_words(answer) < MIN_ANSWER_WORDS:
         return "no answer"
     hypotheses = reply.get("hypotheses") or []
     citations = clean_citations(reply.get("citations") or [])
@@ -241,6 +322,7 @@ def explain(
         return response, {"answer_source": "template", "reason": "no model loaded"}
     if not facts:
         return response, {"answer_source": "template", "reason": "no facts for this question"}
+    facts = fewer_facts(facts, getattr(writer, "max_facts", len(facts)))
     listing = "\n".join(f"[{fact.id}] {fact.text}" for fact in facts)
     started = time.perf_counter()
     try:
@@ -282,6 +364,34 @@ def service_date_note(last_service_date: str | None, opened_dates: list[str]) ->
     )
 
 
+def warm_up(engine: CopilotEngine, writer: Writer | None) -> None:
+    """Have a slow model read the fault's facts now, as it can reuse them for the first question."""
+    if not hasattr(writer, "max_facts"):
+        return
+
+    def read() -> None:
+        try:
+            facts = fewer_facts(gather_facts(engine, engine.fault_tag), writer.max_facts)
+            listing = "\n".join(f"[{fact.id}] {fact.text}" for fact in facts)
+            writer.write(
+                PROMPT.format(facts=listing, question=f"Why is {engine.fault_tag} flagged?")
+            )
+        except Exception:
+            log.warning("Couldn't warm up the model, so its first answer will be slower")
+
+    threading.Thread(target=read, daemon=True).start()
+
+
+def can_reword(engine: CopilotEngine, reply: dict[str, Any], question: str) -> bool:
+    """Return whether a model could put this answer in plain words."""
+    return bool(
+        reply.get("safety_passed")
+        and reply.get("focused_asset")
+        and reply.get("citations")
+        and not engine._is_navigation_intent(question.lower())
+    )
+
+
 def answer(
     engine: CopilotEngine, question: str, object_id: str | None, writer: Writer | None
 ) -> dict[str, Any]:
@@ -290,13 +400,7 @@ def answer(
     if writer is None:
         return {**response.to_dict(), "answer_source": "template", "reason": "no model loaded"}
     question_lower = question.lower()
-    template_only = (
-        not response.safety_passed
-        or not response.focused_asset
-        or not response.citations
-        or engine._is_navigation_intent(question_lower)
-    )
-    if template_only:
+    if not can_reword(engine, response.to_dict(), question):
         reason = "refused or nothing to explain"
         return {**response.to_dict(), "answer_source": "template", "reason": reason}
     if "servic" in question_lower or "maintenance" in question_lower:

@@ -1,6 +1,6 @@
-# viktortrilar: viktor/fix-copilot-button
-**Goal:** get every branch's work onto main, then make the viewer faster and simpler and work on the copilot, Val, after the engineer's feedback
-**Done:** the Copilot and Ask copilot buttons work again. They broke when `web/copilot.js` and `web/main.js` got out of step, on main since #30. Before that: merged `eduard`, `benjamin/webviewer` and `yasasha/extract`
-**Verified:** headless browser with the Excel data: the button opens the panel, a typed question and Ask copilot both get real answers, no page errors. Not tested: the local model, 5090, tablet
-**Next:** viewer speed, a simpler UI (16 buttons show at once), rename the copilot to Val and improve it
-**Blockers:** live IFC download has boxes only (0.9 MB), while `make bim`'s file has scan meshes (13 MB). A moved object's old spot can stay blocked. `make api` restarts on any `.py` edit in the repo. Left unmerged on purpose: `sasha_branch` (empty test commit), `viktor/viewer-objects` (old merge with no work of its own)
+# viktortrilar: viktor/viewer-and-val
+**Goal:** the engineer's feedback: a faster viewer, a simpler UI, and the copilot as Val, running on a ThinkPad
+**Done:** web/pacing.js stops redrawing when still and lowers resolution while moving. `./start laptop` and automatic light scene. Four main buttons plus More, actions first in the panel, Esc and phone back. Val: chat panel, suggestions, overview of what needs attention, instant records answer plus "In plain words" from `gemma4:e2b` through Ollama (`make laptop-model`). Delete with confirmation, Duplicate in the viewer and BIM mode. Fixed combine: vanishing chair, ghost chair, chair left in the Box look
+**Verified:** 259 tests passed with the Excel pack, 3 skipped, lint clean. Headless browser on real data: 28 of 28 combine, delete, duplicate and back checks, 66 of 66 route checks, Val with the real model, no page errors. On this ThinkPad's real GPU: 13 to 31 frames a second while turning. Not tested: a person using it, tablet or touch, real phone back button, 5090, `./start laptop` itself
+**Next:** merge #31 then this PR. Try it on the ThinkPad with `./start laptop` and `make laptop-model`. Rehearse
+**Blockers:** merging needs Viktor's word. Load time didn't improve. Gemma's answers are terse. Deleting hides the object's whole box, neighbours included. A moved object's old spot can stay blocked. Live IFC has boxes only. Roihu closed until at least Monday

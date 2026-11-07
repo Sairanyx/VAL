@@ -202,3 +202,49 @@ def test_fault_tag_can_differ_between_sites(monkeypatch):
     assert CopilotEngine().fault_tag == "P-002"
     monkeypatch.delenv("COPILOT_FAULT_TAG")
     assert CopilotEngine().fault_tag == "P-005"
+
+
+# -------------------------------------------------------------------------
+# Val: questions with no device behind them, and objects with no record
+# -------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("question", ["hi", "Hello Val!", "thanks", "Who are you?", "help"])
+def test_small_talk_never_answers_about_a_device(copilot, question):
+    copilot.set_focus("P-005")
+    reply = copilot.query(question)
+    assert "P-005" not in reply.answer and not reply.citations
+
+
+def test_val_says_what_needs_attention_from_the_records(copilot):
+    copilot.focused_asset_tag = None
+    reply = copilot.query("What needs attention?")
+    worst = min(
+        (
+            s
+            for a in copilot.store.list_assets()
+            if (s := copilot.store.get_current_state(a.asset_id)) and s.urgency == "high"
+        ),
+        key=lambda s: s.health_score,
+    )
+    assert worst.tag in reply.answer and worst.asset_id in reply.citations
+
+
+def test_val_doesnt_answer_other_topics_with_a_diagnosis(copilot):
+    reply = copilot.query("Which spare parts do I need?", object_id=None)
+    assert "spare parts" in reply.answer and "health" not in reply.answer
+
+
+def test_unrelated_question_doesnt_get_the_last_devices_diagnosis(copilot):
+    copilot.set_focus("P-005")
+    assert "health" not in copilot.query("What colour is the sky?").answer
+
+
+def test_object_with_no_record_is_never_treated_as_the_fault(copilot):
+    copilot.sample_assets = [{"object_id": "cart-1", "label": "cart", "confidence": 0.5}]
+    copilot.mapping = {}
+    copilot.focused_asset_tag = None
+    reply = copilot.query("What's wrong with it?", object_id="cart-1")
+    assert "isn't linked" in reply.answer and "P-005" not in reply.answer
+    route = copilot.query("Take me there", object_id="cart-1")
+    assert [a["object_id"] for a in route.actions if a["type"] == "navigate"] == ["cart-1"]

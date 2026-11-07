@@ -404,3 +404,35 @@ def test_every_viewer_action_is_listed_with_what_it_needs(client):
     actions = client.get("/api/viewer/actions").json()["actions"]
     assert {"route_to", "move_object", "rotate_object", "undo_changes"} <= set(actions)
     assert all("does" in spec and "args" in spec for spec in actions.values())
+
+
+def test_anything_can_be_deleted_and_undo_brings_it_back(client):
+    assert client.post("/api/changes", json={"op": "remove", "object_id": "far"}).status_code == 200
+    assert all(a["object_id"] != "far" for a in client.get("/api/assets").json()["assets"])
+    client.post("/api/changes/reset")
+    assert any(a["object_id"] == "far" for a in client.get("/api/assets").json()["assets"])
+
+
+def test_a_duplicate_is_the_same_object_elsewhere_without_the_record_link(tmp_path):
+    source = box("pump", [1, 1, 0], "movable")
+    source["label"] = "pump"
+    source["mapping"] = {"tag": "P-005", "asset_id": "A", "method": "manual", "confidence": 0.3}
+    path = tmp_path / "assets.json"
+    path.write_text(json.dumps({"scene_id": "t", "assets": [source]}))
+    client = TestClient(create_app(path, database=FakeDatabase()))
+    change = {"op": "duplicate", "object_id": "pump", "position": [3, 1, 0]}
+    made = client.post("/api/changes", json=change).json()["parts"]
+    copy = client.get(f"/api/assets/{made[0]}").json()
+    assert copy["label"] == "pump" and copy["center"] == [3, 1, 0]
+    assert copy["mapping"] is None and copy["duplicated_from"] == "pump"
+    assert client.get("/api/assets/pump").json()["mapping"]["tag"] == "P-005"
+    second = {"op": "duplicate", "object_id": copy["object_id"], "position": [5, 1, 0]}
+    again = client.post("/api/changes", json=second).json()["parts"][0]
+    assert again != copy["object_id"]
+    assert client.get(f"/api/assets/{again}").json()["duplicated_from"] == "pump"
+    split = {"op": "split", "object_id": copy["object_id"], "details": {}}
+    assert client.post("/api/changes", json=split).status_code == 409
+    client.post("/api/changes/reset")
+    assert all(
+        a["object_id"] != copy["object_id"] for a in client.get("/api/assets").json()["assets"]
+    )

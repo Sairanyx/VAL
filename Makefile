@@ -18,8 +18,9 @@ BIM_DIR ?= $(SCENE_DIR)/bim
 BIM ?= $(if $(filter $(SCENE_DIR)/%,$(SCENE)),$(if $(wildcard $(BIM_DIR)/bim.json),$(BIM_DIR)))
 MODEL ?= Qwen3.5-9B
 MODEL_DIR ?= data/models/$(MODEL)
+LAPTOP_MODEL ?= gemma4:e2b
 
-.PHONY: setup entire views scene scene-full model pieces highlights shapes bim pipeline gpu train tb web fmt lint test check up api floor mapping db nav-check start-browser start-tablet
+.PHONY: setup entire views scene scene-full model laptop-model pieces highlights shapes bim pipeline gpu train tb web fmt lint test check up api floor mapping db nav-check start-browser start-laptop start-tablet
 
 setup:   ## install everything
 	uv sync
@@ -45,6 +46,8 @@ scene-full: ## get our own full-quality splat (513 MB). The demo uses the origin
 	mkdir -p $(SCENE_DIR)
 	gh release download scene-v2 --pattern $(SCENE_FULL) --dir data/scene/splat_v2 --clobber
 	@echo "Viewer: make web SCENE=data/scene/splat_v2/$(SCENE_FULL) ASSETS=$(SCENE_DIR)/assets_viewer.json SHAPES=$(SCENE_DIR)/shapes.json"
+laptop-model: ## get Val's small model for a laptop with no GPU, before going offline. Needs Ollama
+	ollama pull $(LAPTOP_MODEL)
 model:   ## download the copilot's language model once, before going offline (about 20 GB)
 	uv run python -c "from huggingface_hub import snapshot_download as s; s('Qwen/$(MODEL)', local_dir='$(MODEL_DIR)', allow_patterns=['*.safetensors', '*.json', '*.txt', '*.jinja', 'merges*', 'vocab*'])"
 pieces:  ## cut movable objects out of a scene, so dragging moves the real thing. Then: make web SCENE=$(PIECES_DIR)/base.ply PIECES=$(PIECES_DIR)
@@ -59,6 +62,8 @@ pipeline: ## run a scene through everything: make pipeline CONFIG=scenes/equipme
 	uv run python scripts/pipeline.py $(or $(CONFIG),scenes/equipment_room.toml) $(if $(DRY),--dry-run)
 start-browser: ## start everything for a laptop or PC. Same as ./start browser
 	./start browser
+start-laptop: ## start everything for a laptop with no graphics card, using the light scene. Same as ./start laptop
+	./start laptop
 start-tablet: ## start everything for the Lenovo tablet. Same as ./start tablet
 	./start tablet
 gpu:     ## check the GPU works
@@ -67,8 +72,8 @@ db:      ## start local TimescaleDB and load the Excel telemetry
 	docker compose up -d --wait db
 	DATABASE_URL=$(DATABASE_URL) uv run python -m app.api.db
 api:     ## backend API at http://localhost:8001/docs. Uses the language model if make model has run
-	$(if $(wildcard $(MODEL_DIR)/config.json),COPILOT_MODEL=$(MODEL_DIR)) SCENE_PLY="$(FLOOR_SCENE)" DATABASE_URL=$(DATABASE_URL) SCENE_ASSETS=$(SCENE_DIR)/assets_mapped.json SCENE_GRID=$(SCENE_DIR)/nav_grid.npz \
-	uv run uvicorn app.api.main:app --host 0.0.0.0 --port 8001 --reload
+	$(if $(wildcard $(MODEL_DIR)/config.json),COPILOT_MODEL=$(MODEL_DIR),$(if $(shell ollama list 2>/dev/null | grep -F '$(LAPTOP_MODEL)'),COPILOT_OLLAMA=$(LAPTOP_MODEL))) SCENE_PLY="$(FLOOR_SCENE)" DATABASE_URL=$(DATABASE_URL) SCENE_ASSETS=$(SCENE_DIR)/assets_mapped.json SCENE_GRID=$(SCENE_DIR)/nav_grid.npz \
+	uv run uvicorn app.api.main:app --host 0.0.0.0 --port 8001 --reload --reload-dir app
 floor:   ## rebuild the floor map (make scene includes one), needs "Equipment Room.ply" in SCENE_DIR. Pass VIEWS=, or floaters block aisles
 	uv run python -m app.nav.grid "$(FLOOR_SCENE)" $(if $(VIEWS),--views $(VIEWS)) $(if $(wildcard $(SCENE_DIR)/walked.npy),--walked $(SCENE_DIR)/walked.npy) --labels $(SCENE_DIR)/splat_labels.npy --assets $(SCENE_DIR)/assets_final.json --out $(SCENE_DIR)/nav_grid.npz --preview runs/floor.png
 nav-check: ## test floor map, routes, mapping and API together, and draw runs/nav_check.png

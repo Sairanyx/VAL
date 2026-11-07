@@ -61,7 +61,7 @@ def check_safety(user_prompt: str) -> SafetyCheckResult:
                 passed=False,
                 violation_reason=(
                     f"Autonomous physical control action requested ('{match.group(0)}'). "
-                    "Copilot is restricted to read-only diagnosis and guidance."
+                    "Val is restricted to read-only diagnosis and guidance."
                 ),
                 recommended_action=(
                     "Follow site Lockout/Tagout (LOTO) procedures, obtain approved work permits, "

@@ -5,7 +5,7 @@
 // bounding boxes. All but "real" are coloured by IFC class. Taps hit the mesh, or the box in "box".
 // Everything is in scene coordinates inside `root`, like the scan, so moves and routes line up.
 import * as THREE from "three";
-import { SplatMesh } from "@sparkjsdev/spark";
+import { SplatEdit, SplatEditSdf, SplatEditSdfType, SplatMesh } from "@sparkjsdev/spark";
 
 const UP = new THREE.Vector3(0, 1, 0);
 const CLASS_COLORS = {
@@ -87,7 +87,70 @@ export async function setupBim({
   // Objects added, split or combined in the viewer aren't in the file, so they get a plain box.
   function addMissing() {
     for (const object of objects) {
-      if (!object.gone && !known.has(object)) addItem(plainElement(object), object);
+      if (object.gone || known.has(object)) continue;
+      const { duplicated_from: copied, combined_from: parts } = object.asset;
+      const source = copied && items.find((item) => item.object?.asset.object_id === copied);
+      if (source) addCopy(source, object);
+      else addItem(plainElement(object), object);
+      if (parts) {
+        items.at(-1).combined = true;
+        for (const item of items) {
+          if (parts.includes(item.object?.asset.object_id)) item.owner = object;
+        }
+      }
+    }
+  }
+
+  // A copy has everything its source has, drawn somewhere else, except its record link.
+  function addCopy(source, object) {
+    const { label, object_id: id } = object.asset;
+    const { Valmet_Mapping, ...psets } = source.element.psets;
+    addItem(
+      {
+        ...source.element,
+        guid: "assigned on export",
+        object_id: id,
+        name: `${label} (${id})`,
+        splat_group: undefined,
+        psets: {
+          ...psets,
+          Valmet_Identification: {
+            ...psets.Valmet_Identification,
+            ObjectId: id,
+            IdentityConfirmed: false,
+          },
+        },
+      },
+      object,
+    );
+    const item = items.at(-1);
+    item.origin = source.object.asset.center;
+    ownSplats(item);
+  }
+
+  // Combined parts follow the object they became. Anything else that's gone isn't drawn.
+  function ownerOf(item) {
+    if (!item.object?.gone) return item.object;
+    return item.owner && !item.owner.gone ? item.owner : null;
+  }
+
+  // Fixed objects share a file per class. One that's gone or follows another is cut out of it.
+  const groupEdit = new SplatEdit({ sdfs: [] });
+  function cutFromGroup(item, cut) {
+    if (!item.element.splat_group || Boolean(item.cut) === cut) return;
+    if (cut) {
+      const { bbox_min: first, bbox_max: second } = item.object.asset;
+      const low = new THREE.Vector3(...first).min(new THREE.Vector3(...second));
+      const high = new THREE.Vector3(...first).max(new THREE.Vector3(...second));
+      item.cut = new SplatEditSdf({ type: SplatEditSdfType.BOX, opacity: 0 });
+      item.cut.position.copy(low).add(high).multiplyScalar(0.5);
+      item.cut.scale.copy(high).sub(low);
+      root.add(item.cut);
+      groupEdit.addSdf(item.cut);
+    } else {
+      groupEdit.removeSdf(item.cut);
+      root.remove(item.cut);
+      item.cut = null;
     }
   }
 
@@ -162,6 +225,7 @@ export async function setupBim({
       if (element.splat_group) {
         if (!splatGroups.has(element.splat_group)) {
           const mesh = new SplatMesh({ url: `bim/splats/${element.splat_group}`, lod: false });
+          mesh.edits = [groupEdit];
           splatGroups.set(element.splat_group, { mesh, cls: element.ifc_class });
           root.add(mesh);
         }
@@ -262,7 +326,7 @@ export async function setupBim({
     styleItem(item);
     if (state.isolated) ownSplats(item);
     showProperties(item.element);
-    if (notify) onSelectObject(item.object ?? null);
+    if (notify) onSelectObject(item.object ? ownerOf(item) : null);
   }
 
   function showProperties(element) {
@@ -280,9 +344,11 @@ export async function setupBim({
   }
 
   function visible(item) {
-    if (item.object?.gone) return false;
+    if (item.object && !ownerOf(item)) return false;
+    // A combined object is its parts, except in the Box look, where it's one box around them.
+    if (item.combined && state.look !== "box" && !item.object.gone) return false;
+    if (item.object?.gone && state.look === "box") return false;
     if (state.hidden.has(item.element.ifc_class)) return false;
-    if (item.object?.gone) return false;
     if (state.isolated && state.selected) {
       return item === state.selected || ROOM.has(item.element.ifc_class);
     }
@@ -300,20 +366,23 @@ export async function setupBim({
     const real = state.look === "real";
     for (const item of items) {
       item.mesh.visible = visible(item);
-      if (item.object && !item.object.gone) {
-        offset.set(...item.object.asset.center);
-        spin.setFromAxisAngle(UP, item.object.yaw || 0);
+      const owner = ownerOf(item);
+      if (item.object) cutFromGroup(item, Boolean(item.object.gone));
+      if (item.object && !owner && item.splats) item.splats.visible = false;
+      if (owner) {
+        offset.set(...(item.origin ?? owner.asset.center));
+        spin.setFromAxisAngle(UP, owner.yaw || 0);
         for (const mesh of [item.scan, item.box].filter(Boolean)) {
           shift.copy(mesh.userData.home).sub(offset).applyQuaternion(spin);
-          mesh.position.copy(item.object.center).add(shift);
+          mesh.position.copy(owner.center).add(shift);
           mesh.quaternion.copy(mesh.userData.turn).premultiply(spin);
         }
         if (item.splats) {
           shift.copy(offset).negate().applyQuaternion(spin);
-          item.splats.position.copy(item.object.center).add(shift);
+          item.splats.position.copy(owner.center).add(shift);
           item.splats.quaternion.copy(spin);
           // Class files hold this object too, so its own file only shows on its own when isolated.
-          const shared = Boolean(item.element.splat_group) && !state.isolated;
+          const shared = Boolean(item.element.splat_group) && !state.isolated && !item.object.gone;
           item.splats.visible = real && item.mesh.visible && !shared;
         }
       }
@@ -358,6 +427,7 @@ export async function setupBim({
     update,
     pick,
     selectObject,
+    items, // For browser tests.
     elementCount: items.length,
   };
 }

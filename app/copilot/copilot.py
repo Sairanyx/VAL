@@ -87,8 +87,55 @@ def fouling_hypothesis(metrics: dict[str, dict[str, Any]]) -> str:
     return f"{', '.join(signs).capitalize()} may point to fouling in the hydraulic path."
 
 
+INTRO = (
+    "I'm Val, your field-service assistant for this room. Ask me what needs attention, what's "
+    "wrong with a device, what to check next, when it was last serviced, or to take you to it. I "
+    "answer only from the plant's records, I say when I'm unsure, and I never operate equipment."
+)
+GREETING = "Hi, I'm Val. Tap a device and ask me about it, or ask what needs attention."
+THANKS = "You're welcome. Ask me if you need anything else."
+GREETING_WORDS = r"(hi|hello|hey|moi|hei|good (morning|afternoon|evening))( val)?"
+THANKS_WORDS = r"(thanks|thank you|thx|kiitos|ok|okay|great|cool)( val)?"
+ABOUT_VAL = (
+    "who are you",
+    "what are you",
+    "your name",
+    "what can you do",
+    "what do you do",
+    "how can you help",
+    "how do you work",
+)
+OVERVIEW_PHRASES = (
+    "needs attention",
+    "need attention",
+    "most urgent",
+    "what's urgent",
+    "what is urgent",
+    "priorit",
+    "any alarm",
+    "any alert",
+    "any problem",
+    "any fault",
+    "any issue",
+    "worst",
+    "overview",
+)
+NOT_IN_RECORDS = {
+    "spare": "spare parts",
+    "part number": "part numbers",
+    "stock": "stock",
+    "inventory": "stock",
+    "price": "prices",
+    "cost": "costs",
+    "budget": "costs",
+    "supplier": "suppliers",
+    "warranty": "warranties",
+}
+URGENCY_ORDER = {"high": 0, "medium": 1, "low": 2}
+
+
 class CopilotEngine:
-    """Field service diagnostic copilot with enforced guardrails and citation checking."""
+    """Val: field-service diagnostics with enforced guardrails and citation checking."""
 
     def __init__(
         self,
@@ -159,6 +206,11 @@ class CopilotEngine:
                 focused_object_id=self.focused_object_id,
             )
 
+        # Small talk has no device behind it, so it mustn't answer about the last one discussed.
+        casual = self._casual_reply(question)
+        if casual:
+            return casual
+
         # 3. Resolve target asset (from prompt or existing focus)
         target_tag = self._resolve_target_asset(question)
         if not target_tag and self.focused_asset_tag:
@@ -173,6 +225,19 @@ class CopilotEngine:
 
         # 4. Route intent
         q_lower = question.lower()
+
+        if not target_tag and self._is_overview_intent(q_lower, question, object_id):
+            return self._handle_overview()
+
+        # A selected object with no record must never turn into the fault or the last device.
+        if not target_tag and object_id and object_id not in self.mapping:
+            if self._is_navigation_intent(q_lower):
+                return self._handle_navigation_to_object(object_id)
+            return self._describe_unlinked(object_id)
+
+        missing = next((name for word, name in NOT_IN_RECORDS.items() if word in q_lower), None)
+        if missing:
+            return self._not_in_records(missing)
 
         # Intent A: Navigation / Location ("Where is...", "Take me to...", "Show route")
         if self._is_navigation_intent(q_lower):
@@ -189,7 +254,9 @@ class CopilotEngine:
             return self._handle_next_steps(target_tag or self.focused_asset_tag)
 
         # Intent D: Status / Condition / Diagnosis ("What's wrong?", "Condition", "Health")
-        if target_tag or self.focused_asset_tag:
+        # A question that points at no device mustn't get the last device's diagnosis.
+        about_device = object_id or self._references_context(question) or wants_reason
+        if target_tag or (self.focused_asset_tag and about_device):
             return self._handle_diagnosis(target_tag or self.focused_asset_tag)
 
         # Intent E: General search or guidance
@@ -202,6 +269,120 @@ class CopilotEngine:
             asset = self.store.get_asset(norm)
             return asset.tag if asset else norm
         return None
+
+    @staticmethod
+    def _casual_reply(question: str) -> CopilotResponse | None:
+        """Answer greetings, thanks and questions about Val, none of which need records."""
+        clean = question.strip().lower().rstrip("!.?, ")
+        text = None
+        if re.fullmatch(GREETING_WORDS, clean):
+            text = GREETING
+        elif re.fullmatch(THANKS_WORDS, clean):
+            text = THANKS
+        elif clean == "help" or any(phrase in clean for phrase in ABOUT_VAL):
+            text = INTRO
+        if text is None:
+            return None
+        return CopilotResponse(answer=text, confidence=1.0)
+
+    def _is_overview_intent(self, q_lower: str, question: str, object_id: str | None) -> bool:
+        """Check for a question about the whole room rather than one device."""
+        if (object_id or self.focused_asset_tag) and self._references_context(question):
+            return False
+        if any(phrase in q_lower for phrase in OVERVIEW_PHRASES):
+            return True
+        wrong = "what's wrong" in q_lower or "what is wrong" in q_lower
+        return wrong and not self.focused_asset_tag and not object_id
+
+    def _handle_overview(self) -> CopilotResponse:
+        """Say which devices the records rank as most urgent, worst health first."""
+        states = [self.store.get_current_state(a.asset_id) for a in self.store.list_assets()]
+        ranked = sorted(
+            (state for state in states if state),
+            key=lambda state: (URGENCY_ORDER.get(state.urgency, 3), state.health_score),
+        )
+        urgent = [state for state in ranked if state.urgency == "high"]
+        if not urgent:
+            return CopilotResponse(
+                answer="The records don't mark any device as high urgency right now.",
+                observations=[f"Checked the current state of {len(ranked)} devices."],
+                citations=["DOC-RAG-GUIDE"],
+                confidence=1.0,
+            )
+        top = urgent[0]
+        self.set_focus(top.tag)
+        answer = (
+            f"{len(urgent)} devices are marked high urgency. Start with {top.tag}: health "
+            f"{top.health_score:.0f}/100, {top.issue_summary}. Recommended check: "
+            f"{top.recommended_next_check}."
+        )
+        others = ", ".join(f"{s.tag} ({s.health_score:.0f}/100)" for s in urgent[1:4])
+        if others:
+            answer += f" Also high urgency: {others}."
+        actions: list[dict[str, Any]] = []
+        if self.focused_object_id:
+            actions.append({"type": "highlight", "object_id": self.focused_object_id})
+        return CopilotResponse(
+            answer=answer,
+            observations=[
+                f"{s.tag}: health {s.health_score:.0f}/100, {s.condition_state}, {s.issue_summary}"
+                for s in urgent
+            ],
+            citations=[s.asset_id for s in urgent[:4]],
+            confidence=top.model_confidence,
+            actions=actions,
+            focused_object_id=self.focused_object_id,
+        )
+
+    def _scene_object(self, object_id: str) -> dict[str, Any]:
+        return next((a for a in self.sample_assets if a.get("object_id") == object_id), {})
+
+    def _handle_navigation_to_object(self, object_id: str) -> CopilotResponse:
+        """Route to a selected object that has no record."""
+        label = self._scene_object(object_id).get("label", "object")
+        return CopilotResponse(
+            answer=f"I've marked this {label} and drawn the route to it.",
+            observations=[f"Detected object {object_id}, with no linked plant record."],
+            citations=["DOC-3D-MAPPING"],
+            confidence=float(self._scene_object(object_id).get("confidence") or 0.0),
+            actions=[
+                {"type": "highlight", "object_id": object_id},
+                {"type": "navigate", "object_id": object_id},
+            ],
+            focused_object_id=object_id,
+            mapping_status="not linked to a record",
+        )
+
+    def _describe_unlinked(self, object_id: str) -> CopilotResponse:
+        """Say what's known about an object with no record, without guessing its identity."""
+        found = self._scene_object(object_id)
+        label = found.get("label", "object")
+        confidence = float(found.get("confidence") or 0.0)
+        return CopilotResponse(
+            answer=(
+                f"The scan shows this as: {label}. It isn't linked to a plant record, so I have "
+                "no condition, measurements or service history for it, and I won't guess which "
+                "device it is. I can take you to it so you can check its nameplate."
+            ),
+            observations=[f"Detected object {object_id}, labelled {label}."],
+            citations=["DOC-3D-MAPPING"],
+            confidence=confidence,
+            actions=[{"type": "highlight", "object_id": object_id}],
+            focused_object_id=object_id,
+            mapping_status="not linked to a record",
+        )
+
+    @staticmethod
+    def _not_in_records(topic: str) -> CopilotResponse:
+        """Say plainly that a topic isn't in the records, rather than answering something else."""
+        return CopilotResponse(
+            answer=(
+                f"I don't have records on {topic}, so I won't guess. I can see each device's "
+                "condition, measurements, events, work orders and guidance documents."
+            ),
+            citations=["DOC-RAG-GUIDE"],
+            confidence=1.0,
+        )
 
     @staticmethod
     def _references_context(question: str) -> bool:
@@ -221,8 +402,8 @@ class CopilotEngine:
                 return CopilotResponse(
                     answer=(
                         f"Asset '{code}' was not found in the plant Asset Master. "
-                        "Under DOC-3D-MAPPING, the copilot will never invent identities "
-                        "or guess data for unmapped equipment."
+                        "Under DOC-3D-MAPPING, I never invent identities or guess data for "
+                        "unmapped equipment."
                     ),
                     observations=[f"Query tag '{code}' has no corresponding Asset_Master record."],
                     hypotheses=["Device does not exist or has not been commissioned/mapped."],
@@ -313,17 +494,19 @@ class CopilotEngine:
             else "Spatial match"
         )
 
+        answer = f"I've marked {tag} and drawn the route to it."
+        if match.confidence < 1.0:
+            answer += (
+                f" Its link to this object is only {match.confidence * 100:.0f}% certain, so "
+                "check the nameplate when you get there."
+            )
         return CopilotResponse(
-            answer=(
-                f"{tag} is located in this room at coordinates "
-                f"({match.center[0]:.2f}, {match.center[1]:.2f}, {match.center[2]:.2f}). "
-                "Highlighted in 3D viewer. Navigation path calculated to free floor stance."
-            ),
+            answer=answer,
             observations=[
                 f"3D bounding box center: {match.center}",
                 f"Mapping provenance: {prov} with {match.confidence * 100:.0f}% confidence.",
             ],
-            hypotheses=[f"Avatar can traverse obstacle-free route to {tag}."],
+            hypotheses=[],
             citations=citations,
             confidence=match.confidence,
             actions=actions,
@@ -402,11 +585,10 @@ class CopilotEngine:
 
         h_score = status["health_score"]
         answer = (
-            f"Asset {tag} ({asset_id}) condition is '{status['condition_state']}' "
-            f"with health score {h_score:.0f}/100. "
-            f"Diagnostic signature indicates {status['issue_summary']}. "
-            f"Recommended safe check: {status['recommended_next_check']} (citing {doc_id}). "
-            "Field technicians must adhere to safety guardrail DOC-FIELD-SAFETY."
+            f"{tag} ({asset_id}): {status['condition_state'].replace('_', ' ')}, health "
+            f"{h_score:.0f}/100. Signature: {status['issue_summary']}. "
+            f"Recommended safe check: {status['recommended_next_check']} ({doc_id}). "
+            "Follow the site's safety rules (DOC-FIELD-SAFETY)."
         )
 
         actions = [
@@ -563,8 +745,8 @@ class CopilotEngine:
 
         return CopilotResponse(
             answer=(
-                "I could not find grounded documentation answering that query. "
-                "Under DOC-RAG-GUIDE, I do not extrapolate beyond verified records."
+                "I couldn't find anything on that in the plant's records, so I won't guess. Try "
+                "asking what needs attention, or tap a device and ask what's wrong with it."
             ),
             observations=["No matching documents in Knowledge_Docs corpus."],
             hypotheses=[],

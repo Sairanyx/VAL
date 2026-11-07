@@ -75,7 +75,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             method=self.command,
         )
         try:
-            with urllib.request.urlopen(request, timeout=30) as response:
+            with urllib.request.urlopen(request, timeout=90) as response:
                 status, body, headers = response.status, response.read(), response.headers
         except urllib.error.HTTPError as error:
             status, body, headers = error.code, error.read(), error.headers

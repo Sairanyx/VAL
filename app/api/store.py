@@ -139,11 +139,17 @@ class SceneStore:
             if asset is None or asset["status"] in GONE:
                 raise KeyError(object_id)
             parts = [self._combine(asset, details)]
+        elif op == "duplicate":
+            asset = self.assets.get(object_id or "")
+            if asset is None or asset["status"] in GONE:
+                raise KeyError(object_id)
+            parts = [self._duplicate(asset, position)]
         else:
             asset = self.assets.get(object_id or "")
             if asset is None or asset["status"] in GONE:
                 raise KeyError(object_id)
-            if asset["mobility"] != "movable":
+            # Anything can be deleted, as detection makes mistakes. Undo brings it back.
+            if op != "remove" and asset["mobility"] != "movable":
                 raise ChangeError(f"{object_id} is {asset['mobility']}, so it can't change")
             if op in ("move", "rotate"):
                 if position is not None:
@@ -209,6 +215,8 @@ class SceneStore:
 
     def _refuse_if_moved(self, asset: dict, action: str) -> None:
         # Its box no longer matches where its splats are in the scan.
+        if asset.get("duplicated_from"):
+            raise ChangeError(f"{asset['object_id']} is a copy, so it can't {action}")
         if self.has_moved(asset):
             raise ChangeError(f"{asset['object_id']} has been moved. Undo that, then {action} it")
 
@@ -244,6 +252,25 @@ class SceneStore:
             ids.append(object_id)
         parent["status"] = "split"
         return ids
+
+    def _duplicate(self, source: dict, position: list[float] | None) -> str:
+        """Copy an object to a new spot. A copy isn't the same device, so it has no record link."""
+        if position is None:
+            raise ChangeError("duplicate needs a position")
+        root = source.get("duplicated_from") or source["object_id"]
+        count = sum(a.get("duplicated_from") == root for a in self.assets.values()) + 1
+        object_id = f"{root}-copy{count}"
+        asset = copy.deepcopy(source)
+        asset.update(
+            object_id=object_id,
+            mapping=None,
+            status="new, unconfirmed",
+            duplicated_from=root,
+        )
+        self._move(asset, position)
+        self._remember_home(asset)
+        self.assets[object_id] = asset
+        return object_id
 
     def _combine(self, first: dict, details: dict | None) -> str:
         """Replace two objects with one around both. Record links aren't merged or guessed."""

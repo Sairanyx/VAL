@@ -7,6 +7,7 @@ from app.copilot.llm import (  # noqa: E402
     Fact,
     check_reply,
     explain,
+    fewer_facts,
     parse_reply,
     service_date_note,
 )
@@ -111,3 +112,16 @@ def test_disagreeing_service_dates_are_stated_by_code():
     assert "2026-09-19" in note and "2026-06-23" in note
     assert service_date_note("2026-06-23T00:00:00", ["2026-06-23T23:00:00"]) is None
     assert service_date_note(None, ["2026-06-23"]) is None
+
+
+def test_a_reply_of_nothing_but_a_citation_is_rejected():
+    reply = {"answer": "[ASSET-017]", "hypotheses": [], "citations": ["ASSET-017"]}
+    assert check_reply(reply, FACTS) == "no answer"
+    assert check_reply({**reply, "answer": "service_completed"}, FACTS) == "no answer"
+
+
+def test_fewer_facts_keeps_each_kind_in_a_fixed_order():
+    facts = [Fact("ASSET-1", "a"), *(Fact(f"DQ-{i}", "q") for i in range(10)), Fact("WO-1", "w")]
+    kept = fewer_facts(facts, 4)
+    assert [fact.id for fact in kept] == ["ASSET-1", "DQ-0", "DQ-1", "WO-1"]
+    assert fewer_facts(facts, 50) == facts

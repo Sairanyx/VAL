@@ -49,7 +49,14 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
     opacity: 0.9,
   });
   const yAxis = new THREE.Vector3(0, 1, 0);
-  const state = { target: null, route: null, profile: "person", walking: null, posted: 0 };
+  const state = {
+    target: null,
+    route: null,
+    start: null,
+    profile: "person",
+    walking: null,
+    posted: 0,
+  };
 
   function clearLine() {
     for (const child of [...group.children]) {
@@ -84,11 +91,13 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
     return `${name}: ${route.length.toFixed(1)} m for a ${route.width ?? ""} m ${route.profile}${reach}${fake}`;
   }
 
-  // Plan from where the viewer stands. A refusal clears the line and shows the reason.
-  async function plan(target) {
+  // Plan from where the viewer stands. Re-plans keep that start, so looking around from elsewhere
+  // can't change the route. A refusal clears the line and shows the reason.
+  async function plan(target, from = null) {
     state.walking = null;
     state.target = target;
-    const start = root.worldToLocal(camera.position.clone());
+    const start = from ?? root.worldToLocal(camera.position.clone());
+    state.start = start;
     try {
       state.route = await callApi("/api/route", {
         start: start.toArray(),
@@ -138,7 +147,7 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
       onMessage(`Couldn't save the move: ${error.message}`);
       return;
     }
-    if (state.target) await plan(state.target);
+    if (state.target) await plan(state.target, state.start);
   }
 
   const look = new THREE.Matrix4();
@@ -203,7 +212,7 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
 
   function setProfile(profile) {
     state.profile = profile;
-    return state.target ? plan(state.target) : null;
+    return state.target ? plan(state.target, state.start) : null;
   }
 
   return { state, plan, startWalking, stopWalking, clear, syncChanges, setProfile, update };

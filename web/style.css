@@ -201,3 +201,70 @@ button {
 #info-condition:empty {
   display: none;
 }
+
+#select-frame {
+  position: fixed;
+  border: 2px dashed #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+  pointer-events: none;
+}
+#select-frame[hidden],
+#add-panel[hidden] {
+  display: none;
+}
+#add-panel {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  width: min(320px, calc(100vw - 24px));
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
+  padding: 12px 14px;
+  border-radius: 6px;
+  background: rgba(17, 22, 28, 0.94);
+  color: #e5e7eb;
+  z-index: 5;
+}
+#add-panel h2 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+#add-panel p {
+  margin: 6px 0;
+  font-size: 13px;
+}
+#add-panel p:empty {
+  display: none;
+}
+#add-warning {
+  color: #fbbf24;
+}
+#add-panel label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 8px 0;
+  font-size: 14px;
+}
+#add-panel select {
+  min-height: 44px;
+  padding: 0 8px;
+  border: 1px solid #3a4652;
+  border-radius: 6px;
+  background: #0f1419;
+  color: #e5e7eb;
+  font-size: 16px;
+}
+#add-panel pre {
+  overflow-x: auto;
+  font-size: 11px;
+}
+.add-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.add-row button {
+  flex: 1;
+}

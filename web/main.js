@@ -3,6 +3,7 @@
 // both served by web/serve.py.
 import * as THREE from "three";
 import { SparkControls, SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
+import { setupAddObject } from "./addobject.js";
 import { setupCopilot } from "./copilot.js";
 import { setupObjects } from "./objects.js";
 import { setupPhone } from "./phone.js";
@@ -10,9 +11,10 @@ import { setupRoute } from "./route.js";
 
 const FAULT_TAG = "P-005"; // the pre-chosen faulty device (docs/PLAN.md)
 const EYE_HEIGHT = 1.6; // metres above the floor in walk mode (scene units look close to metres)
-const LABEL_RANGE = 10; // only label objects closer than this
-const MAX_LABELS = 12;
-const BOX_RANGE = 3; // frames show near the viewer, as the brief asks, plus the fault and the selection
+const RANGES = [2, 3, 5, 10]; // metres the Range button cycles through, for frames and labels
+const MAX_LABELS = 8;
+const MAX_BOXES = 15;
+const BACKGROUND_LABELS = new Set(["pipe", "pipe fitting", "cable", "hose", "object"]);
 
 // Speed settings, changeable in the URL without editing code, e.g. ?res=0.5&splats=300000
 //   res     render resolution relative to the screen (default 1; 0.5 is about 4x fewer pixels)
@@ -55,6 +57,7 @@ let objectLayer = null;
 let route = null;
 let selected = null;
 let boxesOn = true;
+let range = Number(params.get("range") ?? 3);
 
 function resize() {
   const w = window.innerWidth;
@@ -72,8 +75,11 @@ function kind(asset) {
 }
 const COLORS = { fault: 0xff4d4f, mapped: 0x38bdf8, plain: 0xd1d5db };
 
+// Links made by rule aren't real identities, so they're shown as a question.
 function name(asset) {
-  return asset.mapping?.tag ?? asset.label;
+  const link = asset.mapping;
+  if (!link) return asset.label;
+  return link.method?.startsWith("procedural") ? `${link.tag}?` : link.tag;
 }
 
 function addAsset(asset) {
@@ -178,6 +184,52 @@ $("ask").onclick = () => {
   copilot.open(`Why is ${about} flagged, and what should I check first?`);
 };
 $("open-copilot").onclick = () => copilot.open();
+
+const adder = setupAddObject({
+  canvas,
+  root,
+  camera,
+  render: () => renderer.render(scene, camera),
+  ui: {
+    frame: $("select-frame"),
+    panel: $("add-panel"),
+    label: $("add-label"),
+    mobility: $("add-mobility"),
+    notes: $("add-notes"),
+    warning: $("add-warning"),
+    config: $("add-config"),
+    bigger: $("add-bigger"),
+    smaller: $("add-smaller"),
+    save: $("add-save"),
+    cancel: $("add-cancel"),
+  },
+  onMessage: (message) => ($("status").textContent = message),
+  onSaved: async (asset) => {
+    addAsset(asset);
+    const added = objects.at(-1);
+    added.addedByOperator = true;
+    selected = added;
+    const added_text = `Added ${asset.object_id}: ${asset.label}, not confirmed`;
+    $("status").textContent = added_text;
+    if (route?.state.target) {
+      await route.plan(route.state.target, route.state.start);
+      $("status").textContent = `${added_text}. ${$("status").textContent}`;
+    }
+  },
+});
+$("add-object").onclick = () => adder.start();
+
+// Undo removes operator-added objects too, because the backend's reset forgets them.
+function removeAdded() {
+  for (const object of objects) {
+    if (!object.addedByOperator) continue;
+    object.addedByOperator = false;
+    object.gone = true;
+    object.box.visible = false;
+    object.pick.layers.disable(0);
+    object.label.style.display = "none";
+  }
+}
 $("go-fault").onclick = () => {
   const fault = objects.find((o) => kind(o.asset) === "fault");
   if (fault) routeTo(fault);
@@ -241,6 +293,11 @@ $("boxes").onclick = () => {
   boxesOn = !boxesOn;
   $("boxes").textContent = boxesOn ? "Boxes on" : "Boxes off";
 };
+$("range").textContent = `Range ${range} m`;
+$("range").onclick = () => {
+  range = RANGES[(RANGES.indexOf(range) + 1) % RANGES.length];
+  $("range").textContent = `Range ${range} m`;
+};
 $("reset").onclick = () => {
   camera.position.copy(startPos);
   camera.quaternion.identity();
@@ -251,22 +308,34 @@ $("reset").onclick = () => {
 // Occlusion is ignored for now: an object behind a wall still gets a label.
 const tmp = new THREE.Vector3();
 function updateLabels() {
+  // Everything within range competes for a few places, so the view stays readable: the fault and
+  // the selection always show, then linked equipment, then other things, with pipes last.
   const visible = [];
+  const nearby = [];
+  const apart = objectLayer?.state.amount > 0;
   for (const o of objects) {
+    if (o.gone) continue;
     const world = root.localToWorld(tmp.copy(o.center));
     const dist = world.distanceTo(camera.position);
     const ndc = world.project(camera);
     const onScreen = ndc.z < 1 && Math.abs(ndc.x) <= 1 && Math.abs(ndc.y) <= 1;
     o.label.style.display = "none";
+    o.box.visible = false;
     const pinned = kind(o.asset) === "fault" || o === selected;
-    const apart = objectLayer?.state.amount > 0;
-    o.box.visible = boxesOn && !apart && (dist < BOX_RANGE || pinned);
-    if (apart && !o.shape && !pinned) continue;
-    // Unconfirmed objects keep their frame, but don't crowd the view with a generic tag.
-    const named = o.asset.label !== "object" || o.asset.mapping;
-    if (onScreen && dist < LABEL_RANGE && named) visible.push({ o, dist, ndc: ndc.clone() });
+    if (!pinned && (dist > range || (apart && !o.shape))) continue;
+    const rank = pinned ? 0 : o.asset.mapping ? 1 : BACKGROUND_LABELS.has(o.asset.label) ? 3 : 2;
+    nearby.push({ o, dist, rank, pinned, onScreen, ndc: ndc.clone() });
   }
-  visible.sort((a, b) => a.dist - b.dist);
+  nearby.sort((a, b) => a.rank - b.rank || a.dist - b.dist);
+  const inView = nearby.filter((item) => item.onScreen);
+  if (boxesOn && !apart) {
+    for (const { o } of inView.slice(0, MAX_BOXES)) o.box.visible = true;
+    for (const { o, pinned } of nearby) if (pinned) o.box.visible = true;
+  }
+  for (const item of inView) {
+    // Unconfirmed objects keep their frame, but don't crowd the view with a generic tag.
+    if (item.o.asset.label !== "object" || item.o.asset.mapping) visible.push(item);
+  }
   for (const { o, dist, ndc } of visible.slice(0, MAX_LABELS)) {
     o.label.style.display = "block";
     o.label.style.left = `${((ndc.x + 1) / 2) * window.innerWidth}px`;
@@ -276,7 +345,8 @@ function updateLabels() {
   }
   const looking = hit(new THREE.Vector2(0, 0));
   $("in-view").textContent =
-    `${visible.length} object(s) in view` + (looking ? ` · looking at ${name(looking.asset)}` : "");
+    `${inView.length} object(s) within ${range} m` +
+    (looking ? ` · looking at ${name(looking.asset)}` : "");
 }
 
 let frames = 0;
@@ -287,7 +357,8 @@ function animate(now) {
   lastFrame = now;
   // In phone mode the phone's rotation steers, so mouse/touch dragging must not fight it.
   const following = Boolean(route?.state.walking);
-  if (!phone.enabled && !objectLayer?.state.moving && !following) controls.update(camera);
+  const busy = objectLayer?.state.moving || adder.state.active || following;
+  if (!phone.enabled && !busy) controls.update(camera);
   objectLayer?.update(dt);
   if (following) route.update(dt);
   else phone.update(dt);
@@ -336,6 +407,7 @@ async function load() {
     floorY: data.floor_y ?? 0,
     onChange: (changes) => {
       $("status").textContent = `${changes.length} object(s) moved`;
+      if (!changes.length) removeAdded();
       route.syncChanges(changes);
     },
   });
@@ -368,7 +440,7 @@ async function load() {
     objectLayer.setApart(true);
     $("apart").textContent = "Together";
   }
-  window.plantViewer = { objects, objectLayer, camera, route, copilot, showInfo }; // For browser tests and debugging.
+  window.plantViewer = { objects, objectLayer, camera, route, copilot, showInfo, adder }; // For browser tests and debugging.
   if (params.has("camera")) {
     const [x, y, z, yaw, pitch] = params.get("camera").split(",").map(Number);
     camera.position.set(x, y, z);

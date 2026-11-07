@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS scene_changes (
     object_id TEXT NOT NULL,
     position JSONB
 );
+ALTER TABLE scene_changes ADD COLUMN IF NOT EXISTS details JSONB;
 """
 
 
@@ -64,9 +65,15 @@ class Database:
         try:
             self._reconnect_if_needed()
             self.conn.execute(
-                "INSERT INTO scene_changes (scene_id, op, object_id, position) "
-                "VALUES (%s, %s, %s, %s)",
-                (scene_id, change["op"], change["object_id"], Jsonb(change["position"])),
+                "INSERT INTO scene_changes (scene_id, op, object_id, position, details) "
+                "VALUES (%s, %s, %s, %s, %s)",
+                (
+                    scene_id,
+                    change["op"],
+                    change["object_id"],
+                    Jsonb(change["position"]),
+                    Jsonb(change.get("details")),
+                ),
             )
             return True
         except psycopg.Error as error:
@@ -75,11 +82,14 @@ class Database:
 
     def load_changes(self, scene_id: str) -> list[dict]:
         rows = self.conn.execute(
-            "SELECT op, object_id, position FROM scene_changes "
+            "SELECT op, object_id, position, details FROM scene_changes "
             "WHERE scene_id = %s ORDER BY change_id",
             (scene_id,),
         ).fetchall()
-        return [{"op": op, "object_id": obj, "position": pos} for op, obj, pos in rows]
+        return [
+            {"op": op, "object_id": obj, "position": pos, "details": details}
+            for op, obj, pos, details in rows
+        ]
 
     def clear_changes(self, scene_id: str) -> bool:
         """Forget saved changes. Returns False if the database can't be reached."""

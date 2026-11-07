@@ -46,7 +46,11 @@ class SceneStore:
         if database:
             for change in database.load_changes(self.scene_id):
                 self._apply(
-                    change["op"], change["object_id"], change["position"], change.get("details")
+                    change["op"],
+                    change["object_id"],
+                    change.get("position"),
+                    change.get("details"),
+                    yaw=change.get("yaw"),
                 )
 
     def reset(self) -> None:
@@ -61,6 +65,15 @@ class SceneStore:
         for asset in self.assets.values():
             asset.setdefault("mobility", "unsure")
             asset.setdefault("status", "detected")
+            asset.setdefault("yaw", 0.0)
+            asset.setdefault(
+                "base_size",
+                [
+                    abs(asset["bbox_max"][0] - asset["bbox_min"][0]),
+                    abs(asset["bbox_max"][1] - asset["bbox_min"][1]),
+                    abs(asset["bbox_max"][2] - asset["bbox_min"][2]),
+                ],
+            )
         self.changes: list[dict] = []
 
     def original(self, object_id: str) -> dict | None:
@@ -92,8 +105,9 @@ class SceneStore:
         object_id: str | None,
         position: list[float] | None,
         details: dict | None = None,
+        yaw: float | None = None,
     ) -> dict:
-        change = self._apply(op, object_id, position, details)
+        change = self._apply(op, object_id, position, details, yaw=yaw)
         if self.database:
             self.unsaved.append(change)
             self.save_pending()
@@ -110,6 +124,7 @@ class SceneStore:
         object_id: str | None,
         position: list[float] | None,
         details: dict | None = None,
+        yaw: float | None = None,
     ) -> dict:
         parts: list[str] = []
         if op == "add":
@@ -130,16 +145,25 @@ class SceneStore:
                 raise KeyError(object_id)
             if asset["mobility"] != "movable":
                 raise ChangeError(f"{object_id} is {asset['mobility']}, so it can't change")
-            if op == "move":
-                self._move(asset, position)
+            if op in ("move", "rotate"):
+                if position is not None:
+                    self._move(asset, position)
+                if yaw is not None:
+                    self._rotate(asset, yaw)
+                elif op == "rotate":
+                    raise ChangeError("rotate needs a yaw angle")
+                elif op == "move" and position is None:
+                    raise ChangeError("move needs a position")
             else:
                 asset["status"] = "removed"
         change = {
             "change_id": len(self.changes) + 1,
             "op": op,
             "object_id": asset["object_id"],
-            "position": position,
+            "position": position if position is not None else asset["center"],
         }
+        if asset.get("yaw") is not None:
+            change["yaw"] = asset["yaw"]
         if details:
             change["details"] = details
         if parts:
@@ -164,6 +188,8 @@ class SceneStore:
             "mapping": None,
             "mobility": "fixed",
             "status": "new, unconfirmed",
+            "yaw": 0.0,
+            "base_size": [NEW_OBJECT_SIZE, NEW_OBJECT_SIZE, NEW_OBJECT_SIZE],
         }
         if details:
             # Only what an operator may set: identity and status never come from this.
@@ -263,4 +289,35 @@ class SceneStore:
             raise ChangeError("move needs a position")
         shift = [p - c for p, c in zip(position, asset["center"], strict=True)]
         for key in ("center", "bbox_min", "bbox_max"):
-            asset[key] = [v + s for v, s in zip(asset[key], shift, strict=True)]
+            asset[key] = [round(v + s, 3) for v, s in zip(asset[key], shift, strict=True)]
+
+    @staticmethod
+    def _rotate(asset: dict, yaw: float | None) -> None:
+        if yaw is None:
+            raise ChangeError("rotate needs a yaw angle")
+        asset["yaw"] = round(float(yaw), 4)
+        w, h, d = asset.get(
+            "base_size",
+            [
+                abs(asset["bbox_max"][0] - asset["bbox_min"][0]),
+                abs(asset["bbox_max"][1] - asset["bbox_min"][1]),
+                abs(asset["bbox_max"][2] - asset["bbox_min"][2]),
+            ],
+        )
+        hw, hd = w / 2, d / 2
+        cos_y = abs(math.cos(asset["yaw"]))
+        sin_y = abs(math.sin(asset["yaw"]))
+        hw_rot = hw * cos_y + hd * sin_y
+        hd_rot = hw * sin_y + hd * cos_y
+        cx, cy, cz = asset["center"]
+
+        min_y = min(asset["bbox_min"][1], asset["bbox_max"][1])
+        max_y = max(asset["bbox_min"][1], asset["bbox_max"][1])
+        y_half = (max_y - min_y) / 2
+        if asset["bbox_min"][1] <= asset["bbox_max"][1]:
+            y_min, y_max = cy - y_half, cy + y_half
+        else:
+            y_min, y_max = cy + y_half, cy - y_half
+
+        asset["bbox_min"] = [round(cx - hw_rot, 3), round(y_min, 3), round(cz - hd_rot, 3)]
+        asset["bbox_max"] = [round(cx + hw_rot, 3), round(y_max, 3), round(cz + hd_rot, 3)]

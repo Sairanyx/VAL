@@ -20,7 +20,11 @@ make model      # optional, about 20 GB: the copilot's language model
 Run these with internet. The demo itself needs none.
 
 ## Run it
-Use two terminals. **Both must run, and both must use the same objects.**
+**The short way:** `./start browser` on a laptop or PC, or `./start tablet` for the Lenovo. Each starts the
+database, API, and viewer, and prints the address to open. Ctrl+C stops it. `make start-browser` and
+`make start-tablet` do the same.
+
+**Step by step:** Use two terminals. **Both must run, and both must use the same objects.**
 ```bash
 make api
 make web SCENE=data/scene/equipment_room/cut/base.ply ASSETS=data/scene/equipment_room/assets_mapped.json SHAPES=data/scene/equipment_room/shapes.json PIECES=data/scene/equipment_room/cut
@@ -183,3 +187,24 @@ Add these to the URL: `?lod=0&res=2` for the sharpest image, or `?res=0.5` if it
 | `obj-0008`'s seat has no star base | An old `cut` folder from before it left the moving list | Run `make pieces highlights` again |
 
 Open the browser's developer console (F12) for more detail, and include any red errors when asking for help.
+
+## Tablet mode
+Touch screens get it automatically. `?tablet=1` or `?tablet=0` in the address forces it. Windows have no
+close button: tap a window anywhere except its controls to close it. It also draws at 0.75 resolution,
+aims for 500,000 splats, and loads `light_full.ply` when `make web` finds one (`?scene=full` overrides). Change these with `?res=` and `?splats=`. For a tablet, also cut a lighter scene:
+`make pieces PIECES_FROM=data/scene/equipment_room/light_full.ply`.
+
+## Control the viewer with commands
+Every button has a command, so a voice copilot can do the same things. `GET /api/viewer/actions` lists them.
+```bash
+curl -X POST localhost:8001/api/viewer/commands -H 'Content-Type: application/json' \
+  -d '{"action": "route_to", "args": {"object_id": "obj-0049"}}'
+```
+The open viewer runs it within about half a second. `GET /api/viewer/commands/ID` shows the result. Adding,
+splitting, and combining only start from a command, because a person draws or taps the rest.
+
+## Copilot voice
+The copilot reads its answer aloud with the device's own voice. **Voice on** turns this off. A device with
+no voice installed stays silent. Speaking to it isn't built yet: browser speech recognition usually needs
+internet, so offline needs a local model such as Whisper.
+

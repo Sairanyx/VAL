@@ -32,7 +32,8 @@ function chevronGeometry() {
   return geometry;
 }
 const LIVE_STEP = 0.1; // metres moved before the route is re-planned or trimmed
-const LIVE_WAIT = 50; // milliseconds between live re-plans, so requests don't pile up
+// Milliseconds between live re-plans, so requests don't pile up. Each one also redraws the line.
+const LIVE_WAIT = document.body.classList.contains("tablet") ? 100 : 50;
 const RETRY_WAIT = 2000; // milliseconds before trying again to save a change that didn't get through
 const WARNING_TIME = 8000; // milliseconds a warning stays, as live re-plans replace the status often
 const FORGOTTEN =
@@ -103,7 +104,7 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage, onOutOfSt
   };
   // Live re-planning: one request at a time, always for the newest position. `plan` and `clear`
   // bump `version`, so an older reply that arrives afterwards is dropped.
-  const live = { busy: false, version: 0, lastAt: 0, lastFrom: null, lastDrag: null };
+  const live = { busy: false, version: 0, lastAt: 0, lastFrom: null, lastDrag: null, lastDragYaw: null };
   let expected = 0; // How many changes the backend should hold, at least.
   let retry = null;
   let warning = { text: "", until: 0 };
@@ -206,6 +207,7 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage, onOutOfSt
     state.start = start;
     live.lastFrom = start.clone();
     live.lastDrag = null;
+    live.lastDragYaw = null;
     try {
       state.route = await callApi("/api/route", {
         start: start.toArray(),
@@ -237,13 +239,17 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage, onOutOfSt
       drag &&
       (!live.lastDrag ||
         new THREE.Vector3(...drag.position).distanceTo(new THREE.Vector3(...live.lastDrag)) >=
-          LIVE_STEP);
+          LIVE_STEP ||
+        Math.abs((drag.yaw || 0) - (live.lastDragYaw ?? 0)) >= 0.05);
     if (!walked && !dragged) return;
     if (walked) {
       state.start = here;
       live.lastFrom = here.clone();
     }
-    if (dragged) live.lastDrag = drag.position;
+    if (dragged) {
+      live.lastDrag = drag.position;
+      live.lastDragYaw = drag.yaw || 0;
+    }
     sendLive(drag);
   }
 
@@ -267,11 +273,9 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage, onOutOfSt
     } catch (error) {
       if (version !== live.version || state.walking) return;
       // The viewer can stand off the floor, so keep the last line. A drag can really block the way.
-      if (drag) {
-        state.route = null;
-        clearLine();
+      if (!error.message.startsWith("The start point")) {
+        onMessage(`No route to ${target.name}: ${error.message}`);
       }
-      onMessage(`No route to ${target.name} from here: ${error.message}`);
     } finally {
       live.busy = false;
     }
@@ -282,7 +286,7 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage, onOutOfSt
     live.version += 1;
     const end = state.route.view_from ?? state.route.path.at(-1);
     const points = pathToViewPoint(state.route.path, end);
-    state.walking = { points, index: 0, along: 0, trimmed: 0 };
+    state.walking = { points, index: 0, along: 0 };
     return true;
   }
 
@@ -392,12 +396,6 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage, onOutOfSt
       const b = walking.points[walking.index + 1];
       here.lerpVectors(a, b, walking.along / Math.max(a.distanceTo(b), 1e-6));
       next.copy(b);
-      // Only the part still ahead stays on the floor.
-      walking.trimmed += WALK_SPEED * dt;
-      if (walking.trimmed >= LIVE_STEP) {
-        walking.trimmed = 0;
-        draw([here, ...walking.points.slice(walking.index + 1)].map((p) => p.toArray()));
-      }
     } else {
       here.copy(walking.points[last]);
       next.copy(focus);

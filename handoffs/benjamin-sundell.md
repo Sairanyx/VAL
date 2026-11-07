@@ -1,6 +1,6 @@
 # benjamin-sundell: benjamin/webviewer
 **Goal:** web viewer for the tablet demo (`web/`), per docs/PLAN.md
-**Done:** route arrows: chevrons flow towards the target, faint guide line, pulsing end ring (`web/route.js`, `route?.animate(dt)` in `web/main.js`). Merged latest main and Eduard's unmerged `eduard-live-route` (live re-plans while moving/dragging, trims the line while walking); resolved conflicts in route.js and main.js by keeping both. Arrows now spaced from the route's end so live re-plans and trimming don't make them jump
-**Verified:** `make check` passes (192 passed). Arrows and live re-plan NOT yet seen together in a browser: needs `make mapping`, `make api`, `make web`
-**Next:** check in the browser; open a PR to main (coordinate with Eduard: this branch now contains his live-route commit); demo video and slides
-**Blockers:** `assets_mapped.json` missing locally until `make mapping` runs
+**Done:** merged main (BIM mode, Plan screen, DXF) into this branch, keeping Eduard's tablet mode/rotation/commands and my Track, light scene, phone UI fixes alongside it (conflicts in main.js, style.css, index.html, highlight.js, Makefile, app/api/main.py). Before that: phone UI fixes: info window no longer closes right after tapping an object (browser's ghost click after the tap landed on the new window; windows now ignore clicks for 500 ms after a scene tap, in main.js); buttons are one sideways-scrolling row at the bottom on touch devices and wrap on narrow desktop windows; joystick sits above the row; windows scroll inside themselves; move/rotate bar wraps and hides the joystick (style.css). Earlier: Track (WebXR), one tablet mode, route arrows
+**Verified:** `make check` passes (240 passed, 3 skipped). Merged viewer not yet opened in a browser
+**Next:** open a PR to main (no conflicts now); check BIM + rotation + tablet layout together in the browser; test Track on an ARCore device
+**Blockers:** test tablet's Chrome 81 can't run the viewer (no import maps)

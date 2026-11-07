@@ -7,6 +7,7 @@
 import * as THREE from "three";
 import { SplatMesh } from "@sparkjsdev/spark";
 
+const UP = new THREE.Vector3(0, 1, 0);
 const CLASS_COLORS = {
   IfcWall: 0xc7cdd6,
   IfcSlab: 0x6b7280,
@@ -68,6 +69,7 @@ export async function setupBim({
     for (const mesh of [scan, box].filter(Boolean)) {
       mesh.userData.item = item;
       mesh.userData.home = mesh.position.clone();
+      mesh.userData.turn = mesh.quaternion.clone();
       const { transparent, opacity, depthWrite } = mesh.material;
       mesh.userData.base = { transparent, opacity, depthWrite };
       mesh.visible = mesh === item.mesh;
@@ -278,6 +280,7 @@ export async function setupBim({
   }
 
   function visible(item) {
+    if (item.object?.gone) return false;
     if (state.hidden.has(item.element.ifc_class)) return false;
     if (item.object?.gone) return false;
     if (state.isolated && state.selected) {
@@ -287,20 +290,28 @@ export async function setupBim({
   }
 
   const offset = new THREE.Vector3();
+  const spin = new THREE.Quaternion();
+  const shift = new THREE.Vector3();
   const floorWorld = new THREE.Vector3();
+  // Objects made after the model was built, by adding, splitting, or combining, get a plain box.
   function update() {
     if (!state.active) return;
     addMissing();
     const real = state.look === "real";
     for (const item of items) {
       item.mesh.visible = visible(item);
-      if (item.object) {
+      if (item.object && !item.object.gone) {
         offset.set(...item.object.asset.center);
+        spin.setFromAxisAngle(UP, item.object.yaw || 0);
         for (const mesh of [item.scan, item.box].filter(Boolean)) {
-          mesh.position.copy(mesh.userData.home).add(item.object.center).sub(offset);
+          shift.copy(mesh.userData.home).sub(offset).applyQuaternion(spin);
+          mesh.position.copy(item.object.center).add(shift);
+          mesh.quaternion.copy(mesh.userData.turn).premultiply(spin);
         }
         if (item.splats) {
-          item.splats.position.copy(item.object.center).sub(offset);
+          shift.copy(offset).negate().applyQuaternion(spin);
+          item.splats.position.copy(item.object.center).add(shift);
+          item.splats.quaternion.copy(spin);
           // Class files hold this object too, so its own file only shows on its own when isolated.
           const shared = Boolean(item.element.splat_group) && !state.isolated;
           item.splats.visible = real && item.mesh.visible && !shared;
@@ -340,6 +351,7 @@ export async function setupBim({
 
   document.getElementById("bim-look").hidden = looks.length < 2;
   return {
+    items,
     state,
     setActive,
     setLook,

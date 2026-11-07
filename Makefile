@@ -12,12 +12,14 @@ PIECES_FROM ?= $(SCENE_DIR)/Equipment Room.ply
 PIECES_DIR ?= $(SCENE_DIR)/cut
 HIGHLIGHTS_DIR ?= $(SCENE_DIR)/highlights
 HIGHLIGHTS ?= $(if $(filter $(SCENE_DIR)/%,$(SCENE)),$(if $(wildcard $(HIGHLIGHTS_DIR)/highlights.json),$(HIGHLIGHTS_DIR)))
+# Phones and tablets load this lighter scene. Not with PIECES: it still has the cut-out objects.
+LIGHT ?= $(if $(PIECES),,$(if $(filter $(SCENE_DIR)/%,$(SCENE)),$(wildcard $(SCENE_DIR)/light_full.ply)))
 BIM_DIR ?= $(SCENE_DIR)/bim
 BIM ?= $(if $(filter $(SCENE_DIR)/%,$(SCENE)),$(if $(wildcard $(BIM_DIR)/bim.json),$(BIM_DIR)))
 MODEL ?= Qwen3.5-9B
 MODEL_DIR ?= data/models/$(MODEL)
 
-.PHONY: setup entire views scene scene-full model pieces highlights shapes bim pipeline gpu train tb web fmt lint test check up api floor mapping db nav-check
+.PHONY: setup entire views scene scene-full model pieces highlights shapes bim pipeline gpu train tb web fmt lint test check up api floor mapping db nav-check start-browser start-tablet
 
 setup:   ## install everything
 	uv sync
@@ -55,6 +57,10 @@ bim: shapes ## simulated BIM model of the room for the viewer's BIM mode, plus m
 	uv run python -m app.bim "$(SCENE_DIR)/Equipment Room.ply" $(SCENE_DIR)/assets_mapped.json $(SCENE_DIR)/shapes.json $(BIM_DIR) --labels $(SCENE_DIR)/splat_labels.npy --label-assets $(SCENE_DIR)/assets_final.json $(if $(wildcard $(PIECES_DIR)/pieces.json),--pieces $(PIECES_DIR))
 pipeline: ## run a scene through everything: make pipeline CONFIG=scenes/equipment_room.toml, DRY=1 to preview
 	uv run python scripts/pipeline.py $(or $(CONFIG),scenes/equipment_room.toml) $(if $(DRY),--dry-run)
+start-browser: ## start everything for a laptop or PC. Same as ./start browser
+	./start browser
+start-tablet: ## start everything for the Lenovo tablet. Same as ./start tablet
+	./start tablet
 gpu:     ## check the GPU works
 	uv run python -m app.gpu_check
 db:      ## start local TimescaleDB and load the Excel telemetry
@@ -74,8 +80,8 @@ train:   ## train a model
 tb:      ## training graphs at http://localhost:6006
 	uv run tensorboard --logdir runs
 SCENE ?= data/scene/sample/scene.ply
-web:     ## web viewer on port 8000, SCENE= picks the splat, HTTPS=1 for phone sensors
-	uv run python web/serve.py --scene "$(SCENE)" $(if $(HTTPS),--https) $(if $(ASSETS),--assets "$(ASSETS)") $(if $(SHAPES),--shapes "$(SHAPES)") $(if $(PIECES),--pieces "$(PIECES)") $(if $(HIGHLIGHTS),--highlights "$(HIGHLIGHTS)") $(if $(BIM),--bim "$(BIM)")
+web:     ## web viewer on port 8000, SCENE= picks the splat, HTTPS=1 for phone sensors, LIGHT= for phones
+	uv run python web/serve.py --scene "$(SCENE)" $(if $(HTTPS),--https) $(if $(ASSETS),--assets "$(ASSETS)") $(if $(SHAPES),--shapes "$(SHAPES)") $(if $(PIECES),--pieces "$(PIECES)") $(if $(HIGHLIGHTS),--highlights "$(HIGHLIGHTS)") $(if $(LIGHT),--light "$(LIGHT)") $(if $(BIM),--bim "$(BIM)")
 fmt:     ## tidy code style and auto-fix lint
 	uv run --only-group dev ruff format .
 	uv run --only-group dev ruff check --fix .

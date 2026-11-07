@@ -222,6 +222,7 @@ def main() -> None:
     parser.add_argument("out", type=Path)
     parser.add_argument("--objects", nargs="+", required=True)
     parser.add_argument("--members", type=Path, help="members.npz, for cleaner cuts than a box")
+    parser.add_argument("--box", nargs="*", default=[], help="objects to cut by box regardless")
     parser.add_argument("--up", type=float, nargs=3, default=(0.0, -1.0, 0.0))
     args = parser.parse_args()
     document = json.loads(args.assets.read_text())
@@ -233,12 +234,17 @@ def main() -> None:
     floor_height = float(document["floor_y"]) * float(up @ np.array([0.0, 1.0, 0.0]))
     chosen = [by_id[i] for i in args.objects]
     scene = read_splats(args.scene)
+    base, pieces = split_movable(
+        scene,
+        [by_id[i] for i in args.objects if not args.members or i in args.box],
+        floor_height,
+        up,
+    )
     if args.members:
         with np.load(args.members) as saved:
-            members = {object_id: saved[object_id] for object_id in args.objects}
-        base, pieces = split_by_members(scene, members)
-    else:
-        base, pieces = split_movable(scene, chosen, floor_height, up)
+            members = {i: saved[i] for i in args.objects if i not in args.box}
+        base, by_members = split_by_members(base, members)
+        pieces.update(by_members)
     base, patches = patch_floor(base, chosen, document["assets"], floor_height, up)
     (args.out / "pieces").mkdir(parents=True, exist_ok=True)
     write_splats(base, args.out / "base.ply")

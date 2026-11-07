@@ -6,7 +6,8 @@ SCENE_TAG ?= objects-v2
 SCENE_FILE ?= objects_v2.tar
 SCENE_DIR ?= data/scene/equipment_room
 SCENE_FULL ?= clean.ply
-PIECES_OBJECTS ?= obj-0067
+PIECES_OBJECTS ?= obj-0067 obj-0021 obj-0008 obj-0112
+PIECES_BOX ?= obj-0067
 PIECES_FROM ?= $(SCENE_DIR)/Equipment Room.ply
 PIECES_DIR ?= $(SCENE_DIR)/cut
 MODEL ?= Qwen3.5-9B
@@ -41,7 +42,7 @@ scene-full: ## get our own full-quality splat (513 MB). The demo uses the origin
 model:   ## download the copilot's language model once, before going offline (about 20 GB)
 	uv run python -c "from huggingface_hub import snapshot_download as s; s('Qwen/$(MODEL)', local_dir='$(MODEL_DIR)', allow_patterns=['*.safetensors', '*.json', '*.txt', '*.jinja', 'merges*', 'vocab*'])"
 pieces:  ## cut movable objects out of a scene, so dragging moves the real thing. Then: make web SCENE=$(PIECES_DIR)/base.ply PIECES=$(PIECES_DIR)
-	uv run python -m app.scene.split_movable "$(PIECES_FROM)" $(SCENE_DIR)/assets_viewer.json $(PIECES_DIR) --objects $(PIECES_OBJECTS)
+	uv run python -m app.scene.split_movable "$(PIECES_FROM)" $(SCENE_DIR)/assets_viewer.json $(PIECES_DIR) --objects $(PIECES_OBJECTS) --members $(SCENE_DIR)/members.npz --box $(PIECES_BOX)
 gpu:     ## check the GPU works
 	uv run python -m app.gpu_check
 db:      ## start local TimescaleDB and load the Excel telemetry

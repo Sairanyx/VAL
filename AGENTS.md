@@ -6,8 +6,10 @@ This file is loaded with every prompt, so keep it short.
 ## Project status
 - Main challenge: Valmet's Industrial Metaverse, semantic 3D scene understanding and a field-service
   copilot. Requirements and data problems: `docs/CHALLENGE.md`. Read it before pipeline work.
-- Scene input is Valmet's restored `Equipment Room.ply`, not the damaged `Industrial Boiler Room`
-  copy. Our own splat is allowed and replaces it only if it proves better. Keep scenes out of git.
+- The demo scene is Valmet's uncleaned `Equipment Room.ply`. Don't use the damaged `Industrial Boiler
+  Room` copy or our own splat, which looks worse. Keep scenes out of git. Never run `clean_mask` on
+  anything people see or that views are rendered from: it leaves black holes.
+- Current tasks and how to run the demo: `docs/PLAN.md`, under "Now".
 - Keep pipeline code independent of which scene file it loads.
 - The demo must run with no internet: a local RTX 5090 server and a tablet on its network. No cloud
   APIs, hosted models, or CDN assets at runtime. Roihu is for development experiments only.
@@ -21,7 +23,7 @@ Stay in your person's area. Ask before making large changes in someone else's.
 
 | Person | Area |
 |---|---|
-| Viktor | Scene loading, cleaning, rendering, own splat (`app/scene/`) |
+| Viktor | Scene loading, rendering, moving objects (`app/scene/`) |
 | Sasha | Asset extraction and 3D boxes (`app/extract/`) |
 | Eduard | Floor, routing, nearby search, backend API (`app/nav/`, `app/api/`) |
 | Hannu | Excel data, asset mapping, AI copilot (`app/copilot/`) |
@@ -82,6 +84,10 @@ their area.
 | `make lint` | Format check and ruff only (no torch needed) |
 | `make test` | pytest |
 | `make fmt` | Auto-fix style |
+| `make scene` | Get objects, floor map, and light scenes: then `make mapping` |
+| `make pieces` | Cut movable objects out of the scene |
+| `make model` | Get the copilot's language model, before going offline |
+| `make pipeline` | Run a scene through everything, from `scenes/*.toml` |
 | `make train` | Train a model |
 
 - Python 3.12, managed by uv. Use `uv run` and `uv add`, not `pip`.

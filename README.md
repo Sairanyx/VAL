@@ -6,7 +6,8 @@ Built for Valmet's Industrial Metaverse challenge. It turns a Gaussian splat sca
 labelled assets linked to device data, routes a worker around obstacles to a faulty device, and
 gives AI guidance with cited evidence. Runs on one local GPU server, viewed in a tablet browser.
 
-**Status:** in development. [Plan](docs/PLAN.md) · [Challenge](docs/CHALLENGE.md) ·
+**Status:** core features work, not yet rehearsed on the demo hardware.
+[Current tasks and how to run the demo](docs/PLAN.md#now) · [Plan](docs/PLAN.md) · [Challenge](docs/CHALLENGE.md) ·
 [Results](docs/RESULTS.md)
 
 ## Setup (once)
@@ -26,11 +27,11 @@ Should end by printing your GPU name.
 | `make fmt` | Tidy code style and auto-fix lint |
 | `make check` | Lint and test: run before opening a PR |
 | `make entire` | Install and enable Entire |
-| `make views` | Download rendered views for the scene |
-| `make scene` | Download the demo scene, floor map, and objects |
+| `make scene` | Download objects, floor map, and light scenes |
+| `make mapping` | Link Excel records to objects, marking how each was linked |
+| `make pieces` | Cut movable objects out of the scene, so dragging moves the real thing |
 | `make pipeline` | Run a scene through everything, from `scenes/*.toml` |
 | `make model` | Download the copilot's language model (about 20 GB), before going offline |
-| `make scene-full` | Also download the full-quality scene (513 MB) |
 | `make up` | Train inside Docker |
 
 ## Team workflow
@@ -48,7 +49,8 @@ Should end by printing your GPU name.
 | `app/` | Pipeline, API, and copilot code ([who owns what](docs/PLAN.md)) |
 | `app/train.py` | Training template, not used by the demo so far |
 | `app/gpu_check.py` | GPU test |
-| `scripts/` | Frame selection, reconstruction, and Roihu jobs |
+| `scripts/` | Pipeline, route check, copilot test, frame selection, and Roihu jobs |
+| `scenes/` | One settings file per scene, for `make pipeline` |
 | `fixtures/` | Fake sample data to build against |
 | `data/` | Datasets and generated scene files (not in git) |
 | `runs/` | Run outputs and saved models (not in git) |

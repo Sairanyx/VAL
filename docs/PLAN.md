@@ -23,53 +23,50 @@ Swap freely if someone's skills fit another area better. Update this table and `
 
 | Person | Area | Folder | Score |
 |---|---|---|---|
-| **Viktor** | Scene loading, cleaning, rendering, own splat | `app/scene/` | Enables all |
+| **Viktor** | Scene loading, rendering, moving objects, floor patch | `app/scene/` | Enables all |
 | **Sasha** | Asset extraction, 3D boxes, splat tags | `app/extract/` | 30% |
 | **Eduard** | Floor, routing, nearby search, backend API | `app/nav/`, `app/api/` | 25% + 15% |
 | **Hannu** | Excel data, asset mapping, AI copilot | `app/copilot/` | 20% + part of 30% |
 | **Benjamin** | Web viewer, tablet, demo video, slides | `web/`, `docs/` | 10% + 25% display |
 
-## First tasks
-**Viktor**
-1. Write `app/scene/load.py`: read a splat PLY and filter it by opacity and size.
-2. Render color and depth views with known cameras, for Sasha to use.
-3. Check the COLMAP result, train 3DGS if it's clean, and compare it with `Equipment Room.ply`.
-4. Split the scene using `splat_labels.npy`: one PLY per object plus a background, each with a tint.
+## Now
+The core works, so the priority is proving it on real hardware and finishing the submission. Submit
+Sunday 09:00, deadline 10:00, per an earlier doc: Viktor is confirming this. Current state is in
+`handoffs/` and measured numbers are in `docs/RESULTS.md`.
 
-**Sasha**
-1. Run SAM and CLIP on sample video frames to find which settings detect the most useful objects.
-2. Project masks into 3D using Viktor's views, and merge them across views.
-3. Write real `assets.json` and `splat_labels.npy`, and count how many objects it finds.
-4. Once boxes work, try VLM labels and junk filtering. Keep them only if they beat CLIP on 20-30
-   hand-labelled objects.
+**In order:** 5090 and tablet rehearsal offline, record a safe demo video, slides, technical note, and
+README, then improve numbers if time remains.
 
-**Eduard**
-1. Build the API from the fixture, with the routes below, so Benjamin can connect straight away.
-2. Write `app/nav/`: find the floor in `Equipment Room.ply` and build an occupancy grid.
-3. Add A* routing with a body-width margin, then nearby search. Expose both as copilot tools.
-4. Keep the permanent floor map separate from object footprints, and combine them when routing, so
-   moving or removing an object updates routes without rebuilding the map.
-5. Rehearse the full demo with the internet disconnected.
+| Person | Task now |
+|---|---|
+| **Viktor** | Run the 5090 rehearsal. Ask Valmet which pump is `P-005`. Confirm the deadline. Find out why CSC SSH is unreachable |
+| **Benjamin** | Test on a real tablet and pick its light scene. Record the video. Own the slides. Review the viewer changes |
+| **Eduard** | Set up `make db` and `make api` on the 5090, plus the router and offline network. Find a second good detour. Backend slide |
+| **Hannu** | Score the 60-question copilot test by hand. AI slide. Check the procedural links. Decide whether `skills/` belongs in this repo |
+| **Sasha** | Score the 60-object precision sample once CSC is back. Extraction slide and technical note. Retire or merge the old extraction branch |
+| **Coding agents** | Draft the README and notes from measured numbers, fix what the rehearsal finds, then run the sample, label review, grouping, and second pass when CSC returns |
 
-**Hannu**
-1. Load the Excel workbook into a simple local store, and read its `DOC-RAG-GUIDE` rules.
-2. Write `mapping.json`: match objects to records by class, with `P-005` as the faulty target.
-3. Pick a local LLM such as Qwen. Build the copilot tools and the `P-005` diagnosis with checked
-   citations, then status along the route, then the conversation flow below.
-4. Write 10-15 test questions with expected answers, including ones it should refuse.
+**Cut first if short of time:** voice mode, second-pass framing, pipe runs, written directions. Don't cut
+the rehearsal, video, precision number, or copilot test.
 
-**Benjamin**
-1. Test whether a real tablet can show the splat in Viser. Try a reduced scene if it struggles. Also
-   test whether it can draw many separate splat objects and move them. This decides the viewer.
-2. Choose Viser or a small three.js page, with all assets served locally. Show the fixture's boxes.
-3. Add the route, walking avatar, nearby highlights, and chat with citations. Then own the video and
-   5-8 slides.
-4. Add the separated view: colored objects with labels, pull-apart, select, and drag.
+**Say this accurately:** four objects move as real splats, and the others as outlines. `P-005` on
+`obj-0049` is an unconfirmed pick. 29 of 30 Excel links are procedural. `P-005`'s record only has
+pressure and flow data. The floor under moved objects is copied, not scanned. Position is simulated.
+
+### Run the demo on the 5090
+Put `Equipment Room.ply` in `data/scene/equipment_room/` and the Excel pack in `data/`, then, with
+internet: `make scene mapping db model pieces`. Offline, in two terminals:
+```text
+make api
+make web SCENE=data/scene/equipment_room/cut/base.ply ASSETS=data/scene/equipment_room/assets_mapped.json SHAPES=data/scene/equipment_room/shapes.json PIECES=data/scene/equipment_room/cut
+```
+Demo move: plan to `P-005` from the room centre, then drag the roll cage `obj-0067` onto the route near
+(-1.46, -1.75). The route goes from 4.3 to 5.6 m. **Undo changes** restores it.
 
 ## Pipeline
 ```text
 OFFLINE, once per scan
-Scene (.ply) → clean → render views → SAM → CLIP/VLM → 3D boxes ─→ assets.json
+Scene (.ply) → render views → SAM → CLIP/VLM → 3D boxes ─→ assets.json
                  │                              └─ tag each splat ─→ splat_labels.npy
                  │                                                       │
                  │                               split scene ─→ objects/*.ply + background.ply
@@ -80,12 +77,12 @@ LIVE, in use
 Tablet viewer ⇄ Backend API ⇄ routing, device data, change log, local AI copilot
 ```
 
-**Scene decided:** the demo uses the original `Equipment Room.ply`, because our own splat has holes in the floor. It was the default. Our own splat (video, sharp frames,
+**Scene decided:** the demo uses the original, uncleaned `Equipment Room.ply`. It's more complete and looks far better away from any filmed path. It was the default. Our own splat (video, sharp frames,
 COLMAP, 3DGS) is confirmed as allowed. Run the pipeline on both, and keep the one with better boxes and
 routes. Pipeline code must work with either.
 
 **Offline**
-1. **Clean (Viktor):** remove nearly transparent and oversized splats. Keep the original coordinates.
+1. **No cleaning for anything people see:** `clean_mask` left black holes (22.32 to 16.59 dB in a test). It's for analysis such as floor maps only.
 2. **Render (Viktor):** place cameras through the room and render color and depth. With our own splat,
    real video frames and COLMAP cameras may give better masks.
 3. **Find objects (Sasha):** SAM outlines as much as it can, since asset count drives the top score.
@@ -323,11 +320,11 @@ Optional, and only after the main demo works. Ask the MLH coach whether we can e
 
 ## Getting started
 - **Scene and data:** get `Equipment Room.ply` and the Valmet folder from Viktor, not from git.
-- **Rendered views:** run `make views` (needs GitHub's `gh` CLI from cli.github.com, not the unrelated
-  `gh` package on PyPI, and `gh auth login`), or download the `views-v1` Release in
-  a browser and run `make views ARCHIVE=path/to/file.tar`. They go in `data/scene/equipment_room/`:
-  `render/` for the room, `render_detail/` for small objects. Each has `views/`, `depth/`, and
-  `cameras.json`. Delete Releases before making the repo public.
+- **Objects, floor map, light scenes:** run `make scene` (needs GitHub's `gh` CLI from cli.github.com,
+  not the unrelated `gh` package on PyPI, and `gh auth login`). It gets Release `objects-v2`. Object IDs
+  changed from `objects-v1`, so rerun `make mapping`. Skip `make views`, `make scene-full`, and `make floor`:
+  they use old renders, our own splat, or rebuild a worse map without the render folders.
+  Delete all Releases before making the repo public.
 - **Check your copy:** the SHA-256 of `Equipment Room.ply` starts `83d8c7d99316c08c`.
 - **GPU:** the 5090 is shared, so agree who's using it. Roihu needs `project_2020113` membership, so ask
   Viktor. Most ThinkPads can only handle coding and the viewer.

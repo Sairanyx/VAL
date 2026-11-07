@@ -27,11 +27,26 @@ const SELECTED_GLOW = 0x0891b2;
 const SELECTED_TINT = 0x22d3ee;
 const ROOM = new Set(["IfcWall", "IfcSlab"]);
 
-export async function setupBim({ root, renderer, objects, faultTag, floorY, onSelectObject }) {
+export async function setupBim({
+  root,
+  renderer,
+  objects,
+  faultTag,
+  floorY,
+  onSelectObject,
+  onMessage,
+}) {
   const response = await fetch("bim.json").catch(() => null);
   if (!response?.ok) return null;
   const model = await response.json();
-  const meshData = model.meshes ? await loadMeshes(model.meshes) : null;
+  // Without the meshes (an old server, or a partial copy), elements fall back to simple shapes.
+  const meshData = model.meshes
+    ? await loadMeshes(model.meshes).catch((err) => {
+        console.error("BIM meshes failed to load", err);
+        onMessage?.(`BIM scan meshes didn't load (${err.message}): restart make web`);
+        return null;
+      })
+    : null;
 
   renderer.localClippingEnabled = true;
   const section = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1e6);

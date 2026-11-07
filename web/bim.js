@@ -6,6 +6,7 @@
 // Everything is in scene coordinates inside `root`, like the scan, so moves and routes line up.
 import * as THREE from "three";
 import { SplatMesh } from "@sparkjsdev/spark";
+import { createHoverShell } from "./hover.js";
 
 const UP = new THREE.Vector3(0, 1, 0);
 const CLASS_COLORS = {
@@ -27,7 +28,6 @@ const CLASS_COLORS = {
 const FAULT_COLOR = 0xff2d2d;
 const SELECTED_GLOW = 0x0891b2;
 const SELECTED_TINT = 0x22d3ee;
-const HOVER_COLOR = 0xe0f2fe;
 const ROOM = new Set(["IfcWall", "IfcSlab"]);
 
 export async function setupBim({
@@ -298,6 +298,17 @@ export async function setupBim({
   const spin = new THREE.Quaternion();
   const shift = new THREE.Vector3();
   const floorWorld = new THREE.Vector3();
+  // Shapes follow their object's moves and turns.
+  function placeShapes(item) {
+    offset.set(...item.object.asset.center);
+    spin.setFromAxisAngle(UP, item.object.yaw || 0);
+    for (const mesh of [item.scan, item.box].filter(Boolean)) {
+      shift.copy(mesh.userData.home).sub(offset).applyQuaternion(spin);
+      mesh.position.copy(item.object.center).add(shift);
+      mesh.quaternion.copy(mesh.userData.turn).premultiply(spin);
+    }
+  }
+
   // Objects made after the model was built, by adding, splitting, or combining, get a plain box.
   function update() {
     if (!state.active) return;
@@ -306,13 +317,7 @@ export async function setupBim({
     for (const item of items) {
       item.mesh.visible = visible(item);
       if (item.object && !item.object.gone) {
-        offset.set(...item.object.asset.center);
-        spin.setFromAxisAngle(UP, item.object.yaw || 0);
-        for (const mesh of [item.scan, item.box].filter(Boolean)) {
-          shift.copy(mesh.userData.home).sub(offset).applyQuaternion(spin);
-          mesh.position.copy(item.object.center).add(shift);
-          mesh.quaternion.copy(mesh.userData.turn).premultiply(spin);
-        }
+        placeShapes(item);
         if (item.splats) {
           shift.copy(offset).negate().applyQuaternion(spin);
           item.splats.position.copy(item.object.center).add(shift);
@@ -332,7 +337,9 @@ export async function setupBim({
       root.localToWorld(floorWorld.set(0, floorY, 0));
       section.constant = floorWorld.y + state.cut;
     }
-    placeHover();
+    if (state.hovered && visible(state.hovered)) {
+      shell.show(state.hovered.box.geometry, state.hovered.box.position, state.hovered.box.quaternion);
+    } else if (state.hovered) shell.hide();
   }
 
   // Taps and hovering use each element's simple shape in every look, even when it isn't drawn:
@@ -361,57 +368,30 @@ export async function setupBim({
     return item;
   }
 
-  // A faint shell of the simple shape under the pointer, so it's clear what a tap would pick.
-  const hoverFill = new THREE.MeshBasicMaterial({
-    color: HOVER_COLOR,
-    transparent: true,
-    opacity: 0.12,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-    clippingPlanes: [section],
-  });
-  const hoverLine = new THREE.LineBasicMaterial({
-    color: HOVER_COLOR,
-    transparent: true,
-    opacity: 0.8,
-    depthTest: false,
-    clippingPlanes: [section],
-  });
-  const hoverMesh = new THREE.Mesh(undefined, hoverFill);
-  const hoverEdges = new THREE.LineSegments(undefined, hoverLine);
-  hoverMesh.add(hoverEdges);
-  hoverMesh.renderOrder = hoverEdges.renderOrder = 10;
-  hoverMesh.raycast = hoverEdges.raycast = () => {};
-  hoverMesh.visible = false;
-  root.add(hoverMesh);
-  const edgeCache = new WeakMap();
+  const shell = createHoverShell(root, [section]);
 
   // Pass a raycaster to hover what is under it, or null to clear. Returns the hovered item.
   function hover(raycaster) {
-    const item = raycaster && state.active ? candidate(raycaster) : null;
-    if (item && ROOM.has(item.element.ifc_class)) return hover(null);
+    let item = raycaster && state.active ? candidate(raycaster) : null;
+    if (item && ROOM.has(item.element.ifc_class)) item = null;
     state.hovered = item;
-    hoverMesh.visible = Boolean(item);
-    if (!item) return null;
-    const box = item.box;
-    if (hoverMesh.geometry !== box.geometry) {
-      hoverMesh.geometry = box.geometry;
-      if (!edgeCache.has(box.geometry)) edgeCache.set(box.geometry, new THREE.EdgesGeometry(box.geometry, 20));
-      hoverEdges.geometry = edgeCache.get(box.geometry);
-    }
-    placeHover();
+    if (item && visible(item)) shell.show(item.box.geometry, item.box.position, item.box.quaternion);
+    else shell.hide();
     return item;
   }
 
-  function placeHover() {
-    const item = state.hovered;
-    if (!item || !hoverMesh.visible) return;
-    if (!visible(item)) {
-      hoverMesh.visible = false;
-      return;
+  // Outside BIM mode: outline an object's simple shape where the object stands now.
+  function hoverObject(object) {
+    if (state.active) return false;
+    if (object && !object.gone) addMissing();
+    const item = object && !object.gone ? items.find((c) => c.object === object) : null;
+    if (!item) {
+      shell.hide();
+      return false;
     }
-    hoverMesh.position.copy(item.box.position);
-    hoverMesh.quaternion.copy(item.box.quaternion);
+    placeShapes(item);
+    shell.show(item.box.geometry, item.box.position, item.box.quaternion);
+    return true;
   }
 
   document.getElementById("bim-look").hidden = looks.length < 2;
@@ -423,6 +403,7 @@ export async function setupBim({
     update,
     pick,
     hover,
+    hoverObject,
     selectObject,
     elementCount: items.length,
   };

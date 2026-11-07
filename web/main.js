@@ -8,6 +8,7 @@ import { setupBim } from "./bim.js";
 import { setupCommands } from "./commands.js";
 import { setupCopilot } from "./copilot.js";
 import { setupHighlight } from "./highlight.js";
+import { createHoverShell } from "./hover.js";
 import { setupObjects } from "./objects.js";
 import { setupPhone } from "./phone.js";
 import { setupPlan } from "./plan.js";
@@ -483,8 +484,8 @@ function hit(ndc) {
   return found.length ? found.reduce((a, b) => (b.volume < a.volume ? b : a)) : null;
 }
 
-// In BIM mode a mouse shows what a tap would pick. Checked once a frame, so it also follows
-// the view when the camera moves under a still mouse.
+// A mouse shows what a tap would pick, in BIM mode and in the scan. Checked once a frame, so it
+// also follows the view when the camera moves under a still mouse.
 let hoverAt = null;
 canvas.addEventListener("pointermove", (e) => {
   const free = e.pointerType === "mouse" && e.buttons === 0;
@@ -492,20 +493,29 @@ canvas.addEventListener("pointermove", (e) => {
 });
 canvas.addEventListener("pointerleave", () => (hoverAt = null));
 let hovering = false;
+// Without BIM data, or while objects are pulled apart, the scan view outlines the pick box.
+const sceneHover = createHoverShell(root);
 function updateHover() {
-  if (!bim) return;
   const busy = adder.state.active || objectLayer?.state.moving;
-  let item = null;
-  if (hoverAt && bim.state.active && !busy) {
+  const inBim = Boolean(bim?.state.active);
+  let found = null;
+  if (hoverAt && !busy) {
     const ndc = new THREE.Vector2(
       (hoverAt.x / window.innerWidth) * 2 - 1,
       -(hoverAt.y / window.innerHeight) * 2 + 1,
     );
-    raycaster.setFromCamera(ndc, camera);
-    item = bim.hover(raycaster);
-  } else if (hovering) bim.hover(null);
-  hovering = Boolean(item);
-  canvas.style.cursor = item ? "pointer" : "";
+    if (inBim) {
+      raycaster.setFromCamera(ndc, camera);
+      found = bim.hover(raycaster);
+    } else found = hit(ndc);
+  } else if (hovering && inBim) bim.hover(null);
+  const apart = objectLayer?.state.amount > 0;
+  const shaped = !inBim && found && !apart && bim?.hoverObject(found);
+  if (!inBim && !shaped) bim?.hoverObject(null);
+  if (!inBim && found && !shaped) sceneHover.show(found.pick.geometry, found.pick.position, found.pick.quaternion);
+  else sceneHover.hide();
+  hovering = Boolean(found);
+  canvas.style.cursor = found ? "pointer" : "";
 }
 
 // A short tap without dragging selects an object. Drags are camera movement.

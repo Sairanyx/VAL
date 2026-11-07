@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b1m3hdpfk</task-id>
+<tool-use-id>toolu_01Qo3U4qS92zWpRkZ1XvptUr</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/b1m3hdpfk.output</output-file>
+<status>failed</status>
+<summary>Background command "Wait for the cleaning default test" failed with exit code 255</summary>
+</task-notification>

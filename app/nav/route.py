@@ -7,9 +7,11 @@ from dataclasses import dataclass
 import numpy as np
 from scipy import ndimage
 
-from app.nav.grid import NavGrid
+from app.nav.grid import BODY_BAND, LOW_BAND, NavGrid
 
 VIEW_DISTANCE = 2.0  # metres across the floor from the object
+# Bodies and what blocks them. Anything shorter than the step or above the head leaves floor free.
+BODIES = {"robot": (0.3, LOW_BAND), "person": (0.6, BODY_BAND)}
 
 Point = tuple[float, float, float]
 
@@ -59,11 +61,20 @@ def box_cells(grid: NavGrid, low: Point, high: Point) -> tuple[slice, slice]:
     )
 
 
-def clearance_with_footprints(grid: NavGrid, footprints: list[tuple[Point, Point]]) -> np.ndarray:
-    """Return clearance in metres, with these (low, high) boxes blocked on top of the map."""
-    free = grid.free.copy()
+def in_band(grid: NavGrid, low: Point, high: Point, band: tuple[float, float]) -> bool:
+    """True if a box overlaps this height range above the floor."""
+    heights = sorted(float(np.dot(corner, grid.up)) - grid.floor_height for corner in (low, high))
+    return heights[0] <= band[1] and heights[1] >= band[0]
+
+
+def clearance_with_footprints(
+    grid: NavGrid, footprints: list[tuple[Point, Point]], band: tuple[float, float] = BODY_BAND
+) -> np.ndarray:
+    """Return clearance in metres, with boxes blocked if they overlap the body's height range."""
+    free = grid.clearance_low > 0 if band == LOW_BAND else grid.free.copy()
     for low, high in footprints:
-        free[box_cells(grid, low, high)] = False
+        if in_band(grid, low, high, band):
+            free[box_cells(grid, low, high)] = False
     return ndimage.distance_transform_edt(free) * grid.cell
 
 
@@ -164,13 +175,14 @@ def plan_route(
     footprints: list[tuple[Point, Point]] | None = None,
     max_stop_distance: float = 2.0,
     start_search: float = 1.5,
+    band: tuple[float, float] = BODY_BAND,
 ) -> Route:
     """Return a route ending at the reachable point closest to the target's box.
 
     A technician needs to reach and see a machine, not stand on it, so the route may stop short by
     up to `max_stop_distance` metres. Beyond that it raises NoRoute and says why.
     """
-    clearance = clearance_with_footprints(grid, footprints or [])
+    clearance = clearance_with_footprints(grid, footprints or [], band)
     fits = clearance >= width / 2
     if not fits.any():
         raise NoRoute(f"No floor is wide enough for a {width} m body.")

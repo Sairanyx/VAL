@@ -51,6 +51,29 @@ def test_route_is_marked_placeholder(client):
     assert body["length"] == 9
 
 
+def test_route_uses_floor_map_when_present(tmp_path):
+    np = pytest.importorskip("numpy")
+    floor = tmp_path / "nav_grid.npz"
+    open_floor = np.full((200, 200), 2.0, dtype=np.float32)
+    np.savez(
+        floor,
+        origin=np.array([-1.0, -5.0]),
+        cell=0.05,
+        floor_height=-1.25,
+        up=np.array([0.0, -1.0, 0.0]),
+        axes=np.array([0, 2]),
+        free=open_floor > 0,
+        clearance=open_floor,
+        clearance_low=open_floor,
+    )
+    path = tmp_path / "assets.json"
+    path.write_text(json.dumps({"scene_id": "t", "assets": [box("far", [7, 1, 0], "fixed")]}))
+    client = TestClient(create_app(path, floor))
+    body = client.post("/api/route", json={"start": [0, 1.25, 0], "object_id": "far"}).json()
+    assert body["placeholder"] is False
+    assert body["path"][0][1] == 1.25
+
+
 def test_move_updates_box_and_is_logged(client):
     moved = {"op": "move", "object_id": "near", "position": [5, 1, 0]}
     assert client.post("/api/changes", json=moved).status_code == 200

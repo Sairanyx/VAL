@@ -5,8 +5,17 @@ import pytest
 np = pytest.importorskip("numpy")
 pytest.importorskip("scipy")
 
-from app.nav.grid import build_nav_grid  # noqa: E402
-from app.nav.route import NoRoute, line_is_clear, plan_route, viewing_point  # noqa: E402
+from scipy import ndimage  # noqa: E402
+
+from app.nav.grid import BODY_BAND, LOW_BAND, NavGrid, build_nav_grid  # noqa: E402
+from app.nav.route import (  # noqa: E402
+    BODIES,
+    NoRoute,
+    clearance_with_footprints,
+    line_is_clear,
+    plan_route,
+    viewing_point,
+)
 
 
 def room():
@@ -85,3 +94,44 @@ def test_viewing_point_stands_back_from_the_target_along_the_route():
     point = viewing_point(GRID, points, (6.5, 1.0, 0.0), distance=2.0)
     assert point[0] == pytest.approx(4.5, abs=GRID.cell)
     assert viewing_point(GRID, points[:2], (4.5, 1.0, 0.0), distance=9.0) == points[0]
+
+
+def height_grid():
+    """A pipe runs across the room overhead: it blocks a person's height, but not a low robot."""
+    free = np.ones((80, 80), bool)
+    free[[0, -1], :] = free[:, [0, -1]] = False
+    low_free = free.copy()
+    free[39:41, :] = False
+    return NavGrid(
+        origin=np.zeros(2),
+        cell=0.05,
+        floor_height=0.0,
+        up=np.array([0.0, -1.0, 0.0]),
+        axes=(0, 2),
+        free=free,
+        clearance=ndimage.distance_transform_edt(free) * 0.05,
+        clearance_low=ndimage.distance_transform_edt(low_free) * 0.05,
+    )
+
+
+def test_robot_passes_under_what_blocks_a_person():
+    grid = height_grid()
+    start, low, high = (1.0, 0.0, 2.0), (3.0, -1.0, 2.0), (3.2, 0.0, 2.2)
+    width, band = BODIES["robot"]
+    assert plan_route(grid, start, low, high, width=width, band=band).stop_distance < 0.15
+    width, band = BODIES["person"]
+    assert plan_route(grid, start, low, high, width=width, band=band, max_stop_distance=2.0)
+    with pytest.raises(NoRoute):
+        plan_route(grid, start, low, high, width=width, band=band, max_stop_distance=0.5)
+
+
+def test_coin_and_ceiling_pipe_do_not_take_floor():
+    grid = height_grid()
+    coin = ((2.0, -0.02, 2.0), (2.1, 0.0, 2.1))
+    ceiling_pipe = ((1.0, -2.8, 2.0), (3.0, -2.6, 2.2))
+    low_clearance = clearance_with_footprints(grid, [coin, ceiling_pipe], LOW_BAND)
+    body_clearance = clearance_with_footprints(grid, [coin, ceiling_pipe], BODY_BAND)
+    assert (low_clearance == clearance_with_footprints(grid, [], LOW_BAND)).all()
+    assert (body_clearance == clearance_with_footprints(grid, [], BODY_BAND)).all()
+    tall_box = ((1.0, -1.5, 2.0), (1.5, 0.0, 2.5))
+    assert not (clearance_with_footprints(grid, [tall_box], BODY_BAND) == body_clearance).all()

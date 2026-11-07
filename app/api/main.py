@@ -14,18 +14,17 @@ from pydantic import BaseModel, Field
 
 from app.api.store import ChangeError, SceneStore
 from app.nav.grid import NavGrid, load_grid
-from app.nav.route import NoRoute, placeholder_route, plan_route
+from app.nav.route import BODIES, NoRoute, placeholder_route, plan_route
 
 DEFAULT_ASSETS = Path("fixtures/sample_assets.json")
 UNCONFIRMED_NEW = "new, unconfirmed"
 Position = Annotated[list[float], Field(min_length=3, max_length=3)]
-PROFILES = {"robot": 0.3, "person": 0.6, "carrying": 1.2}
 
 
 class RouteRequest(BaseModel):
     start: Position
     object_id: str
-    profile: Literal["robot", "person", "carrying"] = "person"
+    profile: Literal["robot", "person"] = "person"
 
 
 class ChangeRequest(BaseModel):
@@ -98,7 +97,8 @@ def create_app(
                     tuple(request.start),
                     tuple(asset["bbox_min"]),
                     tuple(asset["bbox_max"]),
-                    width=PROFILES[request.profile],
+                    width=BODIES[request.profile][0],
+                    band=BODIES[request.profile][1],
                     footprints=footprints(store, request.object_id),
                 )
             except NoRoute as reason:
@@ -109,7 +109,7 @@ def create_app(
                 "stop_distance": round(found.stop_distance, 3),
                 "view_from": list(found.view_from),
                 "profile": request.profile,
-                "width": PROFILES[request.profile],
+                "width": BODIES[request.profile][0],
                 "placeholder": False,
             }
         floor_y = store.scene.get("floor_y", request.start[1])
@@ -118,7 +118,7 @@ def create_app(
             "path": path,
             "length": round(length, 3),
             "profile": request.profile,
-            "width": PROFILES[request.profile],
+            "width": BODIES[request.profile][0],
             "placeholder": True,
         }
 

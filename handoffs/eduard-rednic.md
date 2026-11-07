@@ -1,7 +1,6 @@
-# eduard-rednic: eduard
+# eduard-rednic: eduard-height
 **Goal:** floor, routing, nearby search and backend API (`app/nav/`, `app/api/`), per docs/PLAN.md.
-**Done:** `make api` on port 8001 from the fixture or `SCENE_ASSETS`, with placeholder route and copilot; `make floor SCENE=...` builds the map with clearance per body size (`app/nav/grid.py`).
-**Verified:** `make check` passes. Floor on `Equipment Room.ply`: 33.8 m2 free, 7.6 m2 connected at 0.6 m wide. Not checked against views.
-**Next:** A* with body sizes on the grid, wire into `/api/route`, check the route reaches `P-005`; then Hannu's store and TimescaleDB.
-**Decided:** no cloud: TimescaleDB runs on the local 5090, and tablets talk only to it.
-**Blockers:** which object is `P-005`; Hannu's code isn't on main and his fixture format differs.
+**Done:** on top of Viktor's `viktor/viewer-objects`: merged main keeping his routing; `/api/route` profiles are `robot` and `person`, using his height layers. Boxes only block a body if they overlap its height range.
+**Verified:** `make check` passes. On `splat_v2`: 574 objects, routes to `obj-0048` for both bodies, 36 and 16 ms. The map is Viktor's shipped `nav_grid.npz`; not re-carved.
+**Next:** connect Hannu's copilot to `POST /api/copilot/query` (he's ready, code on `hannu_branch`) and his store to asset details; Benjamin draws routes from `/api/route`; TimescaleDB on the 5090.
+**Blockers:** PR #3 and this branch need merging with Viktor. Open: whether scene units are truly metres.

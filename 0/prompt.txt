@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b73161rin</task-id>
+<tool-use-id>toolu_01TgNVottnPSuHgCAZuVqNCG</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/b73161rin.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the real model API test" completed (exit code 0)</summary>
+</task-notification>

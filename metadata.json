@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.13.1",
+  "checkpoint_id": "01M6T2VRP77FAYPTH30XAHQXAK",
+  "strategy": "manual-commit",
+  "branch": "viktor/demo-fixes",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "app/nav/grid.py",
+    "scripts/remap_labels.py",
+    "tests/test_nav_carve.py",
+    "tests/test_scene_load.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 10,
+    "cache_creation_tokens": 17443,
+    "cache_read_tokens": 1746763,
+    "output_tokens": 7896,
+    "api_call_count": 5
+  },
+  "redaction": {
+    "replacements": 150,
+    "layers": {
+      "betterleaks": 14,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 18,
+      "credentialed_uri": 2,
+      "entropy": 18,
+      "key_context": 110,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

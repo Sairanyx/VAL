@@ -10,7 +10,7 @@ You need `gh auth login` once, plus two files from Viktor that aren't in git:
 ```bash
 git pull
 make scene      # objects, floor map, and light scenes
-make mapping    # links Excel records to objects, writes assets_mapped.json
+make mapping    # applies scenes/equipment_room.labels.json, links Excel records, writes assets_mapped.json
 make pieces     # cuts movable objects out of the scene
 make highlights # exports cyan segmented surfaces for object selection
 make bim        # simulated BIM model for BIM mode, plus model.ifc

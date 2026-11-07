@@ -81,7 +81,7 @@ Checked against the docx, 2026-11-07.
 | Required | State | Where |
 |---|---|---|
 | Extract and 3D-frame as many assets as possible | Done: 440 objects. Precision sample still to score | `app/extract`, frames in the viewer |
-| Map statuses, telemetry and metadata, with a faulty target | Done: all 30 records, procedural and marked, `P-005` as the fault. The other 410 objects have no record, as the pack only holds 30 | `app/copilot/mapping.py` |
+| Map statuses, telemetry and metadata, with a faulty target | Done: 19 of 30 records, each on an object of a fitting type, procedural and marked, `P-005` as the fault. The 11 motor and sensor records stay unlinked, as nothing in the scan looks like one. Types were checked from screenshots first | `app/copilot/mapping.py`, `scenes/equipment_room.labels.json` |
 | A worker or robot walks an automatic, collision-free route | Done, from the operator's own view: the camera is the worker, and the minimap shows where they are. A* on the floor map, for a person or a robot, re-planned when things move. No figure is drawn, by choice: say so in the video | `app/nav`, `web/route.js` |
 | Highlight frames and Excel metadata nearby, along the way | Done: frames within range, and labels with status and health from the record. Attention-level devices are announced as you near them. The full record is a tap away | `web/main.js` |
 | AI diagnosis triggered on reaching the device | Done: starts by itself, cites evidence IDs, gives confidence, safe checks only | `app/copilot` |

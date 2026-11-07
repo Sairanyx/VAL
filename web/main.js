@@ -278,7 +278,9 @@ function showInfo(obj) {
     ["Type", a.label],
     ["Label grade", a.label_grade],
     ["Suggested", a.label === "object" ? a.suggested_label : undefined],
-    ["Why", a.label_reason],
+    // A reviewed type comes with what was seen, which says more than the model's reason.
+    ["Type checked", a.label_was ? `${a.label_was} → ${a.label}` : null],
+    ["Why", a.label_evidence || a.label_reason],
     ["Label confidence", a.label_grade ? undefined : a.label_confidence?.toFixed(2)],
     ["Mobility", a.mobility],
     ["Mobility reason", a.mobility_reason],

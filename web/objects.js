@@ -193,8 +193,11 @@ export async function setupObjects({
     object.erasedSpace = null;
   }
 
-  function recordRemoval(object) {
-    state.changes.push({ op: "remove", object_id: object.asset.object_id });
+  // `keepSplats`: only the object's info goes; the scan still shows it.
+  function recordRemoval(object, keepSplats = false) {
+    const change = { op: "remove", object_id: object.asset.object_id };
+    if (keepSplats) change.details = { keep_splats: true };
+    state.changes.push(change);
     onChange?.(state.changes);
   }
 

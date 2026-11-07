@@ -332,6 +332,7 @@ async function routeTo(obj) {
 $("route-here").onclick = () => selected && routeTo(selected);
 $("duplicate-object").onclick = () => selected && duplicateObject(selected);
 $("delete-object").onclick = askToDelete;
+$("forget-object").onclick = () => selected && forgetObject(selected);
 $("rename-object").onclick = () => {
   $("rename-form").hidden = false;
   $("rename-input").value = selected?.asset.name ?? "";
@@ -580,6 +581,23 @@ async function deleteObject(object) {
   if (routed) $("clear-route").click();
   objectLayer.recordRemoval(object);
   $("status").textContent = `Deleted ${text}. Undo (Ctrl+Z) brings it back.`;
+}
+
+// Remove info only: for a junk detection, such as a stray bucket. Its box, label and data go, but
+// the scan still shows it, and a movable one still blocks routes. Undo brings the info back.
+function forgetObject(object) {
+  const text = name(object.asset);
+  const routed = route?.state.target?.asset === object.asset;
+  // Not hideObject: that drops the object's splats too, and these stay exactly where they are.
+  object.gone = true;
+  object.box.visible = false;
+  object.pick.layers.disable(0);
+  object.label.style.display = "none";
+  object.splitAway = !object.addedByOperator;
+  deselect();
+  if (routed) $("clear-route").click();
+  objectLayer.recordRemoval(object, true);
+  $("status").textContent = `Removed the info for ${text}; it stays in the scan. Ctrl+Z undoes it.`;
 }
 
 // The first free spot beside an object, as a copy mustn't land on top of anything.
@@ -1057,7 +1075,9 @@ async function syncWithBackend() {
     .then((response) => response.json())
     .catch(() => ({ changes: [] }));
   const removedIds = new Set(
-    saved.changes.filter((change) => change.op === "remove").map((change) => change.object_id),
+    saved.changes
+      .filter((change) => change.op === "remove" && !change.details?.keep_splats)
+      .map((change) => change.object_id),
   );
   for (const object of objects) {
     if (!present.has(object.asset.object_id)) {

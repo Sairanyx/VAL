@@ -481,3 +481,21 @@ def test_undo_brings_back_a_deleted_object(client):
     assert "near" not in [a["object_id"] for a in client.get("/api/assets").json()["assets"]]
     client.post("/api/changes/undo")
     assert "near" in [a["object_id"] for a in client.get("/api/assets").json()["assets"]]
+
+
+def test_removing_only_the_info_keeps_a_movable_object_in_the_way(tmp_path):
+    assets = [box("target", [5.5, -0.5, 1.0], "fixed"), box("bucket", [3.0, -0.5, 1.0], "movable")]
+    path = tmp_path / "assets.json"
+    path.write_text(json.dumps({"scene_id": "t", "assets": assets}))
+    client = TestClient(create_app(path, open_floor(tmp_path), database=FakeDatabase()))
+    request = {"start": [1.0, 0.0, 1.0], "object_id": "target"}
+    assert client.post("/api/route", json=request).status_code == 409  # the bucket blocks it
+
+    forget = {"op": "remove", "object_id": "bucket", "details": {"keep_splats": True}}
+    assert client.post("/api/changes", json=forget).status_code == 200
+    assert "bucket" not in [a["object_id"] for a in client.get("/api/assets").json()["assets"]]
+    assert client.post("/api/route", json=request).status_code == 409  # still in the scan
+
+    client.post("/api/changes/undo")
+    client.post("/api/changes", json={"op": "remove", "object_id": "bucket"})
+    assert client.post("/api/route", json=request).status_code == 200  # really gone

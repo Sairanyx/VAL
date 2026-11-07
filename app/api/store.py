@@ -193,6 +193,9 @@ class SceneStore:
                     raise ChangeError("move needs a position")
             else:
                 asset["status"] = "removed"
+                # "Remove info only": the record goes, but the scan still shows the thing, so a
+                # movable one keeps blocking routes (see footprints in main.py).
+                asset["splats_kept"] = bool((details or {}).get("keep_splats"))
         change = {
             "change_id": len(self.changes) + 1,
             "op": op,

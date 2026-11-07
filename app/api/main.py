@@ -155,6 +155,12 @@ def footprints(
                 boxes.append(shifted_box(asset, preview.position, getattr(preview, "yaw", None)))
             else:
                 boxes.append((asset["bbox_min"], asset["bbox_max"]))
+    # Objects whose info was removed but which are still in the scan stay in the way. Fixed ones
+    # are already part of the permanent map.
+    for asset in store.assets.values():
+        if asset["status"] == "removed" and asset.get("splats_kept"):
+            if asset["mobility"] == "movable" and asset["object_id"] != target_id:
+                boxes.append((asset["bbox_min"], asset["bbox_max"]))
     return boxes
 
 

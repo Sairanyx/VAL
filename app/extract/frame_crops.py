@@ -1,7 +1,7 @@
-"""Crop objects out of real video frames, for labelling from sharper images than renders. Needs a GPU.
+"""Crop objects out of real video frames, as sharper images to label from. Needs a GPU.
 
-    python -m app.extract.frame_crops ASSETS.json SCENE.ply LABELS.npy SPARSE IMAGES OWN_SPLAT.ply \\
-        ALIGN.json OUT_DIR
+    python -m app.extract.frame_crops ASSETS.json SCENE.ply LABELS.npy SPARSE IMAGES \\
+        OWN_SPLAT.ply ALIGN.json OUT_DIR
 
 The video and the scene can come from different days. So an object only counts as seen in a frame
 when it lies on the surface that a splat trained on that video shows there, using the video's own

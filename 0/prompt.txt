@@ -1,0 +1,15 @@
+<task-notification>
+<task-id>b96fgn3mi</task-id>
+<tool-use-id>toolu_01DqTgshGjx5oYsRTaSYV137</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/b96fgn3mi.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the final route render and PR checks" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+How about qwen LLM stuff
+
+---
+
+Go ahead

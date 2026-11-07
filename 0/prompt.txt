@@ -1,0 +1,19 @@
+So how do we make this work for all objects?
+
+---
+
+What if we used something that would "replace" the unseen part/void left behind via approximation or other information
+
+---
+
+While we are at it we should add a way for an operator to select and add objects that aren't detected and segmented yet by clicking them or selecting a box or something, then we can use a VLM/LLM to help make the config file for it
+
+---
+
+<task-notification>
+<task-id>b9pj683lc</task-id>
+<tool-use-id>toolu_01TsRxaneZMsjU8xVN6RvYEX</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/b9pj683lc.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for Qwen's suggestions on real crops" completed (exit code 0)</summary>
+</task-notification>

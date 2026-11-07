@@ -1,0 +1,61 @@
+{
+  "cli_version": "0.13.1",
+  "checkpoint_id": "01M6VC1P2AEACDE5V5E3MDDTDV",
+  "strategy": "manual-commit",
+  "branch": "viktor/viewer-and-val",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/api/commands.py",
+    "app/api/copilot_link.py",
+    "app/api/main.py",
+    "app/api/store.py",
+    "app/bim/model.py",
+    "app/copilot/copilot.py",
+    "docs/USAGE.md",
+    "handoffs/viktortrilar.md",
+    "tests/test_api.py",
+    "tests/test_copilot.py",
+    "web/bim.js",
+    "web/index.html",
+    "web/main.js",
+    "web/plan.js",
+    "web/style.css"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 16,
+    "cache_creation_tokens": 20700,
+    "cache_read_tokens": 3956546,
+    "output_tokens": 17759,
+    "api_call_count": 6,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
+    }
+  },
+  "redaction": {
+    "replacements": 188,
+    "layers": {
+      "betterleaks": 21,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 18,
+      "credentialed_uri": 4,
+      "entropy": 22,
+      "key_context": 141,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

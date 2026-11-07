@@ -191,11 +191,12 @@ def test_a_moved_objects_old_spot_no_longer_blocks_routes(tmp_path, monkeypatch)
     cart = rng.uniform([2.5, -1.0, 4.6], [3.5, -0.2, 6.0], (30000, 3))  # fills the only gap
     points = np.concatenate([floor, wall, cart])
     grid = build_nav_grid(points, np.ones(len(points)), (0, -1, 0), floor_height=0.0)
-    data = np.zeros(
-        len(points), dtype=[("x", "<f4"), ("y", "<f4"), ("z", "<f4"), ("opacity", "<f4")]
-    )
+    from app.scene.load import REQUIRED
+
+    data = np.zeros(len(points), dtype=[(name, "<f4") for name in REQUIRED])
     data["x"], data["y"], data["z"] = points.T
     data["opacity"] = 5.0  # a logit: nearly opaque
+    data["rot_0"] = 1.0
     write_splats(Splats(data), tmp_path / "scene.ply")
     monkeypatch.setenv("SCENE_PLY", str(tmp_path / "scene.ply"))
 

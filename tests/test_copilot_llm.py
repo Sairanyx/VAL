@@ -3,7 +3,13 @@ import json
 import pytest
 
 from app.copilot.copilot import CopilotResponse  # noqa: E402
-from app.copilot.llm import Fact, check_reply, explain, parse_reply  # noqa: E402
+from app.copilot.llm import (  # noqa: E402
+    Fact,
+    check_reply,
+    explain,
+    parse_reply,
+    service_date_note,
+)
 
 FACTS = [
     Fact("ASSET-017", "tag: P-005"),
@@ -94,3 +100,14 @@ def test_any_failure_keeps_the_template_answer(writer):
     assert response.answer == "Template answer."
     assert note["answer_source"] == "template"
     assert note["reason"]
+
+
+def test_citations_in_brackets_are_accepted():
+    assert check_reply(good_reply(citations=["[ASSET-017]"]), FACTS) is None
+
+
+def test_disagreeing_service_dates_are_stated_by_code():
+    note = service_date_note("2026-09-19T00:00:00", ["2026-06-23T23:00:00", "2026-05-15T01:00:00"])
+    assert "2026-09-19" in note and "2026-06-23" in note
+    assert service_date_note("2026-06-23T00:00:00", ["2026-06-23T23:00:00"]) is None
+    assert service_date_note(None, ["2026-06-23"]) is None

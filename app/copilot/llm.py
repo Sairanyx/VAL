@@ -45,9 +45,6 @@ Rules:
 - In "answer", say only what was measured or recorded.
 - In "hypotheses", give possible causes, worded with "may", and only ones these facts suggest. Don't
   say whether past work did or didn't fix anything. If nothing is wrong, leave it empty.
-- If two facts disagree, such as on dates, say so instead of choosing one.
-- model_confidence is about the diagnosis. mapping_confidence is about which physical object this
-  record belongs to. Report them separately.
 - Cite the ID of every fact you use.
 - Never tell anyone to operate, start, stop, or change equipment. Suggest checks only.
 - Use two to four short, plain sentences.
@@ -137,13 +134,6 @@ def gather_facts(engine: CopilotEngine, tag: str) -> list[Fact]:
     summary = {key: value for key, value in status.items() if key != "data_quality_issues"}
     facts = [Fact(asset_id, describe(summary))]
     facts += [Fact(issue["issue_id"], describe(issue)) for issue in quality]
-    record = store.get_asset(asset_id)
-    if record:
-        dates = {
-            "asset record, last_service_date": record.last_service_date,
-            "service_interval_days": record.service_interval_days,
-        }
-        facts.append(Fact(asset_id, describe(dates)))
     metrics = get_telemetry_summary(tag, store, limit=20).get("metrics", {})
     facts += [Fact(asset_id, text) for text in metric_observations(metrics)]
     for event in get_events_for_asset(tag, store, limit=MAX_ITEMS):
@@ -191,6 +181,13 @@ def parse_reply(raw: str) -> dict[str, Any] | None:
     return reply if isinstance(reply, dict) else None
 
 
+def clean_citations(citations: Any) -> Any:
+    """Accept citations written as they're shown in the facts, such as "[CASE-025]"."""
+    if not isinstance(citations, list):
+        return citations
+    return [c.strip().strip("[]") if isinstance(c, str) else c for c in citations]
+
+
 def check_reply(reply: dict[str, Any] | None, facts: list[Fact]) -> str | None:
     """Return why a reply can't be shown, or None if it passes every check."""
     if reply is None:
@@ -199,7 +196,7 @@ def check_reply(reply: dict[str, Any] | None, facts: list[Fact]) -> str | None:
     if not isinstance(answer, str) or not answer.strip():
         return "no answer"
     hypotheses = reply.get("hypotheses") or []
-    citations = reply.get("citations") or []
+    citations = clean_citations(reply.get("citations") or [])
     if not isinstance(hypotheses, list) or not all(isinstance(h, str) for h in hypotheses):
         return "hypotheses aren't a list of text"
     if not isinstance(citations, list) or not all(isinstance(c, str) for c in citations):
@@ -255,8 +252,25 @@ def explain(
         }
     response.answer = f"{reply['answer'].strip()} {SAFETY_NOTE}"
     response.hypotheses = reply.get("hypotheses") or response.hypotheses
-    response.citations = list(dict.fromkeys([*reply["citations"], "DOC-FIELD-SAFETY"]))
+    cited = clean_citations(reply["citations"])
+    response.citations = list(dict.fromkeys([*cited, "DOC-FIELD-SAFETY"]))
     return response, {"answer_source": "model", "model_seconds": seconds}
+
+
+def service_date_note(last_service_date: str | None, opened_dates: list[str]) -> str | None:
+    """Return a note when the asset record and its work orders disagree on the last service.
+
+    Written by code, because a model asked to report this merged the two into one wrong event.
+    """
+    if not last_service_date or not opened_dates:
+        return None
+    recorded, newest = last_service_date[:10], max(opened_dates)[:10]
+    if recorded == newest:
+        return None
+    return (
+        f"Records disagree: the asset record says last serviced {recorded}, "
+        f"but the newest work order is from {newest}."
+    )
 
 
 def answer(
@@ -276,6 +290,13 @@ def answer(
     if template_only:
         reason = "refused or nothing to explain"
         return {**response.to_dict(), "answer_source": "template", "reason": reason}
+    if "servic" in question_lower or "maintenance" in question_lower:
+        record = engine.store.get_asset(response.focused_asset)
+        orders = get_maintenance_history(response.focused_asset, engine.store, limit=100)
+        opened = [order["opened_at"] for order in orders if order.get("opened_at")]
+        disagreement = service_date_note(record.last_service_date if record else None, opened)
+        if disagreement:
+            response.observations = [disagreement, *response.observations]
     facts = gather_facts(engine, response.focused_asset)
     explained, note = explain(response, facts, question, writer)
     return {**explained.to_dict(), **note}

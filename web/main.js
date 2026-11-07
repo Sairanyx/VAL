@@ -3,12 +3,14 @@
 // both served by web/serve.py.
 import * as THREE from "three";
 import { SparkControls, SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
+import { setupObjects } from "./objects.js";
 import { setupPhone } from "./phone.js";
 
 const FAULT_TAG = "P-005"; // the pre-chosen faulty device (docs/PLAN.md)
 const EYE_HEIGHT = 1.6; // metres above the floor in walk mode (scene units look close to metres)
 const LABEL_RANGE = 10; // only label objects closer than this
 const MAX_LABELS = 12;
+const BOX_RANGE = 3; // frames show near the viewer, as the brief asks, plus the fault and the selection
 
 // Speed settings, changeable in the URL without editing code, e.g. ?res=0.5&splats=300000
 //   res     render resolution relative to the screen (default 1; 0.5 is about 4x fewer pixels)
@@ -47,6 +49,9 @@ const objects = []; // { asset, box, pick, label, center }
 let walk = true;
 let eyeY = EYE_HEIGHT;
 let startPos = new THREE.Vector3(0, EYE_HEIGHT, 0);
+let objectLayer = null;
+let selected = null;
+let boxesOn = true;
 
 function resize() {
   const w = window.innerWidth;
@@ -92,7 +97,8 @@ function addAsset(asset) {
   label.className = `label ${kind(asset)}`;
   $("labels").append(label);
 
-  objects.push({ asset, box, pick, label, center: new THREE.Vector3(...asset.center) });
+  const volume = Math.max(size.x * size.y * size.z, 1e-6);
+  objects.push({ asset, box, pick, label, volume, center: new THREE.Vector3(...asset.center) });
 }
 
 function showInfo(obj) {
@@ -100,7 +106,12 @@ function showInfo(obj) {
   const m = a.mapping;
   const rows = [
     ["Type", a.label],
-    ["Label confidence", a.label_confidence?.toFixed(2)],
+    ["Label grade", a.label_grade],
+    ["Suggested", a.label === "object" ? a.suggested_label : undefined],
+    ["Why", a.label_reason],
+    ["Label confidence", a.label_grade ? undefined : a.label_confidence?.toFixed(2)],
+    ["Mobility", a.mobility],
+    ["Mobility reason", a.mobility_reason],
     ["Object", a.object_id],
     ["Tag", m?.tag ?? "not mapped"],
     ["Asset", m?.asset_id],
@@ -110,14 +121,24 @@ function showInfo(obj) {
     `<h2>${name(a)}${kind(a) === "fault" ? " — fault" : ""}</h2><dl>` +
     rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("") +
     "</dl>";
+  selected = obj;
+  $("move").hidden = a.mobility !== "movable" || !objectLayer;
   $("info").hidden = false;
 }
 $("info-close").onclick = () => ($("info").hidden = true);
+$("move").onclick = () => {
+  if (objectLayer?.startMove(selected)) {
+    $("info").hidden = true;
+    $("status").textContent = `Drag ${name(selected.asset)} along the floor`;
+  }
+};
 
 function hit(ndc) {
   raycaster.setFromCamera(ndc, camera);
   const hits = raycaster.intersectObjects(objects.map((o) => o.pick));
-  return hits.length ? objects[hits[0].object.userData.index] : null;
+  // A pipe's box can span the room, so the smallest box under the pointer is the likely target.
+  const found = hits.map((h) => objects[h.object.userData.index]);
+  return found.length ? found.reduce((a, b) => (b.volume < a.volume ? b : a)) : null;
 }
 
 // A short tap without dragging selects an object. Drags are camera movement.
@@ -142,9 +163,8 @@ $("mode").onclick = () => {
   $("mode").textContent = walk ? "Walk" : "Fly";
 };
 $("boxes").onclick = () => {
-  const on = $("boxes").textContent === "Boxes off";
-  objects.forEach((o) => (o.box.visible = on));
-  $("boxes").textContent = on ? "Boxes on" : "Boxes off";
+  boxesOn = !boxesOn;
+  $("boxes").textContent = boxesOn ? "Boxes on" : "Boxes off";
 };
 $("reset").onclick = () => {
   camera.position.copy(startPos);
@@ -163,14 +183,21 @@ function updateLabels() {
     const ndc = world.project(camera);
     const onScreen = ndc.z < 1 && Math.abs(ndc.x) <= 1 && Math.abs(ndc.y) <= 1;
     o.label.style.display = "none";
-    if (onScreen && dist < LABEL_RANGE) visible.push({ o, dist, ndc: ndc.clone() });
+    const pinned = kind(o.asset) === "fault" || o === selected;
+    const apart = objectLayer?.state.amount > 0;
+    o.box.visible = boxesOn && !apart && (dist < BOX_RANGE || pinned);
+    if (apart && !o.shape && !pinned) continue;
+    // Unconfirmed objects keep their frame, but don't crowd the view with a generic tag.
+    const named = o.asset.label !== "object" || o.asset.mapping;
+    if (onScreen && dist < LABEL_RANGE && named) visible.push({ o, dist, ndc: ndc.clone() });
   }
   visible.sort((a, b) => a.dist - b.dist);
   for (const { o, dist, ndc } of visible.slice(0, MAX_LABELS)) {
     o.label.style.display = "block";
     o.label.style.left = `${((ndc.x + 1) / 2) * window.innerWidth}px`;
     o.label.style.top = `${((1 - ndc.y) / 2) * window.innerHeight}px`;
-    o.label.innerHTML = `${name(o.asset)} <small>${o.asset.label} · ${dist.toFixed(1)} m</small>`;
+    const type = name(o.asset) === o.asset.label ? "" : `${o.asset.label} · `;
+    o.label.innerHTML = `${name(o.asset)} <small>${type}${dist.toFixed(1)} m</small>`;
   }
   const looking = hit(new THREE.Vector2(0, 0));
   $("in-view").textContent =
@@ -184,7 +211,8 @@ function animate(now) {
   const dt = Math.min((now - lastFrame) / 1000, 0.1);
   lastFrame = now;
   // In phone mode the phone's rotation steers, so mouse/touch dragging must not fight it.
-  if (!phone.enabled) controls.update(camera);
+  if (!phone.enabled && !objectLayer?.state.moving) controls.update(camera);
+  objectLayer?.update(dt);
   phone.update(dt);
   if (walk) camera.position.y = eyeY;
   renderer.render(scene, camera);
@@ -219,6 +247,44 @@ async function load() {
     `${data.assets.length} objects · ${count ? `${count.toLocaleString()} splats · ` : ""}` +
     `res ${RES}, LOD ${LOD ? "on" : "off"}${LOD_SPLATS ? ` (${LOD_SPLATS})` : ""} · ` +
     "drag to look, WASD to move";
+
+  objectLayer = await setupObjects({
+    root,
+    scene,
+    camera,
+    canvas,
+    splat,
+    objects,
+    floorY: data.floor_y ?? 0,
+    onChange: (changes) => ($("status").textContent = `${changes.length} object(s) moved`),
+  });
+  const views = ["scan", "both", "objects"];
+  $("view-mode").onclick = () => {
+    const next = views[(views.indexOf(objectLayer.state.view) + 1) % views.length];
+    objectLayer.setView(next);
+    $("view-mode").textContent = next[0].toUpperCase() + next.slice(1);
+  };
+  $("apart").onclick = () => {
+    objectLayer.setApart(!objectLayer.state.apart);
+    $("apart").textContent = objectLayer.state.apart ? "Together" : "Apart";
+  };
+  $("reset-moves").onclick = () => objectLayer.resetMoves();
+  // Starting states from the URL, for screenshots and rehearsals.
+  if (params.has("view")) {
+    objectLayer.setView(params.get("view"));
+    $("view-mode").textContent = params.get("view");
+  }
+  if (params.get("apart") === "1") {
+    objectLayer.setApart(true);
+    $("apart").textContent = "Together";
+  }
+  window.plantViewer = { objects, objectLayer, camera }; // For browser tests and debugging.
+  if (params.has("camera")) {
+    const [x, y, z, yaw, pitch] = params.get("camera").split(",").map(Number);
+    camera.position.set(x, y, z);
+    camera.rotation.set(pitch, yaw, 0, "YXZ");
+    walk = false;
+  }
 }
 
 load().catch((err) => {

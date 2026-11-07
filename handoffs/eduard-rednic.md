@@ -1,7 +1,7 @@
-# eduard-rednic: eduard
+# eduard-rednic: eduard-mapping
 **Goal:** floor, routing, nearby search and backend API (`app/nav/`, `app/api/`), per docs/PLAN.md.
-**Done:** `make api` on port 8001. PR #1 merged. PR #2 adds real A* with body sizes in `/api/route`, used when `NAV_GRID` or the default `nav_grid.npz` exists; otherwise the marked placeholder.
-**Verified:** `make check` passes. A* takes under 20 ms on the real map. Not yet run against real objects; floor not checked against views.
-**Next:** load `assets_final.json`, pick a reachable `P-005`; object footprints for moves; TimescaleDB.
-**Decided:** no cloud: TimescaleDB runs on the local 5090, and tablets talk only to it.
-**Blockers:** `assets_final.json` and the `P-005` choice from Viktor; Hannu's code isn't on main and his fixture format differs.
+**Done:** `make mapping` links all 30 Excel records to objects by class (`app/copilot/mapping.py`), writing `mapping.json` and `assets_mapped.json`. Run the API with `SCENE_ASSETS=data/scene/splat_v2/assets_mapped.json`. PR #4 merged with Viktor's and Hannu's work.
+**Verified:** `make check` passes; live results in the PR. Links are procedural, not real identities.
+**Next:** viewer uses `assets_mapped.json` (Benjamin); TimescaleDB on the 5090; changes are still in memory.
+**Hannu:** his safety rule is back to his version; leave his copilot rules to him.
+**Blockers:** none. Open: scene units; a person confirming `P-005`; 544 objects have no Excel record because there are only 30 records.

@@ -50,3 +50,39 @@ def test_low_robot_passes_under_overhead_obstacle():
     center = tuple(((np.array([2.0, 2.0]) - grid.origin) / grid.cell).astype(int))
     assert grid.clearance[center] == 0
     assert grid.clearance_low[center] > 0.3
+
+
+def test_removable_splats_covers_movable_and_low_clutter_but_not_equipment():
+    from app.nav.grid import removable_splats
+
+    up = np.array([0.0, -1.0, 0.0])
+    low = {"bbox_min": [0, 0, 0], "bbox_max": [1, -0.2, 1]}  # Top is 0.2 m above the floor.
+    tall = {"bbox_min": [0, 0, 0], "bbox_max": [1, -1.0, 1]}
+    assets = [
+        {**low, "suggested_label": "hose", "mobility": "unsure"},
+        {**tall, "suggested_label": "hose", "mobility": "unsure"},
+        {**tall, "suggested_label": "cart", "mobility": "movable"},
+        {**low, "suggested_label": "pump", "mobility": "fixed"},
+    ]
+    labels = np.array([0, 1, 2, 3, -1])
+    assert removable_splats(labels, assets, up, 0.0).tolist() == [True, False, True, False, False]
+
+
+def test_left_out_splats_do_not_block_the_map():
+    points, opacity = room()
+    wall = points[:, 1] < -0.1
+    grid = build_nav_grid(points, opacity, (0, -1, 0), floor_height=0.0, not_obstacles=wall)
+    # With the wall left out, the whole floor connects at a width the 1 m gap alone also allows.
+    assert largest_region(grid.clearance >= 0.75).sum() * grid.cell**2 > 3.0
+
+
+def test_grid_round_trips_through_a_file(tmp_path):
+    from app.nav.grid import load_grid
+
+    points, opacity = room()
+    grid = build_nav_grid(points, opacity, (0, -1, 0), floor_height=0.0)
+    grid.save(tmp_path / "grid.npz")
+    loaded = load_grid(tmp_path / "grid.npz")
+    assert loaded.axes == grid.axes
+    assert loaded.cell == pytest.approx(grid.cell)
+    np.testing.assert_array_equal(loaded.free, grid.free)

@@ -58,6 +58,7 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     p.add_argument("--scene", type=Path, required=True, help="splat .ply to show")
     p.add_argument("--assets", type=Path, default=ROOT / "fixtures/sample_assets.json")
+    p.add_argument("--shapes", type=Path, help="fitted shapes for the objects view")
     p.add_argument("--host", default="0.0.0.0")
     p.add_argument("--port", type=int, default=8000)
     p.add_argument("--https", action="store_true", help="serve HTTPS, needed for phone sensors")
@@ -68,6 +69,10 @@ def main() -> None:
             p.error(f"not found: {f}")
 
     routes = {"/scene.ply": args.scene.resolve(), "/assets.json": args.assets.resolve()}
+    if args.shapes:
+        if not args.shapes.is_file():
+            p.error(f"not found: {args.shapes}")
+        routes["/shapes.json"] = args.shapes.resolve()
     handler = functools.partial(Handler, routes=routes)
     with http.server.ThreadingHTTPServer((args.host, args.port), handler) as srv:
         scheme = "https" if args.https else "http"

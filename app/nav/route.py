@@ -1,167 +1,19 @@
-"""Routes on the floor map: A* for a body size, to free floor beside an object.
-
-A body fits a cell if its clearance is at least the body's radius. Positions are in the scene's
-coordinates, and paths stay on the floor.
-"""
+"""Plan routes on the floor map, around permanent obstacles and movable objects' footprints."""
 
 import heapq
 import math
 from dataclasses import dataclass
-from pathlib import Path
 
 import numpy as np
+from scipy import ndimage
+
+from app.nav.grid import BODY_BAND, LOW_BAND, NavGrid
+
+VIEW_DISTANCE = 2.0  # metres across the floor from the object
+# Bodies and what blocks them. Anything shorter than the step or above the head leaves floor free.
+BODIES = {"robot": (0.3, LOW_BAND), "person": (0.6, BODY_BAND)}
 
 Point = tuple[float, float, float]
-# Width in metres, and whether it can pass under overhead obstacles.
-PROFILES = {"robot": (0.3, True), "person": (0.6, False), "carrying": (1.0, False)}
-REACH = 0.8  # how far from an object's box a person can stop and still service it
-STEPS = [(a, b, math.hypot(a, b)) for a in (-1, 0, 1) for b in (-1, 0, 1) if a or b]
-
-
-class NoRoute(ValueError):
-    """No path exists. The message says why, for showing to the user."""
-
-
-@dataclass
-class FloorMap:
-    origin: np.ndarray
-    cell: float
-    floor_height: float
-    up: np.ndarray
-    axes: tuple[int, int]
-    clearance: np.ndarray
-    clearance_low: np.ndarray
-
-    @classmethod
-    def load(cls, path: Path | str) -> "FloorMap":
-        with np.load(path) as data:
-            return cls(
-                origin=data["origin"],
-                cell=float(data["cell"]),
-                floor_height=float(data["floor_height"]),
-                up=data["up"],
-                axes=tuple(int(a) for a in data["axes"]),
-                clearance=data["clearance"],
-                clearance_low=data["clearance_low"],
-            )
-
-    def to_cell(self, point: Point | list[float]) -> tuple[int, int]:
-        flat = np.asarray(point, dtype=float)[list(self.axes)]
-        return tuple(np.floor((flat - self.origin) / self.cell).astype(int).tolist())
-
-    def to_world(self, cell: tuple[int, int]) -> Point:
-        point = [0.0, 0.0, 0.0]
-        for axis, index, low in zip(self.axes, cell, self.origin, strict=True):
-            point[axis] = round(float(low + (index + 0.5) * self.cell), 3)
-        up_axis = 3 - sum(self.axes)
-        point[up_axis] = round(float(self.floor_height / self.up[up_axis]), 3)
-        return tuple(point)
-
-    def fits(self, profile: str, blocked: np.ndarray | None = None) -> np.ndarray:
-        width, low = PROFILES[profile]
-        fits = (self.clearance_low if low else self.clearance) >= width / 2
-        return fits & ~blocked if blocked is not None else fits
-
-    def goal_cells(self, bbox_min: list[float], bbox_max: list[float]) -> np.ndarray:
-        """True for cells within reach of an object's box on the floor."""
-        rows, cols = np.ogrid[: self.clearance.shape[0], : self.clearance.shape[1]]
-        low = np.asarray(bbox_min, dtype=float)[list(self.axes)]
-        high = np.asarray(bbox_max, dtype=float)[list(self.axes)]
-        x = self.origin[0] + (rows + 0.5) * self.cell
-        y = self.origin[1] + (cols + 0.5) * self.cell
-        gap_x = np.maximum(np.maximum(low[0] - x, x - high[0]), 0)
-        gap_y = np.maximum(np.maximum(low[1] - y, y - high[1]), 0)
-        return np.hypot(gap_x, gap_y) <= REACH
-
-
-def nearest_fit(fits: np.ndarray, cell: tuple[int, int]) -> tuple[int, int] | None:
-    free = np.argwhere(fits)
-    if not len(free):
-        return None
-    return tuple(free[np.argmin(((free - cell) ** 2).sum(axis=1))].tolist())
-
-
-def astar(fits: np.ndarray, start: tuple[int, int], goals: np.ndarray) -> list[tuple[int, int]]:
-    """Shortest path from start to any goal cell, in cells. Empty if there's none.
-
-    Diagonal steps can't cut a corner. The search spreads evenly because goals can be many cells.
-    """
-    goal_list = np.argwhere(goals & fits)
-    if not len(goal_list):
-        return []
-    center = goal_list.mean(axis=0)
-    spread = float(np.hypot(*(goal_list - center).T).max())
-
-    def estimate(cell: tuple[int, int]) -> float:
-        return max(math.hypot(cell[0] - center[0], cell[1] - center[1]) - spread, 0.0)
-
-    rows, cols = fits.shape
-    best = {start: 0.0}
-    came: dict[tuple[int, int], tuple[int, int]] = {}
-    heap = [(estimate(start), start)]
-    while heap:
-        _, current = heapq.heappop(heap)
-        if goals[current]:
-            path = [current]
-            while path[-1] in came:
-                path.append(came[path[-1]])
-            return path[::-1]
-        for dr, dc, cost in STEPS:
-            r, c = current[0] + dr, current[1] + dc
-            if not (0 <= r < rows and 0 <= c < cols and fits[r, c]):
-                continue
-            if (
-                dr
-                and dc
-                and not (fits[current[0] + dr, current[1]] and fits[current[0], current[1] + dc])
-            ):
-                continue
-            total = best[current] + cost
-            if total < best.get((r, c), math.inf):
-                best[(r, c)] = total
-                came[(r, c)] = current
-                heapq.heappush(heap, (total + estimate((r, c)), (r, c)))
-    return []
-
-
-def simplify(path: list[tuple[int, int]]) -> list[tuple[int, int]]:
-    """Keep only the cells where direction changes."""
-    kept = path[:1]
-    for before, here, after in zip(path, path[1:], path[2:], strict=False):
-        if (here[0] - before[0], here[1] - before[1]) != (after[0] - here[0], after[1] - here[1]):
-            kept.append(here)
-    return kept + path[-1:] if len(path) > 1 else kept
-
-
-def plan_route(
-    floor: FloorMap,
-    start: Point | list[float],
-    bbox_min: list[float],
-    bbox_max: list[float],
-    profile: str = "person",
-    blocked: np.ndarray | None = None,
-) -> dict:
-    """Route to free floor beside an object. Raises NoRoute if the body can't get there."""
-    fits = floor.fits(profile, blocked)
-    width = PROFILES[profile][0]
-    begin = nearest_fit(fits, floor.to_cell(start))
-    if begin is None:
-        raise NoRoute(f"No floor is wide enough for a {width} m body.")
-    goals = floor.goal_cells(bbox_min, bbox_max)
-    if not (goals & fits).any():
-        raise NoRoute(f"No free floor beside this object for a {width} m body.")
-    path = astar(fits, begin, goals)
-    if not path:
-        raise NoRoute(f"No connected route to this object for a {width} m body.")
-    length = sum(math.dist(a, b) for a, b in zip(path, path[1:], strict=False)) * floor.cell
-    return {
-        "path": [floor.to_world(cell) for cell in simplify(path)],
-        "length": round(length, 3),
-        "profile": profile,
-        "width": width,
-        "start_moved": round(math.dist(begin, floor.to_cell(start)) * floor.cell, 3),
-        "placeholder": False,
-    }
 
 
 def placeholder_route(start: Point, goal: Point, floor_y: float) -> tuple[list[Point], float]:
@@ -171,3 +23,195 @@ def placeholder_route(start: Point, goal: Point, floor_y: float) -> tuple[list[P
     b = (goal[0], floor_y, goal[2])
     path = [a, corner, b]
     return path, sum(math.dist(p, q) for p, q in zip(path, path[1:], strict=False))
+
+
+@dataclass
+class Route:
+    path: list[Point]  # Scene coordinates, on the floor.
+    length: float
+    stop_distance: float  # Metres from the route's end to the target object's box.
+    view_from: Point  # On the route, far enough back to see the whole object.
+
+
+class NoRoute(ValueError):
+    """No route exists, with a reason suitable for showing to the user."""
+
+
+def to_cell(grid: NavGrid, point: Point) -> tuple[int, int]:
+    coordinates = np.asarray(point, dtype=np.float64)[list(grid.axes)]
+    return tuple(np.floor((coordinates - grid.origin) / grid.cell).astype(int).tolist())
+
+
+def cell_to_point(grid: NavGrid, cell: tuple[int, int]) -> Point:
+    position = [0.0, 0.0, 0.0]
+    for axis, index, origin in zip(grid.axes, cell, grid.origin, strict=True):
+        position[axis] = float(origin + (index + 0.5) * grid.cell)
+    up_axis = 3 - sum(grid.axes)
+    position[up_axis] = float(grid.floor_height / grid.up[up_axis])
+    return tuple(position)
+
+
+def box_cells(grid: NavGrid, low: Point, high: Point) -> tuple[slice, slice]:
+    """Return array slices for the floor cells under a box, clipped to the map."""
+    first, second = to_cell(grid, low), to_cell(grid, high)
+    size = grid.free.shape
+    return tuple(
+        slice(max(min(a, b), 0), min(max(a, b) + 1, limit))
+        for a, b, limit in zip(first, second, size, strict=True)
+    )
+
+
+def in_band(grid: NavGrid, low: Point, high: Point, band: tuple[float, float]) -> bool:
+    """True if a box overlaps this height range above the floor."""
+    heights = sorted(float(np.dot(corner, grid.up)) - grid.floor_height for corner in (low, high))
+    return heights[0] <= band[1] and heights[1] >= band[0]
+
+
+def clearance_with_footprints(
+    grid: NavGrid, footprints: list[tuple[Point, Point]], band: tuple[float, float] = BODY_BAND
+) -> np.ndarray:
+    """Return clearance in metres, with boxes blocked if they overlap the body's height range."""
+    free = grid.clearance_low > 0 if band == LOW_BAND else grid.free.copy()
+    for low, high in footprints:
+        if in_band(grid, low, high, band):
+            free[box_cells(grid, low, high)] = False
+    return ndimage.distance_transform_edt(free) * grid.cell
+
+
+def nearest_open_cell(
+    fits: np.ndarray, cell: tuple[int, int], limit: float
+) -> tuple[int, int] | None:
+    """Return the closest cell where the body fits, within `limit` cells of `cell`."""
+    open_cells = np.argwhere(fits)
+    if not len(open_cells):
+        return None
+    distances = np.linalg.norm(open_cells - np.asarray(cell), axis=1)
+    best = int(np.argmin(distances))
+    return tuple(open_cells[best].tolist()) if distances[best] <= limit else None
+
+
+def search(clearance: np.ndarray, fits: np.ndarray, start: tuple[int, int]) -> tuple[dict, dict]:
+    """Dijkstra from `start` over cells where the body fits, preferring open space.
+
+    Returns each reached cell's cost and predecessor. Costs rise near obstacles, so routes keep to
+    the middle of aisles, as a person would, unless a tight spot is the only way through.
+    """
+    costs = {start: 0.0}
+    previous: dict[tuple[int, int], tuple[int, int]] = {}
+    queue = [(0.0, start)]
+    steps = [(i, j) for i in (-1, 0, 1) for j in (-1, 0, 1) if i or j]
+    while queue:
+        cost, (x, y) = heapq.heappop(queue)
+        if cost > costs[(x, y)]:
+            continue
+        for dx, dy in steps:
+            cell = (x + dx, y + dy)
+            if (
+                not (0 <= cell[0] < fits.shape[0] and 0 <= cell[1] < fits.shape[1])
+                or not fits[cell]
+            ):
+                continue
+            # Diagonal moves mustn't cut across a blocked corner.
+            if dx and dy and not (fits[x + dx, y] and fits[x, y + dy]):
+                continue
+            step = math.hypot(dx, dy) * (1 + 0.5 / max(clearance[cell], 0.1))
+            if cost + step < costs.get(cell, math.inf):
+                costs[cell] = cost + step
+                previous[cell] = (x, y)
+                heapq.heappush(queue, (cost + step, cell))
+    return costs, previous
+
+
+def line_is_clear(fits: np.ndarray, a: tuple[int, int], b: tuple[int, int]) -> bool:
+    count = max(abs(b[0] - a[0]), abs(b[1] - a[1])) * 2 + 1
+    rows = np.linspace(a[0], b[0], count).round().astype(int)
+    cols = np.linspace(a[1], b[1], count).round().astype(int)
+    return bool(fits[rows, cols].all())
+
+
+def shorten(cells: list[tuple[int, int]], fits: np.ndarray) -> list[tuple[int, int]]:
+    """Replace the staircase of grid steps with straight lines wherever the body still fits."""
+    result = [cells[0]]
+    index = 0
+    while index < len(cells) - 1:
+        reach = len(cells) - 1
+        while reach > index + 1 and not line_is_clear(fits, cells[index], cells[reach]):
+            reach -= 1
+        result.append(cells[reach])
+        index = reach
+    return result
+
+
+def viewing_point(
+    grid: NavGrid, points: list[Point], target: Point, distance: float = VIEW_DISTANCE
+) -> Point:
+    """Return the last point on the route at least `distance` metres from the target, across the
+    floor. Close up, a splat shows what the scan never saw, so the view is better from further back.
+    Doesn't check that nothing is in the way.
+    """
+    axes = list(grid.axes)
+    goal = np.asarray(target)[axes]
+
+    def away(point: Point) -> float:
+        return float(np.linalg.norm(np.asarray(point)[axes] - goal))
+
+    for near, far in zip(points[:0:-1], points[-2::-1], strict=True):
+        if away(far) >= distance:
+            # Step back along this piece of the route until the distance is reached.
+            steps = max(2, int(math.dist(near, far) / grid.cell) + 1)
+            for share in np.linspace(0, 1, steps):
+                point = tuple(float(a + (b - a) * share) for a, b in zip(near, far, strict=True))
+                if away(point) >= distance:
+                    return point
+    return points[0]
+
+
+def plan_route(
+    grid: NavGrid,
+    start: Point,
+    target_low: Point,
+    target_high: Point,
+    width: float = 0.6,
+    footprints: list[tuple[Point, Point]] | None = None,
+    max_stop_distance: float = 2.0,
+    start_search: float = 1.5,
+    band: tuple[float, float] = BODY_BAND,
+) -> Route:
+    """Return a route ending at the reachable point closest to the target's box.
+
+    A technician needs to reach and see a machine, not stand on it, so the route may stop short by
+    up to `max_stop_distance` metres. Beyond that it raises NoRoute and says why.
+    """
+    clearance = clearance_with_footprints(grid, footprints or [], band)
+    fits = clearance >= width / 2
+    if not fits.any():
+        raise NoRoute(f"No floor is wide enough for a {width} m body.")
+    begin = nearest_open_cell(fits, to_cell(grid, start), start_search / grid.cell)
+    if begin is None:
+        raise NoRoute(f"The start point isn't within {start_search} m of open floor.")
+    costs, previous = search(clearance, fits, begin)
+
+    # Distance from every cell to the target's box, in metres.
+    away = np.ones(grid.free.shape, dtype=bool)
+    away[box_cells(grid, target_low, target_high)] = False
+    distance = ndimage.distance_transform_edt(away) * grid.cell
+    reached = np.array(list(costs), dtype=np.int64)
+    gaps = distance[reached[:, 0], reached[:, 1]]
+    closest = gaps.min()
+    if closest > max_stop_distance:
+        raise NoRoute(
+            f"The closest reachable floor is {closest:.1f} m from the object, "
+            f"for a {width} m body. Something may be blocking the way."
+        )
+    # Among nearly equal stopping points, prefer the one that's cheapest to walk to.
+    candidates = reached[gaps <= closest + grid.cell * 2]
+    end = min((tuple(c) for c in candidates.tolist()), key=lambda c: costs[c])
+
+    cells = [end]
+    while cells[-1] != begin:
+        cells.append(previous[cells[-1]])
+    cells.reverse()
+    points = [cell_to_point(grid, cell) for cell in shorten(cells, fits)]
+    length = sum(math.dist(a, b) for a, b in zip(points, points[1:], strict=False))
+    center = tuple((a + b) / 2 for a, b in zip(target_low, target_high, strict=True))
+    return Route(points, length, float(distance[end]), viewing_point(grid, points, center))

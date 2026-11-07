@@ -98,3 +98,99 @@ def test_add_remove_and_reset(client):
     client.post("/api/changes/reset")
     ids = {a["object_id"] for a in client.get("/api/assets").json()["assets"]}
     assert ids == {"near", "far"}
+
+
+def test_real_route_reroutes_when_a_movable_object_is_moved(tmp_path):
+    import json
+
+    np = pytest.importorskip("numpy")
+    pytest.importorskip("scipy")
+    from app.nav.grid import build_nav_grid
+
+    rng = np.random.default_rng(0)
+    floor = rng.uniform([0, 0, 0], [6, 0, 6], (120000, 3))
+    wall = rng.uniform([2.95, -1.8, 0], [3.05, -0.2, 4.8], (40000, 3))
+    points = np.concatenate([floor, wall])
+    grid = build_nav_grid(points, np.ones(len(points)), (0, -1, 0), floor_height=0.0)
+    box = {"label_confidence": 0.5, "mapping": None}
+    assets = [
+        {
+            **box,
+            "object_id": "pump",
+            "label": "pump",
+            "center": [5.2, -0.5, 1.2],
+            "bbox_min": [5.0, 0.0, 1.0],
+            "bbox_max": [5.4, -1.0, 1.4],
+            "mobility": "fixed",
+        },
+        {
+            **box,
+            "object_id": "cart",
+            "label": "cart",
+            "center": [3.0, -0.5, 5.3],
+            "bbox_min": [2.5, 0.0, 4.6],
+            "bbox_max": [3.5, -1.0, 6.0],
+            "mobility": "movable",
+        },
+    ]
+    path = tmp_path / "assets.json"
+    path.write_text(json.dumps({"scene_id": "t", "floor_y": 0.0, "assets": assets}))
+    client = TestClient(create_app(path, grid=grid))
+    request = {"start": [1.0, 0.0, 1.0], "object_id": "pump"}
+    blocked = client.post("/api/route", json=request)
+    assert blocked.status_code == 409
+    assert "closest reachable floor" in blocked.json()["detail"]
+    moved = client.post(
+        "/api/changes", json={"op": "move", "object_id": "cart", "position": [0.5, -0.5, 5.3]}
+    )
+    assert moved.status_code == 200
+    route = client.post("/api/route", json=request)
+    assert route.status_code == 200
+    assert route.json()["placeholder"] is False
+    assert route.json()["stop_distance"] < 0.8
+
+
+class FakeResponse:
+    def __init__(self, question):
+        self.question = question
+
+    def to_dict(self):
+        return {"answer": self.question, "citations": ["DOC-1"], "confidence": 0.5}
+
+
+class FakeStore:
+    def get_asset(self, _):
+        return None
+
+    def get_current_state(self, _):
+        return None
+
+
+class FakeEngine:
+    def __init__(self):
+        self.store = FakeStore()
+        self.focused_asset_tag = "P-005"
+        self.focused_object_id = "old"
+        self.sample_assets = []
+        self.mapping = {}
+
+    def query(self, question, object_id=None):
+        return FakeResponse(question)
+
+
+def test_copilot_uses_scene_and_clears_old_focus(tmp_path):
+    path = tmp_path / "assets.json"
+    path.write_text(json.dumps({"scene_id": "t", "assets": [box("near", [1, 1, 0], "fixed")]}))
+    engine = FakeEngine()
+    client = TestClient(create_app(path, engine=engine))
+    body = client.post(
+        "/api/copilot/query", json={"question": "What is this?", "object_id": "near"}
+    ).json()
+    assert body["placeholder"] is False
+    assert body["citations"] == ["DOC-1"]
+    assert engine.sample_assets[0]["box"]["min"] == [0.5, 0.5, -0.5]
+    assert engine.focused_asset_tag is None
+
+
+def test_home_redirects_to_docs(client):
+    assert client.get("/", follow_redirects=False).headers["location"] == "/docs"

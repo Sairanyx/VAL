@@ -1,0 +1,49 @@
+{
+  "cli_version": "0.13.1",
+  "checkpoint_id": "01M6VYCD9KTGXSG4WR2SX19N8W",
+  "strategy": "manual-commit",
+  "branch": "viktor/move-fixes",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/api/collisions.py",
+    "app/api/main.py",
+    "tests/test_collisions.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2,
+    "cache_creation_tokens": 686,
+    "cache_read_tokens": 395587,
+    "output_tokens": 644,
+    "api_call_count": 1,
+    "subagent_tokens": {
+      "input_tokens": 118,
+      "cache_creation_tokens": 106333,
+      "cache_read_tokens": 22541224,
+      "output_tokens": 56346,
+      "api_call_count": 59
+    }
+  },
+  "redaction": {
+    "replacements": 202,
+    "layers": {
+      "betterleaks": 21,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 18,
+      "credentialed_uri": 4,
+      "entropy": 28,
+      "key_context": 149,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

@@ -28,6 +28,7 @@ Should end by printing your GPU name.
 | `make entire` | Install and enable Entire |
 | `make views` | Download rendered views for the scene |
 | `make scene` | Download the demo scene, floor map, and objects |
+| `make pipeline` | Run a scene through everything, from `scenes/*.toml` |
 | `make model` | Download the copilot's language model (about 20 GB), before going offline |
 | `make scene-full` | Also download the full-quality scene (513 MB) |
 | `make up` | Train inside Docker |

@@ -26,6 +26,7 @@ class SceneStore:
         self.path = Path(path)
         self.scene = json.loads(self.path.read_text())
         self.database = database
+        self.unsaved: list[dict] = []
         self.scene_id = str(self.scene.get("scene_id", self.path.stem))
         self._restore_base()
         if database:
@@ -35,6 +36,7 @@ class SceneStore:
     def reset(self) -> None:
         """Restore the base scan's objects and forget saved changes. The file isn't overwritten."""
         self._restore_base()
+        self.unsaved = []
         if self.database:
             self.database.clear_changes(self.scene_id)
 
@@ -59,8 +61,14 @@ class SceneStore:
     def apply(self, op: str, object_id: str | None, position: list[float] | None) -> dict:
         change = self._apply(op, object_id, position)
         if self.database:
-            self.database.save_change(self.scene_id, change)
-        return change
+            self.unsaved.append(change)
+            self.save_pending()
+        return {**change, "saved": not self.unsaved} if self.database else change
+
+    def save_pending(self) -> None:
+        """Save changes in order, keeping any the database can't take yet for the next try."""
+        while self.unsaved and self.database.save_change(self.scene_id, self.unsaved[0]):
+            self.unsaved.pop(0)
 
     def _apply(self, op: str, object_id: str | None, position: list[float] | None) -> dict:
         if op == "add":

@@ -1,12 +1,13 @@
 VIEWS_TAG ?= views-v1
 VIEWS_FILE ?= equipment_room_views_v1.tar
 DATABASE_URL ?= postgresql://copilot:copilot@127.0.0.1:5433/copilot
+FLOOR_SCENE ?= $(SCENE_DIR)/clean.ply
 SCENE_TAG ?= scene-v2
 SCENE_FILE ?= scene_v2.tar
 SCENE_DIR ?= data/scene/splat_v2
 SCENE_FULL ?= clean.ply
 
-.PHONY: setup entire views scene scene-full gpu train tb web fmt lint test check up api floor mapping db
+.PHONY: setup entire views scene scene-full gpu train tb web fmt lint test check up api floor mapping db nav-check
 
 setup:   ## install everything
 	uv sync
@@ -39,8 +40,13 @@ db:      ## start local TimescaleDB and load the Excel telemetry
 api:     ## backend API at http://localhost:8001/docs
 	DATABASE_URL=$(DATABASE_URL) \
 	uv run uvicorn app.api.main:app --host 0.0.0.0 --port 8001 --reload
-floor:   ## floor map: make floor SCENE="path/to/Equipment Room.ply"
-	uv run python -m app.nav.grid "$(SCENE)" --out data/scene/equipment_room/nav_grid.npz --preview runs/floor.png
+floor:   ## rebuild the floor map on Roihu: make floor VIEWS="render render_detail folders"
+ifndef VIEWS
+	$(error floor needs VIEWS, the rendered views that remove floaters. Without them the map is much worse. The map from `make scene` is already built)
+endif
+	uv run python -m app.nav.grid $(FLOOR_SCENE) --views $(VIEWS) --walked $(SCENE_DIR)/walked.npy --labels $(SCENE_DIR)/splat_labels.npy --assets $(SCENE_DIR)/assets_final.json --out $(SCENE_DIR)/nav_grid_new.npz --preview runs/floor.png
+nav-check: ## test floor map, routes, mapping and API together, and draw runs/nav_check.png
+	uv run python -m app.nav.check $(SCENE_DIR)
 mapping: ## link Excel records to objects, marking them procedural
 	uv run python -m app.copilot.mapping $(SCENE_DIR)
 train:   ## train a model

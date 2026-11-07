@@ -87,7 +87,8 @@ def create_app(
     @app.get("/api/health")
     def health() -> dict:
         return {
-            "database": database is not None,
+            "database": database.ping() if database else False,
+            "unsaved_changes": len(store.unsaved),
             "copilot": engine is not None,
             "floor_map": grid is not None,
             "objects": len(store.visible()),
@@ -108,8 +109,9 @@ def create_app(
         if engine:
             found = {**asset, **details(asset, engine.store)}
             asset_id = (asset.get("mapping") or {}).get("asset_id")
-            if database and asset_id:
-                found["telemetry"] = database.telemetry(asset_id)
+            stored = database.telemetry(asset_id) if database and asset_id else None
+            if stored:
+                found["telemetry"] = stored
             return found
         return {**asset, "telemetry": [], "events": [], "maintenance": [], "documents": []}
 

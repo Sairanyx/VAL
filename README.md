@@ -20,6 +20,7 @@ Should end by printing your GPU name.
 | Command | What it does |
 |---|---|
 | `make db` | Start local TimescaleDB and load the Excel telemetry |
+| `make nav-check` | Test floor map, routes, mapping and API together, with a picture |
 | `make train` | Train a model |
 | `make tb` | Training graphs at http://localhost:6006 |
 | `make fmt` | Tidy code style and auto-fix lint |

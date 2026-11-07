@@ -1,7 +1,7 @@
-# eduard-rednic: eduard-timescale
+# eduard-rednic: eduard-nav-tools
 **Goal:** floor, routing, nearby search and backend API (`app/nav/`, `app/api/`), per docs/PLAN.md.
-**Done:** `make db` starts local TimescaleDB and loads Excel telemetry (`app/api/db.py`). Scene changes survive a restart, asset details read telemetry from the database, and `GET /api/health` shows what's connected. `add_telemetry` takes a `source`, ready for simulated data.
-**Verified:** `make check` passes, 135 tests. Live: 4,320 rows, move survives restart, reset clears it, API runs with the database stopped.
-**Next:** simulated machine data and diagnostics; viewer uses `assets_mapped.json` and draws routes (Benjamin).
-**Hannu:** the copilot still reads telemetry from Excel, so simulated data needs his side too. Leave his rules to him.
-**Blockers:** none. Open: if the database drops while the API runs, saving a change errors; whether self-hosted counts for the Tiger Data prize; scene units; a person confirming `P-005`.
+**Done:** `make nav-check` tests floor, routes, mapping and API together. `make floor VIEWS=...` keeps floater removal and writes `nav_grid_new.npz`. If the database drops, changes stay in memory and save once it's back (`saved`, `unsaved_changes`).
+**Verified:** `make check` passes; nav-check 12 of 12; database stop and start tested live. `make floor` not run for real, as the views are on Roihu; the shipped map doesn't need rebuilding.
+**Next:** check the route in the 3D scene once Benjamin draws it; rehearse on the 5090 offline. Later, when asked: telemetry simulator for diagnostics.
+**Decided:** scene is in metres. Leave Hannu's rules to him.
+**Blockers:** none. Open: a person confirming `P-005`.

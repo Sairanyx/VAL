@@ -137,7 +137,7 @@ http://localhost:8000/?tablet=0. Test on the real scene. Most controls are under
 ## Backend commands
 - [ ] **Every viewer action as a command:** `POST /api/viewer/commands`. ✅ 🤖 KEEP
 - [ ] **Action list:** `GET /api/viewer/actions`. ✅ 🤖 KEEP
-- [ ] **New actions have commands:** Duplicate, Delete, Name it, Plan. 🟡 ❌ ADD. They may be missing
+- [ ] **New actions have commands:** Duplicate, Delete, Name it. ✅ 👤 KEEP. Plan has no command yet: ADD
 - [ ] **Health check:** `GET /api/health`. ✅ 🤖 KEEP
 
 ## Setup and pipeline

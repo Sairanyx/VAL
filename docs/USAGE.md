@@ -150,8 +150,8 @@ Open the browser's developer console (F12) for more detail, and include any red 
 
 ## Tablet mode
 Touch screens get it automatically. `?tablet=1` or `?tablet=0` in the address forces it. Windows have no
-close button: tap a window anywhere except its controls to close it. It also draws at 0.75 resolution and
-aims for 500,000 splats. Change these with `?res=` and `?splats=`. For a tablet, also cut a lighter scene:
+close button: tap a window anywhere except its controls to close it. It also draws at 0.75 resolution,
+aims for 500,000 splats, and loads `light_full.ply` when `make web` finds one (`?scene=full` overrides). Change these with `?res=` and `?splats=`. For a tablet, also cut a lighter scene:
 `make pieces PIECES_FROM=data/scene/equipment_room/light_full.ply`.
 
 ## Control the viewer with commands

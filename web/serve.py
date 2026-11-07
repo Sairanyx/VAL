@@ -102,6 +102,7 @@ def main() -> None:
     p.add_argument("--scene", type=Path, required=True, help="splat .ply to show")
     p.add_argument("--assets", type=Path, default=ROOT / "fixtures/sample_assets.json")
     p.add_argument("--shapes", type=Path, help="fitted shapes for the objects view")
+    p.add_argument("--light", type=Path, help="lighter copy of the scene for phones and tablets")
     p.add_argument("--pieces", type=Path, help="folder from app.scene.split_movable")
     p.add_argument("--highlights", type=Path, help="segmented coloured splats from make highlights")
     p.add_argument("--host", default="0.0.0.0")
@@ -114,6 +115,10 @@ def main() -> None:
             p.error(f"not found: {f}")
 
     routes = {"/scene.ply": args.scene.resolve(), "/assets.json": args.assets.resolve()}
+    if args.light:
+        if not args.light.is_file():
+            p.error(f"not found: {args.light}")
+        routes["/scene-light.ply"] = args.light.resolve()
     if args.shapes:
         if not args.shapes.is_file():
             p.error(f"not found: {args.shapes}")

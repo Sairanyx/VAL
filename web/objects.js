@@ -298,7 +298,7 @@ export async function setupObjects({
   function startMove(object) {
     if (object.asset.mobility !== "movable") return false;
     const item = items.find((candidate) => candidate.object === object);
-    ensurePiece(object);
+    ensurePiece(object); // so the real splats move, not just the frame
     state.moving = grabbed(object, item, "move");
     return true;
   }

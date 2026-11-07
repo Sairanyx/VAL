@@ -208,11 +208,11 @@ def _filters(question: str, asked: str) -> Match | None:
             return Match("set_stage", say, {"stage": stage})
     if re.search(r"\b(?:next|change|switch)(?: the)? view\b", question):
         return Match("next_stage", "Next view.")
-    if re.search(r"\b(?:demo|tour)\b", question):
+    if re.search(r"\b(?:demo|tour|tutorial)\b", question):
         if re.search(r"\b(?:stop|end|cancel|exit|leave|finish)\b", question):
-            return Match("stop_demo", "Demo stopped.")
-        if re.search(r"\b(?:start|run|play|begin|show|give|do)\b", question):
-            return Match("start_demo", "Starting the demo.")
+            return Match("stop_demo", "Tutorial stopped.")
+        if re.search(r"\b(?:start|run|play|begin|show|give|do|take)\b", question):
+            return Match("start_demo", "Starting the tutorial.")
     everything = (
         rf"^(?:show|display)\s+(?:me\s+)?(?:all|everything|all (?:the\s+)?{GENERIC_THINGS})$"
     )

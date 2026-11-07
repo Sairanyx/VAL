@@ -1563,8 +1563,9 @@ function commandHandlers() {
     },
     set_stage: ({ stage }) => stages.set(stage),
     next_stage: () => stages.next(),
+    // Val and voice start the Watch version: nobody is at the screen to choose.
     start_demo: () => {
-      tour.start();
+      tour.start("watch");
     },
     stop_demo: () => tour.stop(),
     set_filter: ({ types, conditions, mobility }) => {
@@ -1907,6 +1908,12 @@ async function load() {
       pause: $("tour-pause"),
       next: $("tour-next"),
       stop: $("tour-stop"),
+      how: $("tour-how"),
+      show: $("tour-show"),
+      choice: $("tour-choice"),
+      watch: $("tour-watch"),
+      tryIt: $("tour-try"),
+      spot: $("tour-spot"),
     },
     handlers: commandHandlers(),
     press: (id) => $(id).click(),
@@ -1927,16 +1934,42 @@ async function load() {
       closeInfo: () => $("info-close").click(),
       closeFilters: () => ($("filter-panel").hidden = true),
       openFilters: () => ($("filter-panel").hidden = false),
+      camera,
+      wake: () => pacing.wake(),
+      walking: () => walk,
+      boxesOn: () => boxesOn,
+      selected: () => selected,
+      changeCount: () => objectLayer.state.changes.length,
+      alertsActive: () => Boolean(alerts?.isActive()),
+      hasBim: () => Boolean(bim),
+      bimActive: () => Boolean(bim?.state.active),
     },
   });
   $("start-tour").onclick = () => tour.start();
-  if (params.has("demo")) tour.start();
-  window.plantViewer = { views: stages, tour, scene, filters, objects, objectLayer, camera, route, copilot, showInfo, adder, bim, plan, pacing }; // For browser tests and debugging.
+  $("help-tutorial").onclick = () => {
+    $("help-panel").hidden = true;
+    tour.start();
+  };
+  if (params.has("demo")) tour.start("watch");
+  else if (firstVisit()) tour.start(); // asks Watch or Try it, and Close leaves everything as it was
+  window.plantViewer = { views: stages, tour, scene, root, filters, objects, objectLayer, camera, route, copilot, showInfo, adder, bim, plan, pacing }; // For browser tests and debugging.
   if (params.has("camera")) {
     const [x, y, z, yaw, pitch] = params.get("camera").split(",").map(Number);
     camera.position.set(x, y, z);
     camera.rotation.set(pitch, yaw, 0, "YXZ");
     walk = false;
+  }
+}
+
+// The tutorial offers itself once per browser. Storage can be blocked: then it just doesn't offer.
+function firstVisit() {
+  if (params.has("camera") || params.has("notour")) return false;
+  try {
+    if (localStorage.getItem("tutorial-offered")) return false;
+    localStorage.setItem("tutorial-offered", "1");
+    return true;
+  } catch {
+    return false;
   }
 }
 

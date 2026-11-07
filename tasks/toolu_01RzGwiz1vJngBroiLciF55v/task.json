@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01RzGwiz1vJngBroiLciF55v",
+  "agent_id": "a77d30d8b996ae974",
+  "subagent_type": "fork",
+  "task_description": "Visual review of object types",
+  "token_usage": {
+    "input_tokens": 26,
+    "cache_creation_tokens": 19425,
+    "cache_read_tokens": 5488258,
+    "output_tokens": 12682,
+    "api_call_count": 13
+  },
+  "started_at": "2026-11-07T23:28:34.518733787+02:00",
+  "completed_at": "2026-11-07T23:33:02.764883276+02:00"
+}

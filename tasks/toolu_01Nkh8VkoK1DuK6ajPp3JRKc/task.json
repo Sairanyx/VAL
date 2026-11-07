@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01Nkh8VkoK1DuK6ajPp3JRKc",
+  "agent_id": "a8e803b0fc45caae5",
+  "subagent_type": "fork",
+  "task_description": "Bug sweep: moving and rotating",
+  "token_usage": {
+    "input_tokens": 98,
+    "cache_creation_tokens": 86996,
+    "cache_read_tokens": 19511481,
+    "output_tokens": 53400,
+    "api_call_count": 49
+  },
+  "started_at": "2026-11-07T23:06:23.725268991+02:00",
+  "completed_at": "2026-11-07T23:30:02.175119935+02:00"
+}

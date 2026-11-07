@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01YTK3oYZe3Xm2KdkRYUT82a",
+  "agent_id": "aaedbef8ab87e0d0a",
+  "subagent_type": "fork",
+  "task_description": "Bug sweep: routing",
+  "token_usage": {
+    "input_tokens": 122,
+    "cache_creation_tokens": 106403,
+    "cache_read_tokens": 24952731,
+    "output_tokens": 59299,
+    "api_call_count": 61
+  },
+  "started_at": "2026-11-07T23:06:23.712669738+02:00",
+  "completed_at": "2026-11-07T23:33:02.753365709+02:00"
+}

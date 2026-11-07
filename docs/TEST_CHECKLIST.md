@@ -14,14 +14,29 @@ http://localhost:8000/?tablet=0. Test on the real scene. Most controls are under
 - **Plan:** KEEP, CUT, ADD, or DECIDE. These are suggestions, so change them.
 - If something fails, leave it unticked and add it under **Bugs** at the end.
 
+## Who tests what
+Pull first, tick only your own part, and push small changes often, so ticks don't collide. Lines with a name in
+brackets belong to that person.
+
+| Person | Parts up to and including Setup and pipeline |
+|---|---|
+| **Eduard** | Routes and nearby, Saving, Backend commands. Scoring: navigation, backend. Setup: database, nav-check, `./start` |
+| **Viktor** | Changing objects. Plan. Setup: scene, pieces, highlights, BIM, pipeline, video to splat, updates |
+| **Sasha** | Selecting an object. BIM. Scoring: extraction. Setup: LiDAR decision |
+| **Hannu** | Val. Scoring: AI diagnostics. Setup: mapping, language models |
+| **Benjamin** | Main buttons, More menu, Tablet and speed. Scoring: demo |
+| **Everyone** | `make setup`, `make gpu`, `make check` on your own machine |
+
 ## Must work: Valmet's scoring
-- [ ] **Extraction, 30%:** objects framed in the scene. ✅ 🤖 KEEP. Count them, and score the 60-object sample
-- [ ] **Navigation, 25%:** collision-free route to the fault, with nearby objects shown. ✅ 🤖 KEEP
-- [ ] **AI diagnostics, 20%:** Val explains the fault using records and sources. ✅ 🤖 KEEP. Score the 60 questions
-- [ ] **Backend, 15%:** one automated pipeline, clean code. 🟡 ❌ KEEP. `make pipeline` has only had a dry run
-- [ ] **Demo, 10%:** clear, reliable, easy to understand. ✅ 👤 KEEP. Rehearse it
+- [ ] (Sasha) **Extraction, 30%:** objects framed in the scene. ✅ 🤖 KEEP. Count them, and score the 60-object sample
+- [ ] (Eduard) **Navigation, 25%:** collision-free route to the fault, with nearby objects shown. ✅ 🤖 KEEP
+- [ ] (Hannu) **AI diagnostics, 20%:** Val explains the fault using records and sources. ✅ 🤖 KEEP. Score the 60 questions
+- [ ] (Eduard) **Backend, 15%:** one automated pipeline, clean code. 🟡 ❌ KEEP. `make pipeline` has only had a dry run
+- [ ] (Benjamin) **Demo, 10%:** clear, reliable, easy to understand. ✅ 👤 KEEP. Rehearse it
 
 ## Main buttons
+**Who: Benjamin**
+
 - [ ] **Go to P-005:** route to the faulty device. ✅ 🤖 KEEP
 - [ ] **Plan:** floor layout from above. ✅ 🤖 KEEP
 - [ ] **Ask Val:** opens the assistant. ✅ 🤖 KEEP
@@ -30,6 +45,8 @@ http://localhost:8000/?tablet=0. Test on the real scene. Most controls are under
 - [ ] **Clear route:** removes the route. ✅ 🤖 KEEP
 
 ## More menu
+**Who: Benjamin**
+
 - [ ] **Movement, Walk or Fly:** at floor level, or free. ✅ 🤖 KEEP
 - [ ] **Back to start:** returns to the start point. ✅ 👤 KEEP
 - [ ] **Route for, Person or Robot:** changes body size. ✅ 🤖 KEEP
@@ -44,6 +61,8 @@ http://localhost:8000/?tablet=0. Test on the real scene. Most controls are under
 - [ ] **Undo changes:** back to the original scan. ✅ 🤖 KEEP
 
 ## Selecting an object
+**Who: Sasha**
+
 - [ ] **Tap to select:** nearest object wins, never one behind it. ✅ 🤖 KEEP
 - [ ] **Hover outline:** shows what a click would pick, with a mouse. ✅ 🤖 KEEP. Check the frame rate
 - [ ] **Cyan highlight:** the selected object's surface lights up. ✅ 🤖 KEEP
@@ -55,6 +74,8 @@ http://localhost:8000/?tablet=0. Test on the real scene. Most controls are under
 - [ ] **Esc or phone back:** goes back one step. ✅ 🤖 KEEP
 
 ## Routes and nearby
+**Who: Eduard**
+
 - [ ] **Route avoids obstacles:** never through walls or equipment. ✅ 🤖 KEEP. 383 of 384 passed
 - [ ] **Live updates while walking:** every 0.1 m. ✅ 🤖 KEEP. Check it isn't jumpy
 - [ ] **Live updates while dragging:** route changes before you drop. ✅ 🤖 KEEP
@@ -65,6 +86,8 @@ http://localhost:8000/?tablet=0. Test on the real scene. Most controls are under
 - [ ] **Real start point:** an actual entrance. ❌ ❌ ADD. It's only the scene's default now
 
 ## Changing objects
+**Who: Viktor**
+
 - [ ] **Move:** drag on the floor. Movable objects only. ✅ 🤖 KEEP
 - [ ] **Rotate:** drag, ↶ 45°, ↷ 45°, or two-finger twist. ✅ 🤖 KEEP. Two-finger twist untested
 - [ ] **Done:** ends moving, and doing something else ends it too. ✅ 🤖 KEEP
@@ -81,6 +104,8 @@ http://localhost:8000/?tablet=0. Test on the real scene. Most controls are under
 - [ ] **Old spot unblocks after a move:** known issue, it can stay blocked. 🟡 ❌ ADD a fix
 
 ## Saving
+**Who: Eduard**
+
 - [ ] **Saved at once:** about 14 ms when you let go. ✅ 🤖 KEEP
 - [ ] **Survives a restart:** API and database. ✅ 🤖 KEEP
 - [ ] **Reload restores changes:** ✅ 🤖 KEEP
@@ -90,21 +115,23 @@ http://localhost:8000/?tablet=0. Test on the real scene. Most controls are under
 - [ ] **Simulated machine data and diagnostics:** ❌ ❌ DECIDE. You parked this
 
 ## BIM and Plan
-- [ ] **Real, Mesh, Box looks:** ✅ 🤖 KEEP
-- [ ] **Show or hide types:** ✅ 🤖 KEEP
-- [ ] **Section cut:** ✅ 🤖 KEEP
-- [ ] **Isolate:** ✅ 🤖 KEEP
-- [ ] **IFC properties on tap:** ✅ 🤖 KEEP
-- [ ] **Download IFC:** 0 schema issues. Not opened in a real BIM tool. ✅ 🤖 KEEP. Live file has boxes only
-- [ ] **Moves and turns follow in BIM:** ✅ 👤 KEEP. Turning in BIM untested
-- [ ] **Leaving BIM is clean:** no ghosts or leftovers. ✅ 🤖 KEEP
-- [ ] **Plan search:** `P-005` or `tank`. ✅ 🤖 KEEP
-- [ ] **Plan tap:** opens the object. ✅ 🤖 KEEP
-- [ ] **Show pipes:** ✅ 🤖 KEEP
-- [ ] **Download DXF:** not opened in a real CAD tool. ✅ 🤖 KEEP
-- [ ] **Plan's scale:** not checked on site. 🟡 ❌ KEEP. Say it's generated
+- [ ] (Sasha) **Real, Mesh, Box looks:** ✅ 🤖 KEEP
+- [ ] (Sasha) **Show or hide types:** ✅ 🤖 KEEP
+- [ ] (Sasha) **Section cut:** ✅ 🤖 KEEP
+- [ ] (Sasha) **Isolate:** ✅ 🤖 KEEP
+- [ ] (Sasha) **IFC properties on tap:** ✅ 🤖 KEEP
+- [ ] (Sasha) **Download IFC:** 0 schema issues. Not opened in a real BIM tool. ✅ 🤖 KEEP. Live file has boxes only
+- [ ] (Sasha) **Moves and turns follow in BIM:** ✅ 👤 KEEP. Turning in BIM untested
+- [ ] (Sasha) **Leaving BIM is clean:** no ghosts or leftovers. ✅ 🤖 KEEP
+- [ ] (Viktor) **Plan search:** `P-005` or `tank`. ✅ 🤖 KEEP
+- [ ] (Viktor) **Plan tap:** opens the object. ✅ 🤖 KEEP
+- [ ] (Viktor) **Show pipes:** ✅ 🤖 KEEP
+- [ ] (Viktor) **Download DXF:** not opened in a real CAD tool. ✅ 🤖 KEEP
+- [ ] (Viktor) **Plan's scale:** not checked on site. 🟡 ❌ KEEP. Say it's generated
 
 ## Val
+**Who: Hannu**
+
 - [ ] **Instant answer from records:** ✅ 🤖 KEEP
 - [ ] **"In plain words":** model summary, about 10 s on a ThinkPad. ✅ 👤 KEEP. Gemma's answers are terse
 - [ ] **What needs attention:** ranks devices. ✅ 🤖 KEEP
@@ -124,6 +151,8 @@ http://localhost:8000/?tablet=0. Test on the real scene. Most controls are under
 - [ ] **Val doing actions by voice:** commands exist, with nothing connecting speech. 🟡 ❌ DECIDE
 
 ## Tablet and speed
+**Who: Benjamin**
+
 - [ ] **Tablet layout:** tap a window to close it, no X, big buttons. ✅ 🤖 KEEP
 - [ ] **Light scene on phones and tablets:** automatic. ✅ 🤖 KEEP
 - [ ] **Stops redrawing when still:** and sharpens when you stop. ✅ 🤖 KEEP
@@ -135,25 +164,27 @@ http://localhost:8000/?tablet=0. Test on the real scene. Most controls are under
 - [ ] **Pre-made 3D models for nearby objects:** ❌ ❌ DECIDE. Parked, with the VR mode
 
 ## Backend commands
+**Who: Eduard**
+
 - [ ] **Every viewer action as a command:** `POST /api/viewer/commands`. ✅ 🤖 KEEP
 - [ ] **Action list:** `GET /api/viewer/actions`. ✅ 🤖 KEEP
 - [ ] **New actions have commands:** Duplicate, Delete, Name it. ✅ 👤 KEEP. Plan has no command yet: ADD
 - [ ] **Health check:** `GET /api/health`. ✅ 🤖 KEEP
 
 ## Setup and pipeline
-- [ ] `make setup`, `make gpu`: ✅ 👤 KEEP
-- [ ] `make scene`: objects, floor map, light scenes. ✅ 👤 KEEP
-- [ ] `make mapping`: links 30 Excel records. ✅ 🤖 KEEP
-- [ ] `make pieces`, `make highlights`, `make bim`: ✅ 👤 KEEP
-- [ ] `make db`: ✅ 🤖 KEEP
-- [ ] `make laptop-model`, `make model`: ✅ 👤 KEEP
-- [ ] `make check`: 267 passed on main. ✅ 🤖 KEEP
-- [ ] `make nav-check`: ✅ 🤖 KEEP
-- [ ] `./start browser`, `laptop`, `tablet`: ✅ 🤖 KEEP
-- [ ] `make pipeline`, for real on the 5090: 🟡 ❌ KEEP. Masks need a SAM setup, as Roihu is closed
-- [ ] **Video to splat:** frames, COLMAP, training. By hand. 🟡 🤖 KEEP for new rooms only
-- [ ] **LiDAR input:** ❌ ❌ DECIDE. Pitch it as future work
-- [ ] **Update by short clip, or by rescan:** ❌ ❌ Pitch as future work
+- [ ] (Everyone) `make setup`, `make gpu`: ✅ 👤 KEEP
+- [ ] (Viktor) `make scene`: objects, floor map, light scenes. ✅ 👤 KEEP
+- [ ] (Hannu) `make mapping`: links 30 Excel records. ✅ 🤖 KEEP
+- [ ] (Viktor) `make pieces`, `make highlights`, `make bim`: ✅ 👤 KEEP
+- [ ] (Eduard) `make db`: ✅ 🤖 KEEP
+- [ ] (Hannu) `make laptop-model`, `make model`: ✅ 👤 KEEP
+- [ ] (Everyone) `make check`: 267 passed on main. ✅ 🤖 KEEP
+- [ ] (Eduard) `make nav-check`: ✅ 🤖 KEEP
+- [ ] (Eduard) `./start browser`, `laptop`, `tablet`: ✅ 🤖 KEEP
+- [ ] (Viktor) `make pipeline`, for real on the 5090: 🟡 ❌ KEEP. Masks need a SAM setup, as Roihu is closed
+- [ ] (Viktor) **Video to splat:** frames, COLMAP, training. By hand. 🟡 🤖 KEEP for new rooms only
+- [ ] (Sasha) **LiDAR input:** ❌ ❌ DECIDE. Pitch it as future work
+- [ ] (Viktor) **Update by short clip, or by rescan:** ❌ ❌ Pitch as future work
 
 ## Clean up
 Only after the rehearsal, and only if tests pass.

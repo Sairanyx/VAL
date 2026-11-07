@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.13.1",
+  "checkpoint_id": "01M6SZ5D6FCFRYT7BP84KW8YR0",
+  "strategy": "manual-commit",
+  "branch": "eduard-timescale",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "README.md",
+    "compose.yaml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4,
+    "cache_creation_tokens": 8185,
+    "cache_read_tokens": 1102011,
+    "output_tokens": 7661,
+    "api_call_count": 2
+  },
+  "redaction": {
+    "replacements": 189,
+    "layers": {
+      "betterleaks": 76,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 28,
+      "credentialed_uri": 8,
+      "entropy": 16,
+      "key_context": 92,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

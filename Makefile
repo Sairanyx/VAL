@@ -54,7 +54,7 @@ highlights: ## export segmented object surfaces for cyan selection highlighting
 shapes:  ## fit object shapes again, which applies newer fit rules to the Release's copy
 	uv run python -m app.extract.primitives $(SCENE_DIR)/assets_final.json "$(SCENE_DIR)/Equipment Room.ply" $(SCENE_DIR)/splat_labels.npy $(SCENE_DIR)/shapes.json
 bim: shapes ## simulated BIM model of the room for the viewer's BIM mode, plus model.ifc (IFC4)
-	uv run python -m app.bim "$(SCENE_DIR)/Equipment Room.ply" $(SCENE_DIR)/assets_mapped.json $(SCENE_DIR)/shapes.json $(BIM_DIR)
+	uv run python -m app.bim "$(SCENE_DIR)/Equipment Room.ply" $(SCENE_DIR)/assets_mapped.json $(SCENE_DIR)/shapes.json $(BIM_DIR) --labels $(SCENE_DIR)/splat_labels.npy --label-assets $(SCENE_DIR)/assets_final.json $(if $(wildcard $(PIECES_DIR)/pieces.json),--pieces $(PIECES_DIR))
 pipeline: ## run a scene through everything: make pipeline CONFIG=scenes/equipment_room.toml, DRY=1 to preview
 	uv run python scripts/pipeline.py $(or $(CONFIG),scenes/equipment_room.toml) $(if $(DRY),--dry-run)
 start-browser: ## start everything for a laptop or PC. Same as ./start browser

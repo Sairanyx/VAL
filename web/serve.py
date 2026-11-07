@@ -53,6 +53,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         pieces = self.routes.get("/pieces/")
         if pieces and route.startswith("/pieces/"):
             return str(pieces / Path(route).name)
+        bim_splats = self.routes.get("/bim/splats/")
+        if bim_splats and route.startswith("/bim/splats/"):
+            return str(bim_splats / Path(route).name)
         highlights = self.routes.get("/highlights/")
         if highlights and route.startswith("/highlights/"):
             return str(highlights / Path(route).name)
@@ -140,6 +143,9 @@ def main() -> None:
             if not (args.bim / name).is_file():
                 p.error(f"not found: {args.bim / name}; run make bim")
             routes[f"/{name}"] = (args.bim / name).resolve()
+        if (args.bim / "meshes.bin").is_file():
+            routes["/meshes.bin"] = (args.bim / "meshes.bin").resolve()
+        routes["/bim/splats/"] = (args.bim / "splats").resolve()
     handler = functools.partial(Handler, routes=routes)
     with http.server.ThreadingHTTPServer((args.host, args.port), handler) as srv:
         scheme = "https" if args.https else "http"

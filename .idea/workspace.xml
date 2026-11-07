@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="8bbc1c5b-2ac7-4248-9842-9be0f4b9a5fb" name="Changes" comment="Asset mapping from excel" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="main" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;HannuKiviranta&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/Sairanyx/Newbies.git&quot;,
+    &quot;accountId&quot;: &quot;e8b62e91-d917-4700-b591-cb2f8bb07d6b&quot;
+  }
+}</component>
+  <component name="McpProjectServerCommands">
+    <commands />
+    <urls />
+  </component>
+  <component name="NextEditCompletionFeaturesState">
+    <decayedCancelled>
+      <entry key="MS100" value="1.000000000095987" />
+      <entry key="MS500" value="1.0124684546835465" />
+      <entry key="S2" value="1.5409906291209614" />
+      <entry key="S5" value="2.3006502697924853" />
+      <entry key="S10" value="3.2250998411069114" />
+      <entry key="S30" value="5.429686486298051" />
+      <entry key="S60" value="11.854451036272115" />
+      <entry key="M2" value="34.65365725873316" />
+      <entry key="M5" value="92.51161813434346" />
+      <entry key="M10" value="146.22016218140539" />
+      <entry key="M15" value="182.76204381804664" />
+      <entry key="M30" value="265.9822352845142" />
+      <entry key="H1" value="367.3928401225845" />
+      <entry key="H2" value="456.7907951428107" />
+      <entry key="H4" value="518.125525452183" />
+      <entry key="D1" value="580.9248059477767" />
+      <entry key="W1" value="592.9555825666231" />
+    </decayedCancelled>
+    <decayedSelected>
+      <entry key="MS100" value="0.0" />
+      <entry key="MS500" value="0.0" />
+      <entry key="S2" value="0.0" />
+      <entry key="S5" value="0.0" />
+      <entry key="S10" value="0.0" />
+      <entry key="S30" value="0.0" />
+      <entry key="S60" value="0.0" />
+      <entry key="M2" value="0.0" />
+      <entry key="M5" value="0.0" />
+      <entry key="M10" value="0.0" />
+      <entry key="M15" value="0.0" />
+      <entry key="M30" value="0.0" />
+      <entry key="H1" value="0.0" />
+      <entry key="H2" value="0.0" />
+      <entry key="H4" value="0.0" />
+      <entry key="D1" value="0.0" />
+      <entry key="W1" value="0.0" />
+    </decayedSelected>
+    <decayedShown>
+      <entry key="MS100" value="0.9395227493054519" />
+      <entry key="MS500" value="0.9999454050561696" />
+      <entry key="S2" value="1.5364866233620031" />
+      <entry key="S5" value="2.2979520089113796" />
+      <entry key="S10" value="3.2229856670629036" />
+      <entry key="S30" value="5.428325984079546" />
+      <entry key="S60" value="11.85314315103653" />
+      <entry key="M2" value="34.65198148482068" />
+      <entry key="M5" value="92.50991464382003" />
+      <entry key="M10" value="146.2188167331311" />
+      <entry key="M15" value="182.76088514413513" />
+      <entry key="M30" value="265.9811526930029" />
+      <entry key="H1" value="367.39175690153064" />
+      <entry key="H2" value="456.789926180248" />
+      <entry key="H4" value="518.1249596008489" />
+      <entry key="D1" value="580.9246869742859" />
+      <entry key="W1" value="592.9555648619478" />
+    </decayedShown>
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 6,
+  &quot;fromUser&quot;: false
+}</component>
+  <component name="ProjectId" id="3Lk0ETBmHtRhhSmIfcu9lTJxgWC" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "KEY_CHAT_IN_TOOLWINDOW": "false",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.MCP Project settings loaded": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "benjamin/webviewer",
+    "git.auto.fetch.suggestion.counter": "3",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "/home/hannukiviranta/Documents/Newbies",
+    "settings.editor.selected.configurable": "ml.llm.AcpAgentsConfigurable"
+  }
+}]]></component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/data" />
+    </key>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="8bbc1c5b-2ac7-4248-9842-9be0f4b9a5fb" name="Changes" comment="" />
+      <created>1793982646597</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1793982646597</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="hannu_branch" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Asset mapping from excel" />
+    <option name="LAST_COMMIT_MESSAGE" value="Asset mapping from excel" />
+  </component>
+</project>

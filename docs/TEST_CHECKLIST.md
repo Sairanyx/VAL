@@ -58,7 +58,7 @@ brackets belong to that person.
 - [ ] **Range:** 2, 3, 5 or 10 m for frames and labels. ✅ 🤖 KEEP
 - [ ] **Apart:** pulls objects apart, Valmet's extra credit. ✅ 🤖 KEEP
 - [ ] **Add object:** draw a box around something missed. ✅ 🤖 KEEP
-- [ ] **Undo changes:** back to the original scan. ✅ 🤖 KEEP
+- [ ] **Reset all:** back to the original scan. ✅ 🤖 KEEP
 
 ## Selecting an object
 **Who: Sasha**
@@ -67,6 +67,7 @@ brackets belong to that person.
 - [ ] **Hover outline:** shows what a click would pick, with a mouse. ✅ 🤖 KEEP. Check the frame rate
 - [ ] **Cyan highlight:** the selected object's surface lights up. ✅ 🤖 KEEP
 - [ ] **Details panel:** type, status, telemetry, alarms, documents. ✅ 🤖 KEEP
+- [ ] **Dashboard:** charts for a linked object, e.g. P-005. Esc closes it. ✅ 🤖 KEEP
 - [ ] **Procedural label:** guessed Excel links are marked. ✅ 🤖 KEEP
 - [ ] **No invented IDs:** objects with no record say so. ✅ 🤖 KEEP
 - [ ] **Ask Val** in the panel: asks about this object. ✅ 🤖 KEEP
@@ -125,7 +126,6 @@ brackets belong to that person.
 - [ ] (Sasha) **Leaving BIM is clean:** no ghosts or leftovers. ✅ 🤖 KEEP
 - [ ] (Viktor) **Plan search:** `P-005` or `tank`. ✅ 🤖 KEEP
 - [ ] (Viktor) **Plan tap:** opens the object. ✅ 🤖 KEEP
-- [ ] (Viktor) **Show pipes:** ✅ 🤖 KEEP
 - [ ] (Viktor) **Download DXF:** not opened in a real CAD tool. ✅ 🤖 KEEP
 - [ ] (Viktor) **Plan's scale:** not checked on site. 🟡 ❌ KEEP. Say it's generated
 
@@ -181,7 +181,7 @@ brackets belong to that person.
 - [ ] (Everyone) `make check`: 267 passed on main. ✅ 🤖 KEEP
 - [ ] (Eduard) `make nav-check`: ✅ 🤖 KEEP
 - [ ] (Eduard) `./start browser`, `laptop`, `tablet`: ✅ 🤖 KEEP
-- [ ] (Viktor) `make pipeline`, for real on the 5090: 🟡 ❌ KEEP. Masks need a SAM setup, as Roihu is closed
+- [ ] (Viktor) `make pipeline`, for real on a GPU machine: 🟡 ❌ KEEP. Masks need a SAM setup, as Roihu is closed
 - [ ] (Viktor) **Video to splat:** frames, COLMAP, training. By hand. 🟡 🤖 KEEP for new rooms only
 - [ ] (Sasha) **LiDAR input:** ❌ ❌ DECIDE. Pitch it as future work
 - [ ] (Viktor) **Update by short clip, or by rescan:** ❌ ❌ Pitch as future work
@@ -194,19 +194,31 @@ Only after the rehearsal, and only if tests pass.
 - [ ] **Own-splat and Roihu scripts:** KEEP, marked for new rooms only
 - [ ] **Stale handoffs:** Benjamin and Hannu to update theirs
 
-## 5090 rehearsal, internet off
-- [ ] All files and models are on the 5090, and `make db` and `make api` work
-- [ ] Router set up, and the tablet connects
-- [ ] Scene, routes, moves, BIM, Plan and Val all work offline
-- [ ] Nothing tries to reach the internet
+## Laptop rehearsal, internet off
+- [x] The zip unzips and runs from an empty folder on Linux, first run about 20 s, later starts 3 s (Viktor)
+- [ ] The zip runs on Windows, with the double-click: not tried, nobody's tested it on Windows yet
+- [ ] The zip runs on a Mac, with right-click Open: not tried
+- [ ] The demo laptop runs it with the internet off, and nothing tries to reach the internet
+- [ ] The mic works with a real voice, in a noisy room
 - [ ] A second detour is picked, with a route change you can show
 - [ ] Full restart time is written down
+
+## New viewer features
+- [x] Minimap in a corner on a computer, toggled on a phone, opens to the full map (Viktor)
+- [x] Filters narrow frames, labels, the list, the map and BIM, and work by voice (Viktor)
+- [x] Plain alerts, chosen by severity, gone outside the real view (Viktor)
+- [x] Focus flies to an object's best view, from the list, the panel and by voice (Viktor)
+- [x] View goes through darkness, simple BIM, blob BIM, point cloud, real view (Viktor)
+- [x] Demo button runs start to finish and puts everything back. Stop works midway (Viktor)
+- [x] A worker or robot walks the route, and arrival at the fault starts Val (Viktor)
+- [x] Arrow keys move and turn an object only in those modes, and ? shows help (Viktor)
+- [ ] Someone other than Viktor tries all of these
 
 ## The demo, start to finish
 - [ ] Open the room: frames show around objects
 - [ ] Tap an object: details show
 - [ ] Navigate: route and walk work, and nearby objects show status
-- [ ] Reach `P-005`: Val explains it, with sources and safe checks
+- [ ] Reach `P-005`: Val starts by itself, with sources and safe checks
 - [ ] Move an object: it stays real, and the route changes
 - [ ] Undo: everything goes back
 - [ ] It runs through 3 times with no problems
@@ -244,7 +256,8 @@ Submit at sinceai.app. Any member can submit, and it stays editable until the de
 - [ ] **Repository is ready for judges:** follow `docs/ENTIRE.md` before making anything public
 
 ## Deliverables: optional on the form
-- [ ] **Demo URL:** only if deployed. DECIDE, as it runs on site
+- [ ] **Demo URL:** skip. It runs on a laptop, and hosting Valmet's data needs their OK
+- [ ] **Demo zip for judges:** `make bundle`, by link, once Valmet says it's fine. Too big and data-filled for the source `.zip` field
 - [ ] **Pitch deck file:** PDF or PowerPoint up to 100 MB. Voters can open it. KEEP
 - [ ] **Supporting document:** pilot plan or continuation plan, up to 100 MB. ADD. Fits `docs/PLAN.md`'s rollout
 - [ ] **Partner technologies:** tick CSC / LUMI AI Factory, as Roihu did the processing. Check that it counts

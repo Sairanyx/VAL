@@ -130,6 +130,7 @@ class Event:
     event_code: str
     description: str
     source: str
+    status: str = ""
 
 
 @dataclass
@@ -146,6 +147,7 @@ class WorkOrder:
     priority: str
     result: str
     duration_h: float
+    downtime_h: float = 0.0
 
 
 @dataclass
@@ -271,6 +273,15 @@ class DataStore:
             "temperature_c",
             "vibration_rms_mm_s",
             "current_a",
+            # The names in the current builder pack. The three above are kept for older packs.
+            "stiction_index",
+            "load_for_opening_pct",
+            "vibration_mm_s",
+            "bearing_temp_c",
+            "motor_current_a",
+            "speed_rpm",
+            "signal_quality_pct",
+            "sensor_bias",
         ]
         for r in sheet_rows.get("Telemetry_Sample_3d", []):
             asset_id = _safe_str(r.get("asset_id"))
@@ -308,6 +319,7 @@ class DataStore:
                 event_code=_safe_str(r.get("event_code")),
                 description=_safe_str(r.get("description")),
                 source=_safe_str(r.get("source")),
+                status=_safe_str(r.get("status")),
             )
             store.events_by_id.setdefault(asset_id, []).append(evt)
 
@@ -328,6 +340,7 @@ class DataStore:
                 priority=_safe_str(r.get("priority")),
                 result=_safe_str(r.get("result")),
                 duration_h=_safe_float(r.get("duration_h")),
+                downtime_h=_safe_float(r.get("downtime_h")),
             )
             store.maintenance_by_id.setdefault(asset_id, []).append(wo)
 

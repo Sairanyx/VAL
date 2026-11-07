@@ -36,17 +36,18 @@ Sunday 09:00, deadline 10:00, per an earlier doc: Viktor is confirming this. Cur
 
 **Roihu is closed until at least Monday,** after the deadline, because of a security issue (CSC notice, 2026-11-07). Its masks, full renders, and video frames can't be reached, and any work needing them is off. Everything the demo needs is in Release `objects-v2`. Don't try to get around the closure. The 5090 is now our only GPU, so agree who's using it.
 
-**In order:** 5090 and tablet rehearsal offline, record a safe demo video, slides, technical note, and
-README, then improve numbers if time remains.
+**In order:** rehearse on the demo laptop offline, try the zip on Windows and a Mac, record a safe demo
+video (the **Demo** button is built for this), slides, technical note, and README, then improve numbers if
+time remains. The 5090 isn't part of the demo any more: it runs on a laptop.
 
 | Person | Task now |
 |---|---|
-| **Viktor** | Run the 5090 rehearsal. Ask Valmet which pump is `P-005`. Confirm the deadline |
-| **Benjamin** | Test on a real tablet and pick its light scene. Record the video. Own the slides. Review the viewer changes |
-| **Eduard** | Set up `make db` and `make api` on the 5090, plus the router and offline network. Find a second good detour. Backend slide |
+| **Viktor** | Ask Valmet which pump is `P-005`, and whether the zip with their data can go to judges by link. Confirm the deadline |
+| **Benjamin** | Try the zip on another laptop. Test on a real tablet. Record the video. Own the slides |
+| **Eduard** | Rehearse offline on the demo laptop, with the mic and a real voice. Find a second good detour. Backend slide |
 | **Hannu** | Score the 60-question copilot test by hand. AI slide. Check the procedural links. Decide whether `skills/` belongs in this repo |
-| **Sasha** | Score the 60-object precision sample, from crops rendered on the 5090. Extraction slide and technical note. Retire or merge the old extraction branch |
-| **Coding agents** | Draft the README and notes from measured numbers, fix what the rehearsal finds, and prepare what the 5090 can run |
+| **Sasha** | Score the 60-object precision sample. Extraction slide and technical note. Push the dashboard work if it's still wanted. Retire or merge the old extraction branch |
+| **Coding agents** | Draft the README and notes from measured numbers, and fix what the rehearsal finds |
 
 **Cut first if short of time:** voice mode, written directions. Second-pass framing and pipe runs need Roihu's data or a SAM setup on the 5090, so they're off unless someone sets that up. Don't cut
 the rehearsal, video, precision number, or copilot test.
@@ -55,7 +56,7 @@ the rehearsal, video, precision number, or copilot test.
 `obj-0049` is an unconfirmed pick. 29 of 30 Excel links are procedural. `P-005`'s record only has
 pressure and flow data. The floor under moved objects is copied, not scanned. Position is simulated.
 
-### Run the demo on the 5090
+### Run the demo from a development setup
 Put `Equipment Room.ply` in `data/scene/equipment_room/` and the Excel pack in `data/`, then, with
 internet: `make scene mapping db model pieces`. Offline, in two terminals:
 ```text
@@ -63,7 +64,7 @@ make api
 make web SCENE=data/scene/equipment_room/cut/base.ply ASSETS=data/scene/equipment_room/assets_mapped.json SHAPES=data/scene/equipment_room/shapes.json PIECES=data/scene/equipment_room/cut
 ```
 Demo move: plan to `P-005` from the room centre, then drag the roll cage `obj-0067` onto the route near
-(-1.46, -1.75). The route goes from 4.3 to 5.6 m. **Undo changes** restores it.
+(-1.46, -1.75). The route goes from 4.3 to 5.6 m. **Reset all** restores it.
 
 ## Pipeline
 ```text
@@ -233,9 +234,9 @@ Plant data never leaves the site, which is a key selling point. The brief doesn'
 directly, so pitch it as innovation and real-world fit.
 
 - **Nothing external at runtime:** no cloud APIs, hosted models, CDN scripts, or web fonts.
-- **Copilot:** use a local LLM and local embeddings, sharing the 5090's memory with everything else.
-- **Tablet connection:** bring our own router, and don't rely on venue Wi-Fi.
-- **Roihu:** for experiments only. The final pipeline must also run on the 5090.
+- **Copilot:** answers from the records with no model, or a small local model if the laptop has one.
+- **Tablet connection, if used:** bring our own router, and don't rely on venue Wi-Fi.
+- **Roihu:** for experiments only. The final pipeline must also run on a local GPU machine, such as the 5090.
 
 ### Compute estimates
 Replace these with measured numbers in `docs/RESULTS.md`.
@@ -244,7 +245,7 @@ Replace these with measured numbers in `docs/RESULTS.md`.
 |---|---|---|---|
 | Offline on a provided splat | 5090 | 1-2.5 hours, or 30-60 minutes without a VLM | Up to 20 GB VRAM per step |
 | Building our own splat | CPU and 5090 | 1.5-3 hours more | About 8 GB RAM measured for COLMAP so far, up to 16 GB VRAM for 3DGS |
-| Live demo | 5090 | Continuous | 10-25 GB of 32 GB VRAM |
+| Live demo | A laptop | Continuous | The browser's graphics draw it. Memory not measured |
 
 ### Deployment at a plant (future)
 **Suggested spec:** one 24-32 GB GPU, at least 16 CPU cores, 64 GB RAM, about 100 GB of disk per site,

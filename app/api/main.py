@@ -40,10 +40,12 @@ from app.bim.ifc import ifc_text
 from app.bim.model import build_model
 from app.copilot.llm import can_reword, load_writer, warm_up
 from app.copilot.voice import MAX_AUDIO_BYTES, TRANSCRIBER
+from app.dashboard import render_dashboard
 from app.nav.grid import NavGrid, largest_region, load_grid
 from app.nav.route import (
     BODIES,
     NoRoute,
+    best_view,
     clearance_with_footprints,
     placeholder_route,
     plan_route,
@@ -276,11 +278,46 @@ def create_app(
             return found
         return {**asset, "telemetry": [], "events": [], "maintenance": [], "documents": []}
 
+    dashboards: dict[tuple, bytes] = {}
+
+    @app.get("/api/assets/{object_id}/dashboard.png")
+    def asset_dashboard(object_id: str) -> Response:
+        """Charts of the Excel record linked to an object: health, telemetry, events, service."""
+        asset = require(object_id)
+        link = asset.get("mapping") or {}
+        if not engine or not link.get("asset_id"):
+            raise HTTPException(404, f"{object_id} has no linked record, so there's no dashboard")
+        key = (object_id, link["asset_id"], link.get("method"), link.get("confidence"))
+        if key not in dashboards:
+            try:
+                dashboards[key] = render_dashboard(
+                    engine.store, link["asset_id"], {**link, "object_id": object_id}
+                )
+            except KeyError as error:
+                raise HTTPException(404, f"No record {link['asset_id']} in the data") from error
+        return Response(dashboards[key], media_type="image/png")
+
     @app.get("/api/nearby")
     def nearby(
         x: float, y: float, z: float, radius: Annotated[float, Query(gt=0, le=100)] = 3.0
     ) -> dict:
         return {"assets": [with_condition(a) for a in store.nearby((x, y, z), radius)]}
+
+    @app.get("/api/objects/{object_id}/view")
+    def object_view(object_id: str) -> dict:
+        """Return where to stand to see an object. Null without a floor map."""
+        asset = require(object_id)
+        view = None
+        if grid is not None:
+            view = best_view(
+                grid,
+                tuple(asset["bbox_min"]),
+                tuple(asset["bbox_max"]),
+                footprints(store, object_id),
+            )
+        if view is None:
+            return {"from": None, "clear": False}
+        return {"from": list(view.point), "clear": view.clear}
 
     @app.post("/api/route")
     def route(request: RouteRequest) -> dict:

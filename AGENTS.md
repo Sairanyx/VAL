@@ -11,8 +11,8 @@ This file is loaded with every prompt, so keep it short.
   anything people see or that views are rendered from: it leaves black holes.
 - Current tasks and how to run the demo: `docs/PLAN.md`, under "Now".
 - Keep pipeline code independent of which scene file it loads.
-- The demo must run with no internet: a local RTX 5090 server and a tablet on its network. No cloud
-  APIs, hosted models, or CDN assets at runtime. Roihu is for development experiments only.
+- The demo must run with no internet, on a laptop: ours, or a judge's from the zip (`make bundle`). No
+  cloud APIs, hosted models, or CDN assets at runtime. Roihu is for development experiments only.
 - Scoring: asset extraction 30%, navigation 25%, AI diagnostics 20%, backend 15%, demo 10%. Put
   backend and spatial work first, keep the UI lightweight, and build no mobile app.
 - Never invent asset identity. Store how each asset was mapped and with what confidence.
@@ -90,6 +90,7 @@ their area.
 | `make model` | Get Val's larger model, for a GPU, before going offline |
 | `make voice-model` | Get the speech model for talking to Val, before going offline |
 | `make pipeline` | Run a scene through everything, from `scenes/*.toml` |
+| `make bundle` | Build `dist/val-demo.zip`, which runs on someone else's laptop |
 | `make train` | Train a model |
 
 - Python 3.12, managed by uv. Use `uv run` and `uv add`, not `pip`.

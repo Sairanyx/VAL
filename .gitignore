@@ -22,3 +22,4 @@ cert*.pub
 web/.cert/
 .idea/
 skills/
+dist/

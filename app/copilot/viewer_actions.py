@@ -21,6 +21,51 @@ HIDE = r"\b(?:hide|turn off|switch off|disable|remove|leave|exit|close|stop)\b"
 THING = r"(?:it|this|that|the\s+\S+(?:\s+\S+)?|\S+-\d+)"
 
 
+# What people call each filter. The keys are the ones in web/colors.js.
+TYPE_WORDS = {
+    "pump": "pump",
+    "motor": "motor",
+    "valve": "valve",
+    "tank": "tank",
+    "pipe": "pipe",
+    "hose": "pipe",
+    "fitting": "pipe",
+    "cable": "cable",
+    "cabinet": "cabinet",
+    "panel": "cabinet",
+    "light": "light",
+    "lamp": "light",
+    "sensor": "sensor",
+    "transmitter": "sensor",
+    "gauge": "sensor",
+    "chair": "furniture",
+    "shelf": "furniture",
+    "shelve": "furniture",
+    "furniture": "furniture",
+    "cart": "portable",
+    "tool": "portable",
+    "ladder": "portable",
+    "bucket": "portable",
+    "bag": "portable",
+}
+CONDITION_WORDS = {
+    r"attention(?: required)?|urgent|critical|faulty|faults?|broken|red": "attention_required",
+    r"degraded|yellow": "degraded",
+    r"watch(?:ed|list)?": "watch",
+    r"healthy|fine|ok|okay|green": "healthy",
+    r"no records?|unlinked|without (?:a )?records?|unmapped": "none",
+}
+STAGE_WORDS = {
+    r"go dark|darkness|dark view": ("dark", "Darkness."),
+    r"simple bim|box bim": ("box", "Simple BIM."),
+    r"blob bim|mesh bim|blobs": ("mesh", "Blob BIM."),
+    r"point cloud|points view": ("points", "The point cloud."),
+    r"real view|real room": ("real", "The real view."),
+}
+FILTER_VERB = r"\b(?:only|just|filter|show|display|highlight|see|list)\b"
+GENERIC_THINGS = r"(?:equipment|devices?|objects?|things?|items?|assets?)"
+
+
 @dataclass
 class Match:
     """An action to run. `needs_object` means it acts on a device or object."""
@@ -93,9 +138,93 @@ def _simple(question: str) -> Match | None:
     return None
 
 
+def _words_in(question: str) -> tuple[list[str], list[str]]:
+    """Return the types and conditions a sentence names."""
+    types = sorted(
+        {key for word, key in TYPE_WORDS.items() if re.search(rf"\b{word}(?:s|es)?\b", question)}
+    )
+    conditions = sorted(
+        {key for words, key in CONDITION_WORDS.items() if re.search(rf"\b(?:{words})\b", question)}
+    )
+    return types, conditions
+
+
+def _filters(question: str, asked: str) -> Match | None:
+    """The demo, filters, alerts, and the Map and Objects panels.
+
+    `asked` is the whole sentence, because "just" and "only" can be cleaned off the start.
+    """
+    for words, (stage, say) in STAGE_WORDS.items():
+        if re.search(rf"\b(?:{words})\b", question):
+            return Match("set_stage", say, {"stage": stage})
+    if re.search(r"\b(?:next|change|switch)(?: the)? view\b", question):
+        return Match("next_stage", "Next view.")
+    if re.search(r"\b(?:demo|tour)\b", question):
+        if re.search(r"\b(?:stop|end|cancel|exit|leave|finish)\b", question):
+            return Match("stop_demo", "Demo stopped.")
+        if re.search(r"\b(?:start|run|play|begin|show|give|do)\b", question):
+            return Match("start_demo", "Starting the demo.")
+    everything = (
+        rf"^(?:show|display)\s+(?:me\s+)?(?:all|everything|all (?:the\s+)?{GENERIC_THINGS})$"
+    )
+    cleared = r"\b(?:clear|reset|remove)\b.*\bfilters?\b|\bno filters?\b"
+    if re.search(cleared, question) or re.search(everything, question):
+        return Match("clear_filters", "Showing everything.")
+    if re.search(r"\balerts?\b|\bwarnings?\b", question):
+        if re.search(r"\b(?:off|hide|stop|disable|no)\b", question):
+            return Match("set_alerts", "Alerts are off.", {"level": "off"})
+        if re.search(r"\b(?:all|every|everything|on)\b", question):
+            return Match("set_alerts", "Showing all alerts.", {"level": "all"})
+        if "degraded" in question:
+            return Match("set_alerts", "Alerts for attention and degraded.", {"level": "degraded"})
+        return Match("set_alerts", "Alerts only for attention required.", {"level": "attention"})
+    if re.search(r"\bfilters?\b", question) and re.search(r"\b(?:open|show)\b", question):
+        return Match("open_filters", "Here are the filters.")
+    if re.search(r"\b(?:map|minimap|plan)\b", question):
+        found = re.search(r"\bfind\s+(.+?)\s+on\s+the\s+(?:map|plan)$", question)
+        if found:
+            text = found.group(1).upper() if "-" in found.group(1) else found.group(1)
+            return Match("find_on_map", f"Looking for {text} on the map.", {"text": text})
+        if re.search(HIDE, question):
+            return Match("close_map", "Map hidden.")
+        if re.search(r"\b(?:full|big|bigger|expand|enlarge|large)\b", question):
+            return Match("expand_map", "Here's the full map.")
+        if re.search(r"\b(?:open|show|see|go to|display)\b", question):
+            return Match("open_map", "Here's the map.")
+    if re.search(r"\b(?:objects?|equipment)\s+(?:list|panel)\b|\blist of\b", question):
+        if re.search(HIDE, question):
+            return Match("close_list", "Closed the list.")
+        return Match("open_list", "Here's the list.")
+    if re.search(r"\b[a-z]{1,3}-\d+\b", question):
+        return None  # A named device isn't a filter.
+    if re.match(r"(?:hide|remove)\b", question):
+        types, _ = _words_in(question)
+        if types:
+            return Match("hide_types", f"Hiding {', '.join(types)}.", {"types": types})
+    if re.search(FILTER_VERB, asked):
+        types, conditions = _words_in(question)
+        mobility = "any"
+        if re.search(r"\bmovable\b|\bcan move\b", question):
+            mobility = "movable"
+        elif re.search(r"\bfixed\b|\bcan't move\b", question):
+            mobility = "fixed"
+        if types or conditions or mobility != "any":
+            parts = [*types, *(c.replace("_", " ") for c in conditions)]
+            if mobility != "any":
+                parts.append(mobility)
+            return Match(
+                "set_filter",
+                f"Showing only: {', '.join(parts)}.",
+                {"types": types, "conditions": conditions, "mobility": mobility},
+            )
+    return None
+
+
 def _on_object(question: str) -> Match | None:
     """Actions on one device or object. The caller finds which, and never guesses."""
-    if re.match(r"(?:select|pick|highlight|focus on)\b", question):
+    if re.match(r"focus(?: on)?\b", question):
+        return Match("focus_object", "Here's {name}.", needs_object=True)
+    if re.match(r"(?:select|pick|highlight)\b", question):
         return Match("select", "Selected {name}.", needs_object=True)
     if re.match(r"(?:duplicate|copy|clone)\b", question):
         return Match("duplicate_object", "Copied {name} in the viewer.", needs_object=True)
@@ -150,7 +279,7 @@ def match_action(question: str) -> Match | None:
     clean = re.sub(r"\s+(?:please|for me|now)$", "", clean)
     if QUESTION.match(clean):
         return None
-    found = _simple(clean) or _on_object(clean)
+    found = _filters(clean, question.lower()) or _simple(clean) or _on_object(clean)
     if found and found.action == "rename_object" and found.args:
         # Everything above reads lower case, but a name keeps the capitals it was given.
         at = question.lower().rfind(found.args["name"])

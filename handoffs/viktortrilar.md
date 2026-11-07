@@ -1,6 +1,6 @@
-# viktortrilar: viktor/polish
-**Goal:** combine the fix list with Eduard's speech work, so the team can build the presentation from main
-**Done:** refused moves explain themselves, Delete hides the object's own splats, walls and floor can't be picked, Isolate hides other labels, frames coloured by type, Val talks like a person. Merged Eduard's Whisper mic, viewer actions by voice and safety rules. Added "Val" to the speech hints
-**Verified:** 367 tests with the Excel pack, lint clean. Real GPU: 66 of 66 route checks, 28 of 28 combine and delete checks. 6 of 6 voice phrases through a fake mic, with generated speech. Not verified: a real voice, a noisy room, the tablet mic, the viewer checks after the last merge, which timed out, probably on a removed button
-**Next:** optimization and bug fixes. Decide on adaptive resolution. Try the mic with a real voice. ElevenLabs test voices need a key from Viktor
-**Blockers:** Valmet still has to confirm which pump is P-005. Deadline Sunday 10:00. Roihu closed until at least Monday
+# viktortrilar: viktor/laptop-demo
+**Goal:** make the demo robust, clear and runnable on a judge's laptop, per the fix list
+**Done:** filters (`web/filters.js`), see-through minimap, plain alerts, Focus and best view (`best_view`), five-step View (`web/views.js`), guided Demo (`web/tour.js`), worker or robot on the route (`web/avatar.js`), diagnosis on arrival, arrow keys while moving, Help panel. `make bundle` builds a zip with its own uv (`scripts/make_bundle.py`, `scripts/laptop/`). Merged Sasha's dashboard. Labels show status and health. Devlog in `docs/DEVLOG.md`, brief comparison in `docs/CHALLENGE.md`
+**Verified:** 413 tests, lint. Real GPU browser checks: 17 tour, 9 walk, 42 filters and minimap, 20 of 22 keys (2 refused turns), 28 combine, 13 naming, 11 polish, 18 split and filters. The zip from an empty folder on Linux: first run 19 s, tour 17 of 17
+**Next:** try the zip on Windows and Mac. Rehearse offline on the demo laptop. Test the mic with a real voice. Someone else tries the new features
+**Blockers:** Valmet must confirm which pump is P-005, and OK sending their data to judges by link. Deadline Sunday 10:00. Roihu closed until at least Monday

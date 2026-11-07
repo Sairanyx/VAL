@@ -17,7 +17,9 @@ LEAD = (
 )
 NOT_OBJECT = r"(?!\s+(?:procedure|sequence|history|log|status|date|time)\b)"
 # Viewer settings that can be turned on and off without touching the plant.
-VIEWER_THING = r"(?:the\s+)?(?:frames?|box(?:es)?|outlines?|bim|labels?)\b"
+VIEWER_THING = (
+    r"(?:the\s+)?(?:frames?|box(?:es)?|outlines?|bim|labels?|alerts?|warnings?|filters?|map)\b"
+)
 
 AUTONOMOUS_CONTROL_PATTERNS = [
     LEAD + r"(?:shut\s*down|power\s+(?:down|off)|isolate|actuate|de-?pressuri[sz]e|pressuri[sz]e|"

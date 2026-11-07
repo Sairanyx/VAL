@@ -39,10 +39,78 @@
     <button id="follow" hidden>Walk route</button>
     <button id="clear-route" hidden>Clear route</button>
     <button id="go-fault" hidden>Go to P-005</button>
+    <button id="open-help" title="How to use this (?)" aria-label="Help">?</button>
+    <button id="open-filters" title="Choose what's shown (T)">Filters</button>
     <button id="open-list" title="Equipment by importance (L)">Objects</button>
     <button id="open-plan">Map</button>
     <button id="open-copilot" class="primary">Ask Val</button>
     <button id="more" aria-expanded="false">Actions</button>
+  </div>
+
+  <div id="help-panel" hidden>
+    <div class="filter-head">
+      <h2>How to use this</h2>
+      <button id="help-close" aria-label="Close">&times;</button>
+    </div>
+    <p>New here? Open <b>Actions</b> and press <b>Demo</b> for a guided tour.</p>
+    <h3>Getting around</h3>
+    <dl>
+      <dt>W A S D, arrow keys</dt><dd>Walk. On a touch screen, use the joystick</dd>
+      <dt>Drag</dt><dd>Look around</dd>
+      <dt>F</dt><dd>Switch between walking and flying</dd>
+      <dt>B</dt><dd>Next view: darkness, simple BIM, blob BIM, point cloud, real view</dd>
+    </dl>
+    <h3>Finding things</h3>
+    <dl>
+      <dt>Tap an object</dt><dd>See its record, and how sure we are of the link</dd>
+      <dt>L</dt><dd>Equipment by importance. Pick one to go to its best view</dd>
+      <dt>T</dt><dd>Filters: type, condition, and which alerts show</dd>
+      <dt>Map</dt><dd>The minimap. Click it for the full map</dd>
+      <dt>G</dt><dd>Plan a route to the faulty device</dd>
+    </dl>
+    <h3>Moving an object</h3>
+    <dl>
+      <dt>M, or Move</dt><dd>Start moving the selected object</dd>
+      <dt>Arrow keys</dt><dd>Move it, away from you and to the side. Shift goes further</dd>
+      <dt>Page Up, Page Down</dt><dd>Raise and lower it</dd>
+      <dt>R</dt><dd>Rotate instead. Left and right arrow keys turn it</dd>
+      <dt>Enter</dt><dd>Done. Ctrl+Z undoes the latest change</dd>
+    </dl>
+    <h3>Val</h3>
+    <dl>
+      <dt>V, or the mic</dt><dd>Talk to Val, or type. Press again to send</dd>
+      <dt>Ask</dt><dd>"Why is P-005 at attention required?", "What should I check first?"</dd>
+      <dt>Tell</dt><dd>"Show only pumps", "Show the point cloud", "Take me to P-005", "Start the demo"</dd>
+    </dl>
+    <p class="menu-keys">Esc goes one step back. ? opens this.</p>
+  </div>
+
+  <div id="tour" hidden role="status">
+    <h2 id="tour-title"></h2>
+    <p id="tour-text"></p>
+    <div class="tour-foot">
+      <span id="tour-count"></span>
+      <button id="tour-pause">Pause</button>
+      <button id="tour-next">Next</button>
+      <button id="tour-stop">Stop</button>
+    </div>
+  </div>
+
+  <div id="filter-panel" hidden>
+    <div class="filter-head">
+      <h2>Filters</h2>
+      <button id="filter-clear">Show all</button>
+      <button id="filter-close" aria-label="Close">&times;</button>
+    </div>
+    <h3>Condition</h3>
+    <div id="filter-conditions" class="filter-chips"></div>
+    <h3>Type</h3>
+    <div id="filter-types" class="filter-chips"></div>
+    <h3>Can it move?</h3>
+    <div id="filter-mobility" class="filter-chips"></div>
+    <h3>Alerts nearby</h3>
+    <div id="filter-alerts" class="filter-chips"></div>
+    <p id="filter-count"></p>
   </div>
 
   <aside id="object-list" hidden>
@@ -71,12 +139,14 @@
     <div class="menu-grid">
       <button id="mode" data-label="Movement" data-stay>Walk</button>
       <button id="reset">Back to start</button>
+      <button id="start-tour" title="A guided run through everything">Demo</button>
       <button id="profile" data-label="Route for" data-stay hidden>Person</button>
       <button id="phone" data-stay>Phone</button>
       <button id="track" hidden>Track</button>
     </div>
     <h3>What you see</h3>
     <div class="menu-grid">
+      <button id="next-view" data-stay title="Darkness, simple BIM, blob BIM, point cloud, real view (B)">View: Real view</button>
       <button id="view-mode" data-label="View" data-stay hidden>Scan</button>
       <button id="bim" hidden>BIM</button>
       <button id="boxes" data-stay>Boxes on</button>
@@ -93,8 +163,14 @@
       <button id="undo-last" title="Take back the latest change (Ctrl+Z)">Undo</button>
       <button id="reset-moves" title="Put everything back as scanned">Reset all</button>
     </div>
-    <p class="menu-keys">Keys: Delete removes · Ctrl+Z undo · M move (R rotate, PgUp/PgDn height, Enter done) · C copy ·
-      N name · L objects · V talk to Val · F walk/fly · G go to P-005 · Esc back</p>
+    <p class="menu-keys">Keys: Delete removes · Ctrl+Z undo · M move (arrow keys move, R rotate, PgUp/PgDn height, Enter done) · C copy ·
+      ? help · B next view · N name · T filters · L objects · V talk to Val · F walk/fly · G go to P-005 · Esc back</p>
+  </div>
+
+  <div id="dashboard" hidden>
+    <button id="dashboard-close" aria-label="Close">&times;</button>
+    <p id="dashboard-status"></p>
+    <img id="dashboard-image" alt="Equipment dashboard">
   </div>
 
   <div id="info" hidden>
@@ -107,7 +183,9 @@
     <p id="info-condition"></p>
     <div class="action-row">
       <button id="ask" class="primary" hidden>Ask Val</button>
+      <button id="focus-object">Focus</button>
       <button id="route-here" hidden>Route here</button>
+      <button id="open-dashboard" hidden>Dashboard</button>
     </div>
     <div id="move-actions" class="action-row" hidden>
       <button id="move" title="Move, turn, or raise it">Move</button>
@@ -174,6 +252,10 @@
       <button id="plan-close">Close</button>
     </div>
     <canvas id="plan-canvas"></canvas>
+    <div id="plan-mini-tools">
+      <button id="plan-expand" aria-label="Full map" title="Full map">&#x26F6;</button>
+      <button id="plan-hide" aria-label="Hide map" title="Hide map">&times;</button>
+    </div>
     <div id="plan-foot">
       <div id="plan-legend"></div>
       <div><span id="plan-note"></span> Generated from the scan, not surveyed.</div>

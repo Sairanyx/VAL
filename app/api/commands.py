@@ -13,6 +13,14 @@ OBJECT = {"object_id": "str"}
 
 ACTIONS: dict[str, dict[str, Any]] = {
     "select": {"args": OBJECT, "does": "Select an object and open its details"},
+    "focus_object": {"args": OBJECT, "does": "Go to an object's best view and select it"},
+    "set_stage": {
+        "args": {"stage": "str"},
+        "does": "Show the room as: dark, box (simple BIM), mesh (blob BIM), points or real",
+    },
+    "next_stage": {"args": {}, "does": "Show the next view of the room"},
+    "start_demo": {"args": {}, "does": "Start the guided demo"},
+    "stop_demo": {"args": {}, "does": "Stop the guided demo"},
     "close_panels": {"args": {}, "does": "Close the details and Val windows"},
     "duplicate_object": {"args": OBJECT, "does": "Copy an object to a free spot beside it"},
     "rename_object": {
@@ -20,6 +28,20 @@ ACTIONS: dict[str, dict[str, Any]] = {
         "does": "Name an object with no record link",
     },
     "delete_object": {"args": OBJECT, "does": "Delete an object. Undo changes brings it back"},
+    "set_filter": {
+        "args": {"types": "list", "conditions": "list", "mobility": "str"},
+        "does": "Show only these types, conditions and mobility. Empty lists mean all, any is all",
+    },
+    "hide_types": {"args": {"types": "list"}, "does": "Hide these types of object"},
+    "clear_filters": {"args": {}, "does": "Show everything again"},
+    "set_alerts": {"args": {"level": "str"}, "does": "Alerts: off, attention, degraded or all"},
+    "open_map": {"args": {}, "does": "Show the minimap"},
+    "expand_map": {"args": {}, "does": "Open the full map"},
+    "close_map": {"args": {}, "does": "Hide the map"},
+    "open_list": {"args": {}, "does": "Open the Objects panel"},
+    "close_list": {"args": {}, "does": "Close the Objects panel"},
+    "open_filters": {"args": {}, "does": "Open the Filters panel"},
+    "find_on_map": {"args": {"text": "str"}, "does": "Find a tag or type on the map"},
     "route_to": {"args": OBJECT, "does": "Show a route to an object"},
     "go_to_fault": {"args": {}, "does": "Show a route to the faulty device"},
     "clear_route": {"args": {}, "does": "Remove the route"},

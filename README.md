@@ -4,13 +4,19 @@
 
 Built for Valmet's Industrial Metaverse challenge. It turns a Gaussian splat scan into framed,
 labelled assets linked to device data, routes a worker around obstacles to a faulty device, and
-gives AI guidance with cited evidence. Runs on one local GPU server, viewed in a tablet browser.
+gives AI guidance with cited evidence. Runs on one laptop with no internet, in a browser.
 
-**Status:** core features work, not yet rehearsed on the demo hardware.
-**[How to run and use it](docs/USAGE.md)** · [Current tasks](docs/PLAN.md#now) · [Plan](docs/PLAN.md) · [Challenge](docs/CHALLENGE.md) ·
+**Status:** the demo the brief asks for works end to end. Tested on Linux with integrated graphics; the zip is not
+yet tested on Windows or a Mac.
+**[How to run and use it](docs/USAGE.md)** · [How it was built](docs/DEVLOG.md) · [Current tasks](docs/PLAN.md#now) · [Plan](docs/PLAN.md) · [Challenge](docs/CHALLENGE.md) ·
 [Results](docs/RESULTS.md)
 
-## Setup (once)
+## Run the demo on any laptop
+Unzip `val-demo.zip` (built with `make bundle`, and shared separately because it holds Valmet's data),
+then double-click `START-WINDOWS.bat`, or `START-MAC.command`, or run `sh START-LINUX.sh`. The first
+run sets itself up inside that folder and needs internet once. Then press **Demo** under **Actions**.
+
+## Setup for development (once)
 Needs: `git`, `make`, NVIDIA driver. One line (Linux) — installs uv, clones, sets up, checks GPU:
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh && source ~/.local/bin/env && git clone https://github.com/Sairanyx/Newbies.git && cd Newbies && make setup && make gpu
@@ -22,7 +28,8 @@ Should end by printing your GPU name.
 |---|---|
 | `make db` | Start local TimescaleDB and load the Excel telemetry |
 | `make nav-check` | Test floor map, routes, mapping and API together, with a picture |
-| `./start browser` | Start the demo for a laptop or PC |
+| `./start browser` | Start the demo for a laptop or PC, from a development setup |
+| `make bundle` | Build the zip that runs on someone else's laptop |
 | `./start tablet` | Start the demo for the Lenovo tablet, on https so its mic works |
 | `make train` | Train a model |
 | `make tb` | Training graphs at http://localhost:6006 |
@@ -54,13 +61,13 @@ Should end by printing your GPU name.
 | `app/` | Pipeline, API, and copilot code ([who owns what](docs/PLAN.md)) |
 | `app/train.py` | Training template, not used by the demo so far |
 | `app/gpu_check.py` | GPU test |
-| `scripts/` | Pipeline, route check, copilot test, frame selection, and Roihu jobs |
+| `scripts/` | Pipeline, route check, copilot test, frame selection, the demo zip, and Roihu jobs |
 | `scenes/` | One settings file per scene, for `make pipeline` |
 | `fixtures/` | Fake sample data to build against |
 | `data/` | Datasets and generated scene files (not in git) |
 | `runs/` | Run outputs and saved models (not in git) |
 | `lumi/` | Run on the LUMI supercomputer ([guide](lumi/README.md)) |
-| `docs/` | Plan, challenge, results, pitch, Entire setup, live schedule |
+| `docs/` | Plan, challenge, results, devlog, pitch, Entire setup, live schedule |
 | `tests/` | Tests, run by `make test` and CI |
 | `handoffs/` | Each person's current status |
 

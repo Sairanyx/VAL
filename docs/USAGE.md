@@ -21,6 +21,17 @@ make voice-model # about 460 MB: lets you talk to Val, with no internet
 ```
 Run these with internet. The demo itself needs none.
 
+## Run it on someone else's laptop
+`make bundle` builds `dist/val-demo.zip`, about 520 MB. It holds Valmet's data, so it stays out of git.
+It uses what these make, so run them first: `make voice-model VOICE_MODEL=base.en`, `make bim`, `make highlights`,
+and `make pieces PIECES_FROM=data/scene/equipment_room/light_full.ply PIECES_DIR=data/scene/equipment_room/cut_light`.
+To point it at other files, see `python scripts/make_bundle.py --help`.
+
+On the laptop: unzip it, double-click `START-WINDOWS.bat` or `START-MAC.command`, or run
+`sh START-LINUX.sh`. The first run needs internet once, and sets up Python inside the folder (about
+1.1 GB, nothing outside it). After that it starts in seconds with no internet, on free ports, and opens
+the browser. Val answers from the records with no model. Changes last until it stops.
+
 ## Run it
 **The short way:** `./start laptop` on a ThinkPad or anything else with no graphics card, `./start browser` on a
 PC with one, or `./start tablet` for the Lenovo. Each starts the
@@ -100,6 +111,11 @@ Others are cut by their box when you press **Move**, which takes a moment. Anyth
 moves too, and the floor they leave may look dark. If it can't be cut, the outline moves instead, and the
 panel says so. This needs `Equipment Room.ply` in `data/scene/equipment_room/`.
 
+With the keyboard while moving: **arrow keys** move it away from you and to the side, 5 cm a press, or 25 cm
+with Shift. **Page Up** and **Page Down** raise and lower it. **R** switches to rotating, where the left and right
+arrow keys turn it by 5 degrees, or 15 with Shift. Objects only turn around the upright axis. Each press is checked
+and saved, and a refused one says why. **Enter** finishes. Outside these modes, the arrow keys walk.
+
 ### What happens when you move something
 ```text
 Tap object            web/main.js: finds the box under your finger, opens the panel
@@ -115,7 +131,7 @@ Route showing?        web/route.js: POST /api/route. While dragging it previews 
                       A refused drop plans again, so the route never bends around a spot it didn't reach
                       app/nav/route.py: the moved box now blocks the map, so it plans around it
 Reload the page       web/main.js: GET /api/assets, and restores saved moves on screen
-Undo changes          web/route.js: POST /api/changes/reset
+Reset all          web/route.js: POST /api/changes/reset
 ```
 The floor map never changes. Movable objects aren't in it: they're added on top for each route. Other open
 screens only pick up changes when reloaded.
@@ -144,25 +160,36 @@ box, finishes a move, stops a walk, closes Val or Plan, and then deselects the o
 2. Drag a box around one part. Orange is what you selected, and blue is the rest.
 3. Check the type and whether each can move, then press **Save**. Both are marked "new, unconfirmed".
 
-Split or combine before moving: a moved object has to be put back first, with **Undo changes**.
+Split or combine before moving: a moved object has to be put back first, with **Reset all**.
 
-Set a part to movable to move it, and its real splats go with it. **Undo changes** brings the original back.
+Set a part to movable to move it, and its real splats go with it. **Reset all** brings the original back.
 
 ## Combine objects that are really one thing
 1. Tap the first object, and under **Fix this object** press **Combine with...**. Objects linked to a record can't be combined.
 2. Tap the second object. An orange box appears around both.
-3. Check the type and whether it can move, then press **Save**. **Undo changes** brings the originals back.
+3. Check the type and whether it can move, then press **Save**. **Reset all** brings the originals back.
 
 ## See the floor layout
-Press **Map** for the room from above as a blueprint: walls, the walkable floor, equipment with an Excel record, the route, and where you are.
-Colours match BIM mode, and a dashed outline means the object can be moved.
+On a computer, a see-through minimap sits in the top-left corner: walls, fixed equipment, the target, the route,
+and where you are. On a phone or tablet, **Map** shows it. **Map** or **×** hides it, and clicking it, or **⛶**, opens the
+full map. Pipes, cables, lights and movable things stay in the 3D view, unless a filter or search asks for them.
+Red is the target, and a dashed outline means the object can be moved.
 - **Find:** type a tag or type. `P-005` highlights one object, and `tank` highlights them all.
 - **Tap an object** to open its panel, then use **Route here**.
-- **Show pipes** adds pipes, which are hidden to keep it readable.
 - **Download DXF** saves the layout for CAD tools, with objects where they stand now.
 
 It's generated from the scan, not surveyed: objects are boxes, and the scale hasn't been checked on site. A name
-with no room to show stays hidden until you find or tap its object. Needs `make api` and `Equipment Room.ply`.
+with no room to show stays hidden until you find or tap its object. The map needs `make bim`, and DXF needs `make api`.
+
+## Equipment dashboard
+Select an object linked to an Excel record, such as P-005, and press **Dashboard**. The backend draws one
+page of charts for that record with matplotlib: health and condition, 3 days of telemetry picked for its
+kind of equipment, two weeks of alarms and events, the maintenance history with downtime and the next
+service date (red if overdue), and known data problems. Esc or × closes it. Needs `make api`.
+
+The header says how the 3D object was linked to the record. Most links are made by rule, so it warns that
+the identity isn't confirmed. Objects without a record have no Dashboard button. All 30 records as
+images, for slides: `uv run python -m app.dashboard runs/dashboards`.
 
 ## Ask Val
 Val is the field-service assistant. Press **Ask Val**, with or without an object selected, then talk, type or tap a
@@ -181,17 +208,38 @@ Frames are coloured by type, the same as BIM mode: pumps amber, tanks green, val
 yellow, cabinets teal, chairs and shelves pink, anything else grey, and the faulty device red. **Actions** has the
 full list under **Frame colours**.
 
+## Run the guided demo
+**Actions**, then **Demo**, or say "Start the demo". It goes from darkness up to the real room, then
+filters, the list, a route, a move, the walk, Val and the safety rules, in about a minute and a half.
+**Pause**, **Next** and **Stop** are on its caption, and Esc stops it. It puts everything back afterwards.
+Add `?demo=1` to the address to start it on opening. **?** or the **?** key lists every control.
+
+## Choose how the room is shown
+**View** under **Actions**, or the **B** key, goes round: darkness, simple BIM, blob BIM, point cloud,
+real view. By voice: "Go dark", "Show the simple BIM", "Blob BIM", "Show the point cloud", "Real view",
+"Next view". Frames and alerts only show on the real view.
+
+## Filter what you see
+**Filters**, or the **T** key: condition, type, and whether it can move. They narrow frames, labels, the
+Objects panel, the map and BIM at once. **Alerts nearby** sets which conditions get a label: off,
+attention only, attention and degraded, or all. By voice: "Show only pumps", "Just the degraded pumps",
+"Show me what's urgent", "Hide the pipes", "Turn off alerts", "Show all alerts", "Clear the filters".
+
+## Go to an object's best view
+Pick a row in **Objects**, press **Focus** on an object's panel, or say "Focus on P-005". It flies to a
+spot on the floor with a clear line of sight, far enough back to see it all, and side-on to long objects.
+
 ## Other controls
-The main buttons are **Go to P-005**, **Map**, **Ask Val** and **Actions**, with **Walk route** and **Clear route**
-while a route shows. Everything else is in **Actions**.
+The main buttons are **Go to P-005**, **?**, **Filters**, **Objects**, **Map**, **Ask Val** and **Actions**, with
+**Walk route** and **Clear route** while a route shows. Everything else is in **Actions**.
 
 | Control | What it does |
 |---|---|
 | **Go to P-005** | Plans a route to the faulty device from where you stand. Arrows show the way |
 | **Movement: Walk / Fly** | In **Walk** the route starts from wherever you move to. In **Fly** you can look around from anywhere, and the route keeps its start |
-| **Walk route** | Walks the route, and stops looking at the device |
+| **Walk route** | A worker walks the route and you follow, or a robot with **Route for: Robot**. Reaching the faulty device starts Val's diagnosis |
 | **Route for: Person / Robot** | Changes the body size and height for routes |
-| **Map** | Shows the room from above as a blueprint, with the equipment that has a record |
+| **Map** | Shows or hides the minimap. Click the minimap for the full map |
 | **Range** | How far away frames and labels show |
 | **Boxes on** | Shows or hides frames |
 | **View: Scan / Both / Objects** | The real scan, fitted shapes over it, or shapes only |
@@ -200,12 +248,13 @@ while a route shows. Everything else is in **Actions**.
 | **Phone** | Turn the device to look, and walk to move. Needs `make web HTTPS=1` |
 
 ## If it's slow
-The viewer helps itself: it stops redrawing while nothing changes, lowers the resolution while moving if the
-device can't keep up and sharpens when you stop, and uses the light scene on anything without a graphics card.
+The viewer helps itself: it stops redrawing while nothing changes, uses the light scene on anything without a
+graphics card, and lowers the resolution for good, in up to two steps, if turning stays under about 22 frames a
+second. `?res=1` turns that off. A browser with no 3D at all says so on the loading screen.
 These go in the URL:
 - `?res=0.5` draws fewer pixels. `?lod=0&res=2` is the sharpest.
 - `?scene=light` or `?scene=full` chooses the scene.
-- `?adaptive=0` keeps the resolution fixed. `?debug=1` shows the frame rate.
+- `?adaptive=1` changes the resolution while moving, which flickers. `?debug=1` shows the frame rate.
 
 On a laptop, use `./start laptop`: objects are cut from the light scene, which `./start browser` doesn't do.
 
@@ -223,8 +272,8 @@ On a laptop, use `./start laptop`: objects are cut from the light scene, which `
 | "Couldn't save the move, so it went back" | The backend refused it, so the object returned to where the backend has it | The message says why. Try another spot |
 | "Couldn't save the change, trying again" | The backend can't be reached. Routes ignore the change until it's saved | Start `make api`. The viewer sends it once it's back |
 | "Couldn't add an object: Selecting needs the scene" | `Equipment Room.ply` is missing | Put it in `data/scene/equipment_room/` |
-| "No route to..." | Something blocks the way | That can be correct. **Undo changes** if you caused it |
-| "The backend lost saved moves" | `make api` restarted with no database, which it does whenever a `.py` file in the repo changes. Or someone pressed **Undo changes** on another screen | Run `make db` before `make api` to keep moves across restarts |
+| "No route to..." | Something blocks the way | That can be correct. **Reset all** if you caused it |
+| "The backend lost saved moves" | `make api` restarted with no database, which it does whenever a `.py` file in the repo changes. Or someone pressed **Reset all** on another screen | Run `make db` before `make api` to keep moves across restarts |
 | Blurry or slow | Heavy scene on a weak GPU | Try a lighter scene, or `?res=0.5` |
 | Viewer shows a small test scene | `make web` had no `SCENE=` | Use the full line above |
 | Old object IDs, such as `obj-0046` for P-005 | Old data | Run `make scene mapping pieces highlights` again |

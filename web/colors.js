@@ -54,3 +54,60 @@ export const LEGEND = [
   ["Chair or shelf", CLASS_COLORS.IfcFurniture],
   ["Other", OTHER_COLOR],
 ];
+
+// Groups for filtering, the same as the frame colours. Plain words, as people say them to Val.
+export const TYPE_GROUPS = [
+  { key: "pump", text: "Pumps", labels: ["pump"], record: "PUMP", color: CLASS_COLORS.IfcPump },
+  { key: "motor", text: "Motors", labels: ["motor"], record: "MOTOR", color: OTHER_COLOR },
+  { key: "valve", text: "Valves", labels: ["valve"], record: "VALVE", color: CLASS_COLORS.IfcValve },
+  { key: "tank", text: "Tanks", labels: ["tank"], color: CLASS_COLORS.IfcTank },
+  {
+    key: "pipe",
+    text: "Pipes",
+    labels: ["pipe", "hose", "pipe fitting"],
+    color: CLASS_COLORS.IfcPipeSegment,
+  },
+  { key: "cable", text: "Cables", labels: ["cable"], color: CLASS_COLORS.IfcCableSegment },
+  {
+    key: "cabinet",
+    text: "Cabinets",
+    labels: ["electrical cabinet", "control panel"],
+    color: CLASS_COLORS.IfcElectricDistributionBoard,
+  },
+  {
+    key: "light",
+    text: "Lights",
+    labels: ["light fixture"],
+    color: CLASS_COLORS.IfcLightFixture,
+  },
+  {
+    key: "sensor",
+    text: "Sensors",
+    labels: ["sensor", "gauge"],
+    record: "TRANSMITTER|SENSOR",
+    color: CLASS_COLORS.IfcSensor,
+  },
+  {
+    key: "furniture",
+    text: "Furniture",
+    labels: ["chair", "shelf"],
+    color: CLASS_COLORS.IfcFurniture,
+  },
+  {
+    key: "portable",
+    text: "Carts and tools",
+    labels: ["cart", "ladder", "box", "bucket", "barrel", "tool", "bag", "appliance"],
+    color: OTHER_COLOR,
+  },
+  { key: "other", text: "Other", labels: [], color: OTHER_COLOR },
+];
+
+export const CONDITION_GROUPS = [
+  { key: "attention_required", text: "Attention required", color: 0xef4444 },
+  { key: "degraded", text: "Degraded", color: 0xf59e0b },
+  { key: "watch", text: "Watch", color: 0xeab308 },
+  { key: "healthy", text: "Healthy", color: 0x22c55e },
+  { key: "none", text: "No record", color: OTHER_COLOR },
+];
+
+export const hex = (color) => `#${color.toString(16).padStart(6, "0")}`;

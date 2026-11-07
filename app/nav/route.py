@@ -10,6 +10,11 @@ from scipy import ndimage
 from app.nav.grid import BODY_BAND, LOW_BAND, NavGrid
 
 VIEW_DISTANCE = 2.0  # metres across the floor from the object
+BEST_VIEW_MIN = 1.0  # metres from the object to its best view, at the closest
+BEST_VIEW_MAX = 3.0
+BEST_VIEW_STEP = 0.2  # metres between the spots tried
+BEST_VIEW_TRIES = 300
+BEST_VIEW_OWN_MARGIN = 0.3  # metres around the box that count as the object itself
 # Bodies and what blocks them. Anything shorter than the step or above the head leaves floor free.
 BODIES = {"robot": (0.3, LOW_BAND), "person": (0.6, BODY_BAND)}
 
@@ -164,6 +169,69 @@ def viewing_point(
                 if away(point) >= distance:
                     return point
     return points[0]
+
+
+@dataclass
+class View:
+    point: Point  # on the floor: the viewer adds eye height
+    clear: bool  # whether anything at body height stands between it and the object
+
+
+def best_view(
+    grid: NavGrid,
+    low: Point,
+    high: Point,
+    footprints: list[tuple[Point, Point]] | None = None,
+    width: float = 0.6,
+) -> View | None:
+    """Return the floor point to look at a box from, or None if there's no open floor.
+
+    Far enough back to see all of it, on the main floor, with roomy space around (the scan walked
+    there, so the splats look best from it), facing a long object's side, not its end.
+    """
+    clearance = clearance_with_footprints(grid, footprints or [])
+    fits = clearance >= width / 2
+    regions, found = ndimage.label(fits)
+    if not found:
+        return None
+    fits = regions == np.argmax(np.bincount(regions.ravel())[1:]) + 1
+
+    size = np.abs(np.asarray(high) - np.asarray(low))
+    sides = size[list(grid.axes)]
+    wanted = float(np.clip(float(size.max()) * 1.2, BEST_VIEW_MIN, BEST_VIEW_MAX))
+    away = np.ones(grid.free.shape, dtype=bool)
+    target = box_cells(grid, low, high)
+    away[target] = False
+    distance = ndimage.distance_transform_edt(away) * grid.cell
+
+    # Only the object's own cells can be in the way of itself not being in the way.
+    sight = clearance > 0
+    margin = round(BEST_VIEW_OWN_MARGIN / grid.cell)
+    sight[tuple(slice(max(s.start - margin, 0), s.stop + margin) for s in target)] = True
+
+    step = max(round(BEST_VIEW_STEP / grid.cell), 1)
+    cells = np.argwhere(fits[::step, ::step]) * step
+    if not len(cells):
+        return None
+    middle = (np.asarray(low)[list(grid.axes)] + np.asarray(high)[list(grid.axes)]) / 2
+    offsets = (cells + 0.5) * grid.cell + grid.origin - middle
+    directions = offsets / np.maximum(np.linalg.norm(offsets, axis=1, keepdims=True), 1e-6)
+    longest = int(np.argmax(sides))
+    side_on = 1 - np.abs(directions[:, longest])
+    long_shape = sides[longest] > 1.5 * max(sides[1 - longest], grid.cell)
+    scores = (
+        -np.abs(distance[cells[:, 0], cells[:, 1]] - wanted)
+        + 0.5 * np.minimum(clearance[cells[:, 0], cells[:, 1]], 1.5)
+        + (0.8 * side_on if long_shape else 0.0)
+    )
+    order = np.argsort(-scores)
+    goal = to_cell(grid, tuple((np.asarray(low) + np.asarray(high)) / 2))
+    goal = tuple(int(np.clip(g, 0, s - 1)) for g, s in zip(goal, grid.free.shape, strict=True))
+    for index in order[:BEST_VIEW_TRIES]:
+        cell = tuple(cells[index].tolist())
+        if line_is_clear(sight, cell, goal):
+            return View(cell_to_point(grid, cell), True)
+    return View(cell_to_point(grid, tuple(cells[order[0]].tolist())), False)
 
 
 def plan_route(

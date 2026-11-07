@@ -16,10 +16,14 @@ import { setupPacing } from "./pacing.js";
 import { setupPhone } from "./phone.js";
 import { setupAlerts } from "./alerts.js";
 import { setupObjectList } from "./objectlist.js";
+import { setupFilters } from "./filters.js";
 import { setupPlan } from "./plan.js";
 import { setupWalkable } from "./walkable.js";
 import { setupWalkXR, xrSupported } from "./xr.js";
+import { setupAvatar } from "./avatar.js";
 import { setupRoute } from "./route.js";
+import { setupTour } from "./tour.js";
+import { setupViews } from "./views.js";
 
 let faultTag = "P-005"; // the pre-chosen faulty device, unless the scene's file names another
 const EYE_HEIGHT = 1.6; // metres above the floor in walk mode (scene units look close to metres)
@@ -78,7 +82,18 @@ async function pickScene() {
 const $ = (id) => document.getElementById(id);
 const canvas = $("view");
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
+// Say what's wrong, on a laptop whose browser can't draw this at all.
+if (!document.createElement("canvas").getContext("webgl2")) {
+  $("loading-text").textContent =
+    "This browser can't draw 3D here. Try Chrome or Edge, with graphics acceleration turned on.";
+  throw new Error("No WebGL 2");
+}
+// On a laptop with two graphics chips, ask for the faster one.
+const renderer = new THREE.WebGLRenderer({
+  canvas,
+  antialias: false,
+  powerPreference: "high-performance",
+});
 // Rendering every splat at full high-DPI resolution is the main cost; 1 pixel per CSS pixel is enough.
 renderer.setPixelRatio(RES);
 const scene = new THREE.Scene();
@@ -114,6 +129,7 @@ const pacing = setupPacing({
   camera,
   baseRes: RES,
   adaptive: ADAPTIVE,
+  auto: !params.has("res") && !ADAPTIVE,
   isBusy: () =>
     phone.enabled ||
     Boolean(objectLayer?.state.moving) ||
@@ -121,9 +137,12 @@ const pacing = setupPacing({
     Boolean(route?.state.walking) ||
     tracking.state.active,
   isDragging: () => Boolean(objectLayer?.state.moving?.dragging),
-  isAnimated: () => Boolean(route?.state.route) || Boolean(alerts?.isActive()),
+  isAnimated: () => Boolean(route?.state.route || flight),
 });
 let walk = true;
+let flight = null; // the camera on its way to an object's best view
+let tour = null;
+let stages = null; // darkness, simple BIM, blob BIM, point cloud, real view
 let eyeY = EYE_HEIGHT;
 let startPos = new THREE.Vector3(0, EYE_HEIGHT, 0);
 let startTurn = new THREE.Quaternion(); // which way you face at the start
@@ -133,6 +152,7 @@ let route = null;
 let plan = null;
 let objectList = null;
 let alerts = null;
+let filters = null;
 let selected = null;
 let boxesOn = true;
 let range = Number(params.get("range") ?? 3);
@@ -293,6 +313,7 @@ function showInfo(obj) {
       ? "This is fixed, so it can't be moved."
       : "Not known to be movable, so moving is off.";
   $("route-here").hidden = !route;
+  $("open-dashboard").hidden = !m?.asset_id;
   $("split-object").hidden = !route || Boolean(m);
   $("combine-object").hidden = !route || Boolean(m);
   $("info-fix").hidden = $("split-object").hidden;
@@ -341,6 +362,25 @@ async function routeTo(obj) {
   return found;
 }
 $("route-here").onclick = () => selected && routeTo(selected);
+
+// The selected object's record as charts. Drawn by the backend, so it needs make api.
+$("open-dashboard").onclick = () => {
+  if (!selected) return;
+  const image = $("dashboard-image");
+  const id = encodeURIComponent(selected.asset.object_id);
+  $("dashboard-status").textContent = "Drawing the dashboard...";
+  image.hidden = true;
+  image.onload = () => {
+    $("dashboard-status").textContent = "";
+    image.hidden = false;
+  };
+  image.onerror = () => {
+    $("dashboard-status").textContent = "Couldn't draw the dashboard. Is make api running?";
+  };
+  image.src = `/api/assets/${id}/dashboard.png`;
+  $("dashboard").hidden = false;
+};
+$("dashboard-close").onclick = () => ($("dashboard").hidden = true);
 $("duplicate-object").onclick = () => selected && duplicateObject(selected);
 $("delete-object").onclick = askToDelete;
 $("forget-object").onclick = () => selected && forgetObject(selected);
@@ -360,6 +400,58 @@ function focusOn(object) {
   selected = object;
   highlight.select(object);
   bim?.selectObject(object);
+}
+
+const FLIGHT_MS = 1100;
+// Glide the camera to a spot, looking at a point. Both are in world coordinates.
+function flyTo(position, lookAt) {
+  const look = new THREE.Matrix4().lookAt(position, lookAt, camera.up);
+  flight = {
+    from: camera.position.clone(),
+    fromTurn: camera.quaternion.clone(),
+    to: position.clone(),
+    toTurn: new THREE.Quaternion().setFromRotationMatrix(look),
+    started: performance.now(),
+  };
+  pacing.wake();
+  return new Promise((resolve) => (flight.done = resolve));
+}
+
+function updateFlight(now) {
+  const t = Math.min((now - flight.started) / FLIGHT_MS, 1);
+  const eased = t * t * (3 - 2 * t);
+  camera.position.lerpVectors(flight.from, flight.to, eased);
+  camera.quaternion.slerpQuaternions(flight.fromTurn, flight.toTurn, eased);
+  if (t === 1) {
+    const { done } = flight;
+    flight = null;
+    done();
+  }
+}
+
+// Go to where an object is best seen, and select it.
+async function goLookAt(object) {
+  if (route?.state.walking) $("follow").click();
+  showInfo(object);
+  const look = root.localToWorld(object.center.clone());
+  const reply = await fetch(`/api/objects/${object.asset.object_id}/view`)
+    .then((response) => (response.ok ? response.json() : null))
+    .catch(() => null);
+  let spot;
+  if (reply?.from) {
+    spot = root.localToWorld(new THREE.Vector3(...reply.from));
+  } else {
+    // No floor map: step back towards where we are now.
+    const back = camera.position.clone().sub(look).setY(0);
+    spot = look.clone().add(back.normalize().multiplyScalar(2));
+  }
+  spot.y = eyeY;
+  walkFloor.forget();
+  await flyTo(spot, look);
+  if (reply?.from && !reply.clear) {
+    $("status").textContent = `Something may be in the way of ${name(object.asset)}`;
+  }
+  return { ok: true, message: "" };
 }
 
 // Val's answers can point at objects, or ask for a route. Returns what went wrong, if anything.
@@ -681,14 +773,19 @@ async function duplicateObject(object) {
 
 // Esc, or the back button on a phone: one step back, the most recent thing first.
 function goBack() {
-  if (!$("more-menu").hidden) showMenu(false);
+  if (!$("dashboard").hidden) $("dashboard").hidden = true;
+  else if (!$("more-menu").hidden) showMenu(false);
   else if (!$("rename-form").hidden) $("rename-form").hidden = true;
+  else if (!$("help-panel").hidden) $("help-panel").hidden = true;
+  else if (tour?.state.running) tour.stop();
+  else if (stages?.state.stage === "dark") stages.set("real");
   else if (!$("delete-confirm").hidden) $("delete-confirm").hidden = true;
   else if (!$("add-panel").hidden || adder.state.active) $("add-cancel").click();
   else if (objectLayer?.state.moving) $("manip-done").click();
   else if (route?.state.walking) $("follow").click();
   else if (!$("copilot").hidden) $("copilot-close").click();
-  else if (plan?.state.open) plan.close();
+  else if (plan?.state.expanded) plan.collapse();
+  else if (!$("filter-panel").hidden) $("filter-panel").hidden = true;
   else if (objectList?.state.open) objectList.close();
   else if (selected || !$("info").hidden) deselect();
   else return false;
@@ -711,7 +808,13 @@ window.addEventListener("keydown", (event) => {
   const key = event.key.toLowerCase();
   const command = event.ctrlKey || event.metaKey;
   let handled = false;
-  if (command && key === "z") handled = press("undo-last");
+  if (key === "?") {
+    $("help-panel").hidden = !$("help-panel").hidden;
+    handled = true;
+  } else if (key.startsWith("arrow") && objectLayer?.state.moving && !command) {
+    nudgeObject(key, event.shiftKey);
+    handled = true;
+  } else if (command && key === "z") handled = press("undo-last");
   else if (command) return; // leave the browser's own shortcuts alone
   else if (key === "delete" || key === "backspace") {
     if (selected) handled = $("delete-confirm").hidden ? press("delete-object") : press("delete-yes");
@@ -726,7 +829,9 @@ window.addEventListener("keydown", (event) => {
   else if (key === "pagedown" && !$("manip-bar").hidden) handled = press("manip-lower");
   else if (key === "f") handled = press("mode");
   else if (key === "g") handled = press("go-fault");
+  else if (key === "b") handled = press("next-view");
   else if (key === "l") handled = press("open-list");
+  else if (key === "t") handled = press("open-filters");
   else if (key === "v") {
     // Talk to Val from anywhere.
     copilot.open();
@@ -783,9 +888,9 @@ function hideManipBar() {
 function updateStatusForMode(mode) {
   if (!selected) return;
   if (mode === "rotate") {
-    $("status").textContent = `Rotate ${name(selected.asset)}: Drag across screen, tap 45°, or twist with 2 fingers`;
+    $("status").textContent = `Rotate ${name(selected.asset)}: Arrow keys or drag across screen, tap 45°, or twist with 2 fingers`;
   } else {
-    $("status").textContent = `Move ${name(selected.asset)}: Drag along floor · Hold Shift to rotate`;
+    $("status").textContent = `Move ${name(selected.asset)}: Arrow keys or drag along the floor · Page Up and Down for height · R to rotate`;
   }
 }
 
@@ -795,6 +900,40 @@ $("move").onclick = () => {
     showManipBar("move");
   }
 };
+// Arrow keys, only while moving or rotating an object. Up is away from you and right is to your
+// right, on the floor, wherever you're facing. Shift goes further. Each press is checked and saved.
+const NUDGE_M = 0.05;
+const NUDGE_FAR_M = 0.25;
+const NUDGE_TURN = Math.PI / 36; // 5 degrees
+const NUDGE_FAR_TURN = Math.PI / 12; // 15 degrees
+let nudging = false;
+async function nudgeObject(key, far) {
+  const object = objectLayer?.state.moving?.object;
+  if (!object || nudging) return;
+  const yaw = object.yaw || 0;
+  nudging = true;
+  try {
+    let result;
+    if ($("manip-mode-rotate").classList.contains("active")) {
+      if (key !== "arrowleft" && key !== "arrowright") return;
+      const sign = key === "arrowleft" ? -1 : 1;
+      const step = far ? NUDGE_FAR_TURN : NUDGE_TURN;
+      result = await objectLayer.moveTo(object, undefined, yaw + sign * step);
+    } else {
+      const ahead = camera.getWorldDirection(new THREE.Vector3()).setY(0).normalize();
+      const right = new THREE.Vector3().crossVectors(ahead, camera.up).normalize();
+      const metres = far ? NUDGE_FAR_M : NUDGE_M;
+      const direction = { arrowup: ahead, arrowdown: ahead.clone().negate(), arrowright: right, arrowleft: right.clone().negate() }[key];
+      const toScene = new THREE.Matrix4().copy(root.matrixWorld).invert();
+      const shift = direction.clone().transformDirection(toScene).multiplyScalar(metres);
+      result = await objectLayer.moveTo(object, object.center.clone().add(shift).toArray(), yaw);
+    }
+    if (!result.ok) $("status").textContent = result.message;
+  } finally {
+    nudging = false;
+  }
+}
+
 // Height: 10 cm a press. The object being moved, or the selected one.
 const RAISE_STEP = 0.1;
 async function raiseObject(metres) {
@@ -805,6 +944,8 @@ async function raiseObject(metres) {
     ? `${name(object.asset)} ${metres > 0 ? "raised" : "lowered"} ${Math.abs(metres) * 100} cm`
     : result.message;
 }
+$("open-help").onclick = () => ($("help-panel").hidden = !$("help-panel").hidden);
+$("help-close").onclick = () => ($("help-panel").hidden = true);
 $("manip-raise").onclick = () => raiseObject(RAISE_STEP);
 $("manip-lower").onclick = () => raiseObject(-RAISE_STEP);
 
@@ -828,9 +969,10 @@ $("manip-done").onclick = () => {
 };
 
 function hit(ndc) {
+  if (stages?.state.stage === "dark") return null;
   raycaster.setFromCamera(ndc, camera);
   const candidates = objects
-    .filter((o) => !o.gone && o.pick.layers.isEnabled(0))
+    .filter((o) => !o.gone && o.pick.layers.isEnabled(0) && (!filters || filters.passes(o)))
     .map((o) => ({
       mesh: o.pick,
       volume: o.volume,
@@ -958,6 +1100,21 @@ const CHOOSE_EVERY = 200; // milliseconds
 let lastChosen = 0;
 let shownLabels = [];
 
+// A linked object says how it's doing, from its Excel record. The panel has the rest.
+const CONDITION_WORDS = {
+  attention_required: "attention",
+  degraded: "degraded",
+  watch: "watch",
+  healthy: "healthy",
+};
+function labelText(object) {
+  const record = object.condition;
+  const word = CONDITION_WORDS[record?.condition_state];
+  if (!word) return name(object.asset);
+  const health = record.health_score == null ? "" : ` · health ${Math.round(record.health_score)}`;
+  return `${name(object.asset)} · ${word}${health}`;
+}
+
 function setLabel(object, text, visible) {
   if (object.labelShown === visible && (!visible || object.labelText === text)) return;
   object.labelShown = visible;
@@ -989,9 +1146,13 @@ function chooseLabels() {
   for (const o of objects) {
     if (o.gone) continue;
     if (bim?.state.active && !bim.shows(o)) continue;
+    if (stages?.state.stage === "dark" || stages?.state.stage === "points") continue;
+    const filtering = filters?.isActive();
+    if (filtering && !filters.passes(o) && o !== selected) continue;
     pos.copy(o.center).applyMatrix4(root.matrixWorld);
     const dist = camera.position.distanceTo(pos);
-    if (dist > range) continue;
+    // Asking for "only pumps" means all of them, however far away.
+    if (dist > range && !filtering) continue;
     pos.project(camera);
     const onScreen = pos.z > 0 && pos.z < 1 && Math.abs(pos.x) <= 1 && Math.abs(pos.y) <= 1;
     // Fault and mapped objects show first, background labels last.
@@ -1010,7 +1171,7 @@ function chooseLabels() {
 
   nearby.sort((a, b) => a.rank - b.rank || a.dist - b.dist);
   const inView = nearby.filter((item) => item.onScreen);
-  if (boxesOn && !apart && !bim?.state.active) {
+  if (boxesOn && !apart && !stages?.isQuiet()) {
     for (const { o } of inView.slice(0, MAX_BOXES)) {
       if (!highlight.hasSurface(o)) o.box.visible = true;
     }
@@ -1027,7 +1188,7 @@ function chooseLabels() {
     if (index >= MAX_LABELS && !item.pinned) return;
     next.add(item.o);
   });
-  for (const o of objects) setLabel(o, name(o.asset), next.has(o));
+  for (const o of objects) setLabel(o, labelText(o), next.has(o));
   shownLabels = [...next];
 }
 
@@ -1043,15 +1204,16 @@ let frames = 0;
 let lastFps = performance.now();
 function animate(now) {
   const following = Boolean(route?.state.walking);
-  const busy = objectLayer?.state.moving || adder.state.active || following;
+  const busy = objectLayer?.state.moving || adder.state.active || following || flight;
   // Typing in the Plan screen's search box shouldn't walk the viewer around. While tracking, the
   // device's own movement moves the camera, so the other controls stay out.
   const tracked = tracking.state.active;
   // Keys typed into Val or a name box are for that box, not for walking.
   const typingNow = isTyping();
-  if (!phone.enabled && !busy && !tracked && !plan?.state.open && !typingNow) controls.update(camera);
+  if (!phone.enabled && !busy && !tracked && !plan?.state.expanded && !typingNow) controls.update(camera);
   const stepTime = lastStep ? (now - lastStep) / 1000 : 0;
   lastStep = now;
+  if (flight) updateFlight(now);
   if (following && !tracked) route.update(stepTime);
   else if (!tracked) phone.update(stepTime);
   if (walk && !tracked) camera.position.y = eyeY;
@@ -1060,7 +1222,7 @@ function animate(now) {
   if (hoverDue && (hoverChanged || (hoverAt && pacing.isMoving()))) {
     hoverChanged = false;
     lastHoverCheck = now;
-    if (!plan?.state.open) updateHover();
+    if (!plan?.state.expanded) updateHover();
   }
   if (!pacing.shouldDraw(now)) return;
 
@@ -1085,9 +1247,8 @@ function animate(now) {
   }
   const followText = following ? "Stop" : "Walk route";
   if ($("follow").textContent !== followText) $("follow").textContent = followText;
-  if (plan?.state.open) {
-    plan.draw(now); // The room is covered, so there's no need to draw it as well.
-  } else {
+  // Expanded, the map covers the room, so there's no need to draw that as well.
+  if (!plan?.state.expanded) {
     alerts?.update(now);
     renderer.render(scene, camera);
     alerts?.placeBadges();
@@ -1098,6 +1259,7 @@ function animate(now) {
     }
     placeLabels();
   }
+  plan?.draw(now);
   pacing.drew(now);
   frames++;
   if (DEBUG && now - lastFps > 1000) {
@@ -1262,6 +1424,31 @@ function commandHandlers() {
   const views = ["scan", "both", "objects"];
   return {
     select: ({ object_id }) => showInfo(find(object_id)),
+    focus_object: ({ object_id }) => goLookAt(find(object_id)),
+    set_stage: ({ stage }) => stages.set(stage),
+    next_stage: () => stages.next(),
+    start_demo: () => {
+      tour.start();
+    },
+    stop_demo: () => tour.stop(),
+    set_filter: ({ types, conditions, mobility }) => {
+      filters.set({ types, conditions, mobility });
+      return { ok: true, message: $("filter-count").textContent };
+    },
+    hide_types: ({ types }) => filters.hideTypes(types),
+    clear_filters: () => filters.clear(),
+    set_alerts: ({ level }) => filters.setAlerts(level),
+    open_map: () => plan.open(),
+    expand_map: () => plan.expand(),
+    close_map: () => plan.close(),
+    open_list: () => objectList.open(),
+    close_list: () => objectList.close(),
+    open_filters: () => ($("filter-panel").hidden = false),
+    find_on_map: async ({ text }) => {
+      await plan.expand();
+      $("plan-search").value = text;
+      plan.search(text);
+    },
     close_panels: () => {
       $("info-close").click();
       $("copilot-close").click();
@@ -1414,9 +1601,16 @@ async function load() {
       if (!$("hud").classList.contains("blocked")) $("status").textContent = message;
     },
     onOutOfStep: syncWithBackend,
+    avatar: setupAvatar({ parent: scene }),
+    // Reaching the faulty device starts the diagnosis, without being asked.
+    onArrive: (target) => {
+      if (kind(target.asset) !== "fault") return;
+      copilot.open(`What's wrong with ${target.name.replace(/\?$/, "")}?`);
+    },
   });
   $("go-fault").hidden = !objects.some((o) => kind(o.asset) === "fault");
   plan = setupPlan({
+    wake: () => pacing.wake(),
     ui: {
       panel: $("plan"),
       canvas: $("plan-canvas"),
@@ -1430,13 +1624,41 @@ async function load() {
     root,
     camera,
     route,
-    getFaultTag: () => faultTag,
     getSelected: () => selected,
     nameOf: (object) => name(object.asset),
+    filters: {
+      isActive: () => Boolean(filters?.isActive()),
+      passes: (object) => !filters || filters.passes(object),
+    },
     onSelect: showInfo,
   });
-  $("open-plan").onclick = () => plan.open();
+  $("open-plan").onclick = () => plan.toggle();
+  $("plan-expand").onclick = () => plan.expand();
+  $("plan-hide").onclick = () => plan.close();
+  // A minimap from the start with a mouse. A small touch screen has less room, so it's a toggle.
+  if (!TABLET) plan.open();
+  filters = setupFilters({
+    ui: {
+      panel: $("filter-panel"),
+      button: $("open-filters"),
+      types: $("filter-types"),
+      conditions: $("filter-conditions"),
+      mobility: $("filter-mobility"),
+      alerts: $("filter-alerts"),
+      count: $("filter-count"),
+      clear: $("filter-clear"),
+      close: $("filter-close"),
+    },
+    objects,
+    onChange: (stage, text) => {
+      $("status").textContent = text;
+      lastChosen = 0;
+      objectList?.refresh();
+      pacing.wake();
+    },
+  });
   objectList = setupObjectList({
+    filters,
     panel: $("object-list"),
     list: $("object-rows"),
     search: $("object-search"),
@@ -1445,10 +1667,16 @@ async function load() {
     count: $("object-count"),
     objects,
     nameOf: (object) => name(object.asset),
-    onSelect: (object) => showInfo(object),
+    onSelect: (object) => {
+      if (window.innerWidth < 700) objectList.close();
+      goLookAt(object);
+    },
   });
   $("open-list").onclick = () => objectList.toggle();
+  $("focus-object").onclick = () => selected && goLookAt(selected);
   alerts = setupAlerts({
+    filters,
+    isHidden: () => Boolean(stages?.isQuiet()), // Only the real view shows the room's state
     root,
     camera,
     objects,
@@ -1459,10 +1687,10 @@ async function load() {
     },
   });
   $("object-list-close").onclick = () => objectList.close();
-  $("plan-close").onclick = () => plan.close();
+  $("plan-close").onclick = () => plan.collapse();
   // These work in the 3D view, so the Plan screen makes way for them.
   for (const id of ["move", "split-object", "combine-object"]) {
-    $(id).addEventListener("click", () => plan.close());
+    $(id).addEventListener("click", () => plan.collapse());
   }
   $("profile").hidden = false;
   const views = ["scan", "both", "objects"];
@@ -1481,6 +1709,8 @@ async function load() {
   };
   $("undo-last").onclick = undoLast;
   bim = await setupBim({
+    isShown: (object) => !filters || filters.passes(object),
+    isFiltering: () => Boolean(filters?.isActive()),
     root,
     renderer,
     objects,
@@ -1519,7 +1749,50 @@ async function load() {
   }
   await syncWithBackend();
   setupCommands(commandHandlers());
-  window.plantViewer = { objects, objectLayer, camera, route, copilot, showInfo, adder, bim, plan, pacing }; // For browser tests and debugging.
+  stages = setupViews({
+    root,
+    bim,
+    press: (id) => $(id).click(),
+    button: $("next-view"),
+    onChange: () => {
+      lastChosen = 0;
+      pacing.wake();
+    },
+  });
+  tour = setupTour({
+    ui: {
+      panel: $("tour"),
+      title: $("tour-title"),
+      text: $("tour-text"),
+      count: $("tour-count"),
+      pause: $("tour-pause"),
+      next: $("tour-next"),
+      stop: $("tour-stop"),
+    },
+    handlers: commandHandlers(),
+    press: (id) => $(id).click(),
+    view: {
+      objects,
+      filters,
+      plan,
+      route,
+      copilot,
+      objectList,
+      views: stages,
+      nameOf: (object) => name(object.asset).replace(/\?$/, ""),
+      fault: () => objects.find((o) => kind(o.asset) === "fault" && !o.gone),
+      goLookAt,
+      range: () => range,
+      moveObject: (object, position) => objectLayer.moveTo(object, position),
+      undoLast,
+      closeInfo: () => $("info-close").click(),
+      closeFilters: () => ($("filter-panel").hidden = true),
+      openFilters: () => ($("filter-panel").hidden = false),
+    },
+  });
+  $("start-tour").onclick = () => tour.start();
+  if (params.has("demo")) tour.start();
+  window.plantViewer = { views: stages, tour, scene, filters, objects, objectLayer, camera, route, copilot, showInfo, adder, bim, plan, pacing }; // For browser tests and debugging.
   if (params.has("camera")) {
     const [x, y, z, yaw, pitch] = params.get("camera").split(",").map(Number);
     camera.position.set(x, y, z);

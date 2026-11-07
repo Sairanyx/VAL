@@ -234,8 +234,24 @@ function showInfo(obj) {
   showCondition(obj);
   $("info").hidden = false;
 }
+// A tap on the scene opens a window, and the browser then sends its own click to the same spot.
+// That click would land on the new window and close it at once (or press one of its buttons), so
+// windows ignore clicks that arrive just after a tap on the scene.
+const GHOST_CLICK_MS = 500;
+let lastSceneTap = 0;
+
 // On a tablet there's no close button: tapping a window anywhere except its controls closes it.
 function closeOnTap(panel, close) {
+  panel.addEventListener(
+    "click",
+    (event) => {
+      if (performance.now() - lastSceneTap < GHOST_CLICK_MS) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+    },
+    true, // capture: runs before the window's own buttons see the click
+  );
   panel.addEventListener("click", (event) => {
     if (document.body.classList.contains("tablet") && !event.target.closest(PANEL_CONTROLS)) {
       close.click();
@@ -476,6 +492,7 @@ canvas.addEventListener("pointerup", (e) => {
   const quick = e.timeStamp - down.t < 300;
   down = null;
   if (moved > 8 || !quick) return;
+  lastSceneTap = performance.now();
   const ndc = new THREE.Vector2(
     (e.clientX / window.innerWidth) * 2 - 1,
     -(e.clientY / window.innerHeight) * 2 + 1,

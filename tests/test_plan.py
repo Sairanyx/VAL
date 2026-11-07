@@ -161,6 +161,24 @@ def test_ifc_download_shows_the_model_as_it_stands_now(tmp_path, monkeypatch):
     assert "new, unconfirmed" in text
 
 
+def test_ifc_download_of_chosen_objects_has_only_them(tmp_path, monkeypatch):
+    client = plan_client(tmp_path, monkeypatch)
+    response = client.get("/api/plan/model.ifc", params={"ids": "a"})
+    assert response.status_code == 200
+    assert 'filename="a.ifc"' in response.headers["content-disposition"]
+    text = response.text
+    assert "(a)" in text and "(b)" not in text
+    assert "IFCWALL(" not in text and "IFCSLAB(" not in text  # The room only on request.
+    with_room = client.get("/api/plan/model.ifc", params={"ids": "a,b", "room": "true"})
+    assert 'filename="selection.ifc"' in with_room.headers["content-disposition"]
+    assert "(a)" in with_room.text and "(b)" in with_room.text and "IFCWALL(" in with_room.text
+    whole = client.get("/api/plan/model.ifc", params={"room": "false"}).text
+    assert "(b)" in whole and "IFCWALL(" not in whole
+    assert client.get("/api/plan/model.ifc", params={"ids": ","}).status_code == 400
+    assert client.post("/api/changes", json={"op": "remove", "object_id": "b"}).status_code == 200
+    assert client.get("/api/plan/model.ifc", params={"ids": "a,b"}).status_code == 404
+
+
 def test_moved_object_keeps_its_fitted_shape_in_the_ifc(tmp_path, monkeypatch):
     pytest.importorskip("ifcopenshell")
     import ifcopenshell.geom

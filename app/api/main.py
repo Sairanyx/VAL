@@ -12,6 +12,7 @@ import io
 import json
 import math
 import os
+import re
 import tempfile
 from pathlib import Path
 from typing import Annotated, Any, Literal
@@ -174,6 +175,13 @@ def footprints(
             if asset["mobility"] == "movable" and asset["object_id"] != target_id:
                 boxes.append((asset["bbox_min"], asset["bbox_max"]))
     return boxes
+
+
+def ifc_file_name(asset: dict) -> str:
+    """Name a one-object IFC file after its record tag, given name, or ID, safe for any system."""
+    tag = (asset.get("mapping") or {}).get("tag")
+    text = tag or asset.get("name") or asset["object_id"]
+    return f"{re.sub(r'[^A-Za-z0-9._-]+', '_', text).strip('_.') or asset['object_id']}.ifc"
 
 
 def create_app(
@@ -634,13 +642,34 @@ def create_app(
         return placed
 
     @app.get("/api/plan/model.ifc")
-    def plan_ifc() -> Response:
-        """Return the BIM model for BIM tools, with objects as they stand now."""
-        document = {**store.scene, "scene_id": store.scene_id, "assets": store.visible()}
-        room = plan_layout()["description"]["room"]
-        model = build_model(document, shapes_where_they_stand(), room)
-        headers = {"Content-Disposition": 'attachment; filename="model.ifc"'}
-        return Response(ifc_text(model), media_type="application/x-step", headers=headers)
+    def plan_ifc(ids: str | None = None, room: bool | None = None) -> Response:
+        """Return the BIM model for BIM tools, with objects as they stand now.
+
+        ids, comma-separated, exports only those objects, such as the selected one or those a
+        filter shows. The walls and floor come too when room is true, which is the default only
+        for the whole model.
+        """
+        assets = store.visible()
+        file_name = "model.ifc"
+        if ids is not None:
+            wanted = {object_id.strip() for object_id in ids.split(",") if object_id.strip()}
+            if not wanted:
+                raise HTTPException(400, "Choose at least one object to export")
+            missing = wanted - {asset["object_id"] for asset in assets}
+            if missing:
+                raise HTTPException(404, f"Not in the room now: {', '.join(sorted(missing))}")
+            assets = [asset for asset in assets if asset["object_id"] in wanted]
+            file_name = ifc_file_name(assets[0]) if len(assets) == 1 else "selection.ifc"
+        document = {**store.scene, "scene_id": store.scene_id, "assets": assets}
+        model = build_model(
+            document, shapes_where_they_stand(), plan_layout()["description"]["room"]
+        )
+        if not (ids is None if room is None else room):
+            # Walls and the floor are the only elements without an object.
+            model["elements"] = [e for e in model["elements"] if e["object_id"] is not None]
+        headers = {"Content-Disposition": f'attachment; filename="{file_name}"'}
+        text = ifc_text(model, file_name=file_name)
+        return Response(text, media_type="application/x-step", headers=headers)
 
     @app.post("/api/changes/undo")
     def undo() -> dict:

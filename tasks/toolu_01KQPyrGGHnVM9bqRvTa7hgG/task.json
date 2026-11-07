@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01KQPyrGGHnVM9bqRvTa7hgG",
+  "agent_id": "aef4b903dc16194fa",
+  "subagent_type": "fork",
+  "task_description": "Fix routes ignoring moved objects",
+  "token_usage": {
+    "input_tokens": 188,
+    "cache_creation_tokens": 374391,
+    "cache_read_tokens": 34479606,
+    "output_tokens": 236886,
+    "api_call_count": 93
+  },
+  "started_at": "2026-11-07T14:19:37.874563991+02:00",
+  "completed_at": "2026-11-07T15:43:11.730540244+02:00"
+}

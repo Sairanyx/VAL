@@ -1,0 +1,68 @@
+{
+  "cli_version": "0.13.1",
+  "checkpoint_id": "01M6V50KA58THNESTKKKRHZ58D",
+  "strategy": "manual-commit",
+  "branch": "viktor/merge-all",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "Makefile",
+    "README.md",
+    "app/api/commands.py",
+    "app/api/db.py",
+    "app/api/main.py",
+    "app/api/store.py",
+    "docs/USAGE.md",
+    "handoffs/benjamin-sundell.md",
+    "handoffs/eduard-rednic.md",
+    "start",
+    "tests/test_api.py",
+    "web/bim.js",
+    "web/commands.js",
+    "web/copilot.js",
+    "web/highlight.js",
+    "web/index.html",
+    "web/main.js",
+    "web/objects.js",
+    "web/route.js",
+    "web/serve.py",
+    "web/style.css",
+    "web/xr.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 38,
+    "cache_creation_tokens": 61013,
+    "cache_read_tokens": 5734799,
+    "output_tokens": 29516,
+    "api_call_count": 15,
+    "subagent_tokens": {
+      "input_tokens": 8,
+      "cache_creation_tokens": 5031,
+      "cache_read_tokens": 2010682,
+      "output_tokens": 6007,
+      "api_call_count": 4
+    }
+  },
+  "redaction": {
+    "replacements": 187,
+    "layers": {
+      "betterleaks": 21,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 18,
+      "credentialed_uri": 4,
+      "entropy": 22,
+      "key_context": 140,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

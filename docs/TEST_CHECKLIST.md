@@ -38,7 +38,7 @@ brackets belong to that person.
 **Who: Benjamin**
 
 - [ ] **Go to P-005:** route to the faulty device. ✅ 🤖 KEEP
-- [ ] **Plan:** floor layout from above. ✅ 🤖 KEEP
+- [ ] **Map:** blueprint from above, equipment with a record only. ✅ 🤖 KEEP
 - [ ] **Ask Val:** opens the assistant. ✅ 🤖 KEEP
 - [ ] **Actions:** opens the other controls. ✅ 🤖 KEEP
 - [ ] **Walk route:** walks the route and ends facing the device. ✅ 🤖 KEEP

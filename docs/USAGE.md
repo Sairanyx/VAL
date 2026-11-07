@@ -153,7 +153,7 @@ Set a part to movable to move it, and its real splats go with it. **Undo changes
 3. Check the type and whether it can move, then press **Save**. **Undo changes** brings the originals back.
 
 ## See the floor layout
-Press **Plan** for the room from above: walls, objects by type, the route, and an arrow showing where you are.
+Press **Map** for the room from above as a blueprint: walls, the walkable floor, equipment with an Excel record, the route, and where you are.
 Colours match BIM mode, and a dashed outline means the object can be moved.
 - **Find:** type a tag or type. `P-005` highlights one object, and `tank` highlights them all.
 - **Tap an object** to open its panel, then use **Route here**.
@@ -175,7 +175,7 @@ knows** shows what's recorded, possible causes, confidence and how it was worded
 records on something, doesn't guess which device an unlinked object is, and refuses to operate equipment.
 
 ## Other controls
-The main buttons are **Go to P-005**, **Plan**, **Ask Val** and **Actions**, with **Walk route** and **Clear route**
+The main buttons are **Go to P-005**, **Map**, **Ask Val** and **Actions**, with **Walk route** and **Clear route**
 while a route shows. Everything else is in **Actions**.
 
 | Control | What it does |
@@ -184,7 +184,7 @@ while a route shows. Everything else is in **Actions**.
 | **Movement: Walk / Fly** | In **Walk** the route starts from wherever you move to. In **Fly** you can look around from anywhere, and the route keeps its start |
 | **Walk route** | Walks the route, and stops looking at the device |
 | **Route for: Person / Robot** | Changes the body size and height for routes |
-| **Plan** | Shows the floor layout from above |
+| **Map** | Shows the room from above as a blueprint, with the equipment that has a record |
 | **Range** | How far away frames and labels show |
 | **Boxes on** | Shows or hides frames |
 | **View: Scan / Both / Objects** | The real scan, fitted shapes over it, or shapes only |

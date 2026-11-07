@@ -1,5 +1,7 @@
-// Plan: a 2D blueprint of the room from above, with the walls, the equipment, the route, and where
-// you are. Generated from the scan, not surveyed, and it says so on screen.
+// Map: a 2D blueprint of the room from above, with the walls, the equipment, the route, and where
+// you are. Generated from the scan, not surveyed, and it says so on screen. (Its code and element
+// IDs still say "plan".) Only equipment with metadata, linked to an Excel record, is drawn: buckets,
+// pipes and other detections stay in the 3D view.
 //
 // It's light on purpose. Walls and the room outline come from the BIM model (bim.json, built
 // offline), the walkable floor from /api/plan/walkable, and equipment from the objects as they stand
@@ -20,15 +22,12 @@ const LINKED = "#ffffff";
 const FAULT_COLOR = "#ff6b4a";
 const FOUND_COLOR = "#facc15";
 const ROUTE_COLOR = "#38bdf8";
-const FAINT = "rgba(207, 227, 247, 0.45)";
 const LEGEND = [
   ["Faulty device", FAULT_COLOR],
-  ["Linked to a record", LINKED],
-  ["Other equipment", FAINT],
+  ["Equipment with a record", LINKED],
   ["Walkable floor", `rgb(${WALKABLE.join(",")})`],
   ["Route", ROUTE_COLOR],
 ];
-const HIDDEN_UNLESS_ASKED = new Set(["pipe", "pipe fitting", "cable", "hose", "light fixture"]);
 
 export function setupPlan({
   ui,
@@ -48,7 +47,6 @@ export function setupPlan({
     ready: false,
     description: null, // { x_min, x_max, z_min, z_max, walls: [{ x0, x1, z0, z1 }] }
     floor: null, // { x0, z0, x1, z1 } of the walkable mask, once loaded
-    showPipes: false,
     found: new Set(),
     lastDraw: 0,
   };
@@ -83,10 +81,9 @@ export function setupPlan({
     return object === getSelected() || state.found.has(object);
   }
 
+  // Only equipment with metadata (an Excel record) is on the map.
   function shown(object) {
-    if (object.gone) return false;
-    if (isHighlighted(object) || object.asset.mapping) return true;
-    return state.showPipes || !HIDDEN_UNLESS_ASKED.has(object.asset.label);
+    return !object.gone && Boolean(object.asset.mapping);
   }
 
   // An object's footprint on screen. Its size comes from its box, its place from where it is now.
@@ -253,16 +250,16 @@ export function setupPlan({
       const box = footprint(view, object);
       const fault = object.asset.mapping?.tag === getFaultTag();
       const highlighted = isHighlighted(object);
-      const color = fault ? FAULT_COLOR : object.asset.mapping ? LINKED : FAINT;
+      const color = fault ? FAULT_COLOR : LINKED;
       if (fault || highlighted) {
         c.fillStyle = `${fault ? FAULT_COLOR : FOUND_COLOR}33`;
         c.fillRect(box.left, box.top, box.width, box.height);
       }
       c.strokeStyle = highlighted ? FOUND_COLOR : color;
-      c.lineWidth = highlighted || fault ? 2.5 : object.asset.mapping ? 1.5 : 1;
+      c.lineWidth = highlighted || fault ? 2.5 : 1.5;
       c.setLineDash(object.asset.mobility === "movable" ? [4, 3] : []);
       c.strokeRect(box.left, box.top, box.width, box.height);
-      if (object.asset.mapping || highlighted) {
+      {
         const rank = highlighted ? 3 : fault ? 2 : 1;
         labels.push({ text: nameOf(object), box, color: highlighted ? FOUND_COLOR : color, rank });
       }
@@ -308,7 +305,7 @@ export function setupPlan({
     state.lastDraw = 0;
     ui.note.textContent = "";
     if (!wanted) return;
-    const here = objects.filter((object) => !object.gone);
+    const here = objects.filter(shown);
     const byTag = here.filter(
       (object) =>
         (object.asset.mapping?.tag ?? "").toLowerCase().includes(wanted) ||
@@ -322,12 +319,6 @@ export function setupPlan({
     else ui.note.textContent = `Found ${matches.length}.`;
   }
   ui.search.addEventListener("input", () => search(ui.search.value));
-
-  ui.pipes.onclick = () => {
-    state.showPipes = !state.showPipes;
-    state.lastDraw = 0;
-    ui.pipes.textContent = state.showPipes ? "Hide pipes" : "Show pipes";
-  };
 
   for (const [text, color] of LEGEND) {
     const item = document.createElement("span");

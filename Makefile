@@ -19,8 +19,9 @@ BIM ?= $(if $(filter $(SCENE_DIR)/%,$(SCENE)),$(if $(wildcard $(BIM_DIR)/bim.jso
 MODEL ?= Qwen3.5-9B
 MODEL_DIR ?= data/models/$(MODEL)
 LAPTOP_MODEL ?= gemma4:e2b
+VOICE_MODEL ?= small.en
 
-.PHONY: setup entire views scene scene-full model laptop-model pieces highlights shapes bim pipeline gpu train tb web fmt lint test check up api floor mapping db nav-check start-browser start-laptop start-tablet
+.PHONY: setup entire views scene scene-full model laptop-model voice-model pieces highlights shapes bim pipeline gpu train tb web fmt lint test check up api floor mapping db nav-check start-browser start-laptop start-tablet
 
 setup:   ## install everything
 	uv sync
@@ -48,6 +49,8 @@ scene-full: ## get our own full-quality splat (513 MB). The demo uses the origin
 	@echo "Viewer: make web SCENE=data/scene/splat_v2/$(SCENE_FULL) ASSETS=$(SCENE_DIR)/assets_viewer.json SHAPES=$(SCENE_DIR)/shapes.json"
 laptop-model: ## get Val's small model for a laptop with no GPU, before going offline. Needs Ollama
 	ollama pull $(LAPTOP_MODEL)
+voice-model: ## get the speech-to-text model for talking to Val, before going offline (about 460 MB)
+	uv run python -c "from huggingface_hub import snapshot_download as s; s('Systran/faster-whisper-$(VOICE_MODEL)', local_dir='data/models/whisper-$(VOICE_MODEL)')"
 model:   ## download the copilot's language model once, before going offline (about 20 GB)
 	uv run python -c "from huggingface_hub import snapshot_download as s; s('Qwen/$(MODEL)', local_dir='$(MODEL_DIR)', allow_patterns=['*.safetensors', '*.json', '*.txt', '*.jinja', 'merges*', 'vocab*'])"
 pieces:  ## cut movable objects out of a scene, so dragging moves the real thing. Then: make web SCENE=$(PIECES_DIR)/base.ply PIECES=$(PIECES_DIR)

@@ -360,6 +360,19 @@ async function runValActions(actions) {
   const find = (id) => objects.find((o) => o.asset.object_id === id && !o.gone);
   let problem = null;
   for (const action of actions) {
+    // Something asked for out loud or typed: the same code as the button.
+    if (action.type === "viewer") {
+      try {
+        const result = await commandHandlers()[action.action](action.args);
+        if (result?.ok === false) problem = result.message || result.reason || "That didn't work.";
+      } catch (error) {
+        problem = error.message;
+      }
+      // People know devices by name, not by the scene's object IDs.
+      const object = find(action.args.object_id);
+      if (problem && object) problem = problem.replaceAll(object.asset.object_id, name(object.asset).replace(/\?$/, ""));
+      continue;
+    }
     const object = find(action.object_id);
     if (!object) continue;
     if (action.type === "highlight") focusOn(object);
@@ -380,7 +393,7 @@ const copilot = setupCopilot({
   suggestions: $("val-suggestions"),
   context: $("val-context"),
   close: $("copilot-close"),
-  speakButton: $("copilot-speak"),
+  micButton: $("val-mic"),
   getObject: () => selected,
   clearObject: () => {
     selected = null;
@@ -627,7 +640,7 @@ async function duplicateObject(object) {
   const position = await freeSpotBeside(object);
   if (!position) {
     $("status").textContent = "There's no free spot beside it for a copy.";
-    return;
+    return { ok: false, message: $("status").textContent };
   }
   try {
     const change = await fetch("/api/changes", {
@@ -640,7 +653,7 @@ async function duplicateObject(object) {
     addAsset(asset);
   } catch (error) {
     $("status").textContent = `Couldn't copy it: ${error.message}`;
-    return;
+    return { ok: false, message: $("status").textContent };
   }
   const copy = objects.at(-1);
   copy.addedByOperator = true;
@@ -697,6 +710,12 @@ window.addEventListener("keydown", (event) => {
   else if (key === "pagedown" && !$("manip-bar").hidden) handled = press("manip-lower");
   else if (key === "f") handled = press("mode");
   else if (key === "g") handled = press("go-fault");
+  else if (key === "v") {
+    // Talk to Val from anywhere.
+    copilot.open();
+    copilot.listen();
+    handled = true;
+  }
   if (handled) event.preventDefault();
 });
 // One spare history entry catches the back button. With nothing left to close, it leaves the page.
@@ -1210,8 +1229,15 @@ function commandHandlers() {
     if (needed) $(id).click();
   };
   const open = (id, button) => {
-    showInfo(find(id));
-    $(button).click();
+    const object = find(id);
+    showInfo(object);
+    const control = $(button);
+    if (control.hidden || control.disabled) throw new Error(`${name(object.asset)} can't do that here.`);
+    control.click();
+  };
+  const needsMovable = (id) => {
+    const object = find(id);
+    if (object.asset.mobility !== "movable") throw new Error(`${name(object.asset).replace(/\?$/, "")} is fixed, so it can't be moved.`);
   };
   const views = ["scan", "both", "objects"];
   return {
@@ -1260,8 +1286,12 @@ function commandHandlers() {
       const object = find(object_id);
       return objectLayer.moveTo(object, undefined, (object.yaw || 0) + (degrees * Math.PI) / 180);
     },
-    start_move: ({ object_id }) => open(object_id, "move"),
+    start_move: ({ object_id }) => {
+      needsMovable(object_id);
+      open(object_id, "move");
+    },
     start_rotate: ({ object_id }) => {
+      needsMovable(object_id);
       open(object_id, "move"); // Rotate is a mode of Move now
       $("manip-mode-rotate").click();
     },

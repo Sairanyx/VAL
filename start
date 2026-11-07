@@ -5,19 +5,20 @@
 #   ./start laptop     Laptop with no graphics card: lighter scene, mouse layout
 #   ./start tablet     Lenovo tablet: lighter scene, touch layout, prints the address to open
 #
-# Add --https to the tablet for motion sensors. It shows a certificate warning once.
+# The tablet uses HTTPS, as its mic and motion sensors need it. It shows a certificate warning once.
+# Add --https to the others to do the same.
 set -euo pipefail
 cd "$(dirname "$0")"
 
 usage() {
-  sed -n '4,6p;8p' "$0" | sed 's/^# \?//'
+  sed -n '4,6p;8,9p' "$0" | sed 's/^# \?//'
   exit 1
 }
 
 VERSION="${1:-}"
 [[ "$VERSION" == "browser" || "$VERSION" == "laptop" || "$VERSION" == "tablet" ]] || usage
 HTTPS_FLAG=""
-[[ "${2:-}" == "--https" ]] && HTTPS_FLAG="HTTPS=1"
+[[ "${2:-}" == "--https" || "$VERSION" == "tablet" ]] && HTTPS_FLAG="HTTPS=1"
 
 SCENE_DIR="data/scene/equipment_room"
 ASSETS="$SCENE_DIR/assets_mapped.json"
@@ -45,6 +46,10 @@ else
   CUT="$SCENE_DIR/cut"
 fi
 
+if [[ ! -f data/models/whisper-small.en/model.bin ]]; then
+  echo "Note: no speech model, so the mic won't work. Run this once, with internet: make voice-model"
+fi
+
 # Saves changes across restarts. The demo still runs without it.
 make db || echo "No database, so changes last until the API stops."
 
@@ -58,6 +63,7 @@ echo
 if [[ "$VERSION" == "tablet" ]]; then
   ADDRESS="$(ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p')"
   echo "Tablet: open $SCHEME://${ADDRESS:-THIS-MACHINE-IP}:8000 on the same network."
+  echo "Accept the certificate warning once. The mic only works on this https address."
   echo "If it can't connect, allow the ports: sudo ufw allow 8000/tcp"
 else
   echo "Browser: open $SCHEME://localhost:8000"

@@ -27,6 +27,7 @@ from app.copilot.store import (
     load_sample_assets,
 )
 from app.copilot.tools import (
+    COMMON_WORDS,
     find_assets,
     get_events_for_asset,
     get_maintenance_history,
@@ -36,6 +37,7 @@ from app.copilot.tools import (
     search_docs,
     search_service_cases,
 )
+from app.copilot.viewer_actions import match_action
 
 logger = logging.getLogger(__name__)
 
@@ -89,8 +91,9 @@ def fouling_hypothesis(metrics: dict[str, dict[str, Any]]) -> str:
 
 INTRO = (
     "I'm Val, your field-service assistant for this room. Ask me what needs attention, what's "
-    "wrong with a device, what to check next, when it was last serviced, or to take you to it. I "
-    "answer only from the plant's records, I say when I'm unsure, and I never operate equipment."
+    "wrong with a device, what to check next, when it was last serviced, or to make a path to it. "
+    "I can also change the view, like hiding the frames. I answer only from the plant's records, "
+    "I say when I'm unsure, and I never operate equipment."
 )
 GREETING = "Hi, I'm Val. Tap a device and ask me about it, or ask what needs attention."
 THANKS = "You're welcome. Ask me if you need anything else."
@@ -119,6 +122,8 @@ OVERVIEW_PHRASES = (
     "any issue",
     "worst",
     "overview",
+    "the room",
+    "the plant",
 )
 NOT_IN_RECORDS = {
     "spare": "spare parts",
@@ -132,6 +137,24 @@ NOT_IN_RECORDS = {
     "warranty": "warranties",
 }
 URGENCY_ORDER = {"high": 0, "medium": 1, "low": 2}
+NOT_UNDERSTOOD = (
+    "Sorry, I don't understand that. You can ask what needs attention, what's wrong with a device, "
+    "when it was last serviced, or ask me to make a path to it."
+)
+DEFINITION_ASKED = re.compile(
+    r"^(?:what\s+(?:does|do)\s+(.+?)\s+mean|what\s+is\s+meant\s+by\s+(.+)|"
+    r"(?:what\s+is\s+)?the\s+meaning\s+of\s+(.+)|meaning\s+of\s+(.+)|define\s+(.+))[.?!]*$"
+)
+# Words that show a question is about the device, as "it" alone may not be: "is it raining?"
+DEVICE_QUESTION = re.compile(
+    r"\b(?:status|condition|health|score|wrong|problems?|faults?|issues?|fail\w*|broken|alarms?|"
+    r"events?|urgent|urgency|flagged|cause\w*|confiden\w*|sure|measur\w*|readings?|telemetry|trend\w*|"
+    r"flow|pressure|temperature|vibration|current|foul\w*|serv[ei]\w*|maintenance|repair\w*|"
+    r"inspect\w*|work orders?|history|check\w*|next steps?|fix|troubleshoot|guidance|happened|"
+    r"changed|worse|better|ok|okay|fine|safe|details?|info|information|describe|"
+    r"tell me (?:more|about)|about (?:it|this|that)|what(?:'s| is) (?:it|this|that)|"
+    r"how(?:'s| is) (?:it|this|that)|explain (?:it|this|that|why)|this one)\b"
+)
 
 
 class CopilotEngine:
@@ -191,8 +214,8 @@ class CopilotEngine:
         if not safety_check.passed:
             return CopilotResponse(
                 answer=(
-                    f"Refusal under DOC-FIELD-SAFETY: {safety_check.violation_reason}\n\n"
-                    f"Mandatory Procedure: {safety_check.recommended_action}"
+                    "I can't do that. I only read the plant's records and give guidance, and I "
+                    f"never operate equipment. {safety_check.recommended_action}"
                 ),
                 observations=[
                     "User command attempted autonomous physical control of plant equipment."
@@ -211,8 +234,19 @@ class CopilotEngine:
         if casual:
             return casual
 
+        # Asking what a word means isn't asking about the device that's selected.
+        definition = self._define(question)
+        if definition:
+            return definition
+
+        # A request to change the 3D view, the same as pressing its button.
+        action = self._viewer_action(question, object_id)
+        if action:
+            return action
+
         # 3. Resolve target asset (from prompt or existing focus)
         target_tag = self._resolve_target_asset(question)
+        named_tag = target_tag
         if not target_tag and self.focused_asset_tag:
             # Check if query references "it", "this", "the pump", etc.
             if self._references_context(question):
@@ -233,7 +267,8 @@ class CopilotEngine:
         if not target_tag and object_id and object_id not in self.mapping:
             if self._is_navigation_intent(q_lower):
                 return self._handle_navigation_to_object(object_id)
-            return self._describe_unlinked(object_id)
+            if self._asks_about_device(q_lower):
+                return self._describe_unlinked(object_id)
 
         missing = next((name for word, name in NOT_IN_RECORDS.items() if word in q_lower), None)
         if missing:
@@ -241,6 +276,8 @@ class CopilotEngine:
 
         # Intent A: Navigation / Location ("Where is...", "Take me to...", "Show route")
         if self._is_navigation_intent(q_lower):
+            if not target_tag and "fault" in q_lower:
+                target_tag = self.fault_tag
             return self._handle_navigation(target_tag or self.focused_asset_tag, question)
 
         # Intent B: Last service / Maintenance history ("When was it last serviced?")
@@ -249,14 +286,16 @@ class CopilotEngine:
 
         # Intent C: Recommended Checks / Next Steps ("What should I check?", "Next steps")
         # "Why" needs the evidence as well as the check, and the diagnosis gives both.
-        wants_reason = any(word in q_lower for word in ("why", "flagged", "what's wrong"))
+        wants_reason = any(word in q_lower for word in ("flagged", "what's wrong", "what is wrong"))
+        wants_reason = wants_reason or q_lower.strip(" ?!.") == "why"
         if self._is_next_steps_intent(q_lower) and not wants_reason:
             return self._handle_next_steps(target_tag or self.focused_asset_tag)
 
         # Intent D: Status / Condition / Diagnosis ("What's wrong?", "Condition", "Health")
         # A question that points at no device mustn't get the last device's diagnosis.
         about_device = object_id or self._references_context(question) or wants_reason
-        if target_tag or (self.focused_asset_tag and about_device):
+        asks = wants_reason or self._asks_about_device(q_lower)
+        if named_tag or (self.focused_asset_tag and about_device and asks):
             return self._handle_diagnosis(target_tag or self.focused_asset_tag)
 
         # Intent E: General search or guidance
@@ -279,11 +318,71 @@ class CopilotEngine:
             text = GREETING
         elif re.fullmatch(THANKS_WORDS, clean):
             text = THANKS
-        elif clean == "help" or any(phrase in clean for phrase in ABOUT_VAL):
+        elif clean in ("help", "help me") or any(phrase in clean for phrase in ABOUT_VAL):
             text = INTRO
         if text is None:
             return None
         return CopilotResponse(answer=text, confidence=1.0)
+
+    @staticmethod
+    def _asks_about_device(q_lower: str) -> bool:
+        return bool(DEVICE_QUESTION.search(q_lower))
+
+    def _define(self, question: str) -> CopilotResponse | None:
+        """Answer "what does X mean" from the documents, or say the records don't explain it."""
+        asked = DEFINITION_ASKED.match(question.strip().lower())
+        if not asked:
+            return None
+        term = next(group for group in asked.groups() if group).strip(" '\"")
+        term = re.sub(r"^(?:the|a|an)\s+", "", term)
+        docs = self._matching_docs(term)
+        if docs:
+            return self._quote_doc(docs[0])
+        return CopilotResponse(
+            answer=f"The plant's records don't explain \"{term}\", so I won't guess what it means.",
+            citations=["DOC-RAG-GUIDE"],
+            confidence=1.0,
+        )
+
+    def _viewer_action(self, question: str, object_id: str | None) -> CopilotResponse | None:
+        """Run a request to change the view. An object must be selected or named, never guessed."""
+        found = match_action(question)
+        if found is None:
+            return None
+        target = None
+        if found.needs_object:
+            unknown = self._check_unmapped_or_unknown(question, None)
+            if unknown:
+                return unknown
+            tag = self._resolve_target_asset(question)
+            if tag:
+                matches = find_assets(tag, self.store, self.sample_assets, self.mapping)
+                target = matches[0].object_id if matches else None
+                if target is None:
+                    return CopilotResponse(
+                        answer=f"I can't find {tag} in the 3D scene.",
+                        citations=["DOC-3D-MAPPING"],
+                        confidence=1.0,
+                    )
+            else:
+                target = object_id
+            if target is None:
+                return CopilotResponse(
+                    answer="Which one? Tap it first, or say its name, like P-005.",
+                    confidence=1.0,
+                )
+        args = dict(found.args)
+        name = "it"
+        if target:
+            args["object_id"] = target
+            record = self.mapping.get(target, {})
+            scene = self._scene_object(target)
+            name = record.get("tag") or scene.get("name") or f"this {scene.get('label', 'object')}"
+        return CopilotResponse(
+            answer=found.say.format(name=name),
+            confidence=1.0,
+            actions=[{"type": "viewer", "action": found.action, "args": args}],
+        )
 
     def _is_overview_intent(self, q_lower: str, question: str, object_id: str | None) -> bool:
         """Check for a question about the whole room rather than one device."""
@@ -342,7 +441,7 @@ class CopilotEngine:
         found = self._scene_object(object_id)
         label = found.get("name") or f"this {found.get('label', 'object')}"
         return CopilotResponse(
-            answer=f"I've marked {label} and drawn the route to it.",
+            answer=f"I've marked {label} and drawn the path to it.",
             observations=[f"Detected object {object_id}, with no linked plant record."],
             citations=["DOC-3D-MAPPING"],
             confidence=float(self._scene_object(object_id).get("confidence") or 0.0),
@@ -370,7 +469,7 @@ class CopilotEngine:
             answer = (
                 f"The scan shows this as: {name + ', a ' + label if name else label}. It isn't "
                 "linked to a plant record, so I have no condition, measurements or service "
-                "history for it, and I won't guess which device it is. I can take you to it so "
+                "history for it, and I won't guess which device it is. I can make a path to it so "
                 "you can check its nameplate."
             )
         return CopilotResponse(
@@ -437,6 +536,23 @@ class CopilotEngine:
             "find valve",
             "find motor",
             "show path",
+            "show the path",
+            "show route",
+            "show the route",
+            "make path",
+            "make a path",
+            "make the path",
+            "draw a path",
+            "draw the path",
+            "draw a route",
+            "draw the route",
+            "path to",
+            "go to",
+            "go there",
+            "head to",
+            "walk me",
+            "lead me",
+            "get me to",
         ]
         return any(t in q_lower for t in nav_triggers)
 
@@ -505,7 +621,7 @@ class CopilotEngine:
             else "Spatial match"
         )
 
-        answer = f"I've marked {tag} and drawn the route to it."
+        answer = f"I've marked {tag} and drawn the path to it."
         if match.confidence < 1.0:
             answer += (
                 f" Its link to this object is only {match.confidence * 100:.0f}% certain, so "
@@ -738,32 +854,36 @@ class CopilotEngine:
             focused_asset=tag,
         )
 
-    def _handle_general_query(self, question: str) -> CopilotResponse:
-        """Handle general knowledge questions against Knowledge_Docs."""
-        docs = search_docs(self.store, query=question)
-        if docs:
-            top_doc = docs[0]
-            doc_id = top_doc["doc_id"]
-            preview = top_doc["content"][:200]
-            return CopilotResponse(
-                answer=f"According to {doc_id} ('{top_doc['title']}'): {preview}...",
-                observations=[f"Matched guidance document {doc_id}."],
-                hypotheses=[],
-                citations=[doc_id, "DOC-RAG-GUIDE"],
-                confidence=0.85,
-                actions=[{"type": "open_document", "doc_id": doc_id}],
-            )
+    def _matching_docs(self, text: str) -> list[dict[str, Any]]:
+        """Return documents covering at least half of the words asked about."""
+        words = set(re.findall(r"[a-z0-9-]{3,}", text.lower())) - COMMON_WORDS
+        if not words:
+            return []
+        found = []
+        for doc in search_docs(self.store, query=text):
+            content = set(re.findall(r"[a-z0-9-]+", f"{doc['title']} {doc['content']}".lower()))
+            if len(words & content) * 2 >= len(words):
+                found.append(doc)
+        return found
 
+    @staticmethod
+    def _quote_doc(doc: dict[str, Any]) -> CopilotResponse:
+        doc_id = doc["doc_id"]
         return CopilotResponse(
-            answer=(
-                "I couldn't find anything on that in the plant's records, so I won't guess. Try "
-                "asking what needs attention, or tap a device and ask what's wrong with it."
-            ),
-            observations=["No matching documents in Knowledge_Docs corpus."],
+            answer=f"According to {doc_id} ('{doc['title']}'): {doc['content'][:200]}...",
+            observations=[f"Matched guidance document {doc_id}."],
             hypotheses=[],
-            citations=["DOC-RAG-GUIDE"],
-            confidence=0.5,
+            citations=[doc_id, "DOC-RAG-GUIDE"],
+            confidence=0.85,
+            actions=[{"type": "open_document", "doc_id": doc_id}],
         )
+
+    def _handle_general_query(self, question: str) -> CopilotResponse:
+        """Answer from the guidance documents, or say the question wasn't understood."""
+        docs = self._matching_docs(question)
+        if docs:
+            return self._quote_doc(docs[0])
+        return CopilotResponse(answer=NOT_UNDERSTOOD, confidence=1.0)
 
     def generate_route_commentary(self, asset_ids_or_tags: list[str]) -> list[dict[str, Any]]:
         """Pre-generate fast status commentary for assets passed along avatar walking route.

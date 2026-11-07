@@ -23,7 +23,7 @@ Should end by printing your GPU name.
 | `make db` | Start local TimescaleDB and load the Excel telemetry |
 | `make nav-check` | Test floor map, routes, mapping and API together, with a picture |
 | `./start browser` | Start the demo for a laptop or PC |
-| `./start tablet` | Start the demo for the Lenovo tablet |
+| `./start tablet` | Start the demo for the Lenovo tablet, on https so its mic works |
 | `make train` | Train a model |
 | `make tb` | Training graphs at http://localhost:6006 |
 | `make fmt` | Tidy code style and auto-fix lint |
@@ -36,6 +36,7 @@ Should end by printing your GPU name.
 | `make pipeline` | Run a scene through everything, from `scenes/*.toml` |
 | `make laptop-model` | Get Val's small model for a laptop with no GPU, before going offline. Needs Ollama |
 | `make model` | Download Val's larger model for a GPU (about 20 GB), before going offline |
+| `make voice-model` | Get the speech model for talking to Val (about 460 MB), before going offline |
 | `make up` | Train inside Docker |
 
 ## Team workflow

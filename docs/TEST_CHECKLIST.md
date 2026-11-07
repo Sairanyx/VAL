@@ -132,26 +132,23 @@ brackets belong to that person.
 ## Val
 **Who: Eduard**
 
+- [ ] **Talking to Val:** press the mic or **V**, speak, and it stops by itself. Runs on our server with no internet. Works in a browser with spoken test audio. ✅ 🤖 KEEP. Try a real voice and the tablet's mic, in a noisy room
+- [ ] **Val doing actions:** say or type it, like "Hide the frames" or "Delete it". The wording can vary, and it only acts on what's selected or named. ✅ 🤖 KEEP
 - [x] **Instant answer from records:** ✅ 🤖 KEEP
 - [x] **"In plain words":** model summary, about 10 s on a ThinkPad. ✅ 👤 KEEP. Gemma's answers are terse
-- [ ] **What needs attention:** ranks devices. Not confirmed yet: check the ranking makes sense. ✅ 🤖 KEEP
+- [ ] **What needs attention:** ranks devices by urgency, then health. Automated check passes, so check the ranking makes sense. ✅ 🤖 KEEP
 - [x] **What's wrong, what to check, last service:** with sources. ✅ 🤖 KEEP
-- [x] **Take me there:** draws the route. ✅ 🤖 KEEP
-- [ ] **Rename "Take me there":** call it "Make path" or similar. It only draws the route and doesn't move you there. ❌ ❌ ADD
+- [ ] **Make path:** the new name for "Take me there". It draws the route, and **Walk route** does the walking. ✅ 🤖 KEEP
 - [x] **Follow-up questions:** "it" stays on the same machine. ✅ 🤖 KEEP
 - [x] **Suggestions:** fit what's selected. ✅ 🤖 KEEP
 - [x] **How Val knows:** evidence, causes, confidence. ✅ 🤖 KEEP
 - [x] **Doesn't guess:** no records means it says so. ✅ 🤖 KEEP
-- [ ] **Safety refusal:** not working. Misses "Shut down", "Close CV-003", "Isolate". It must reply "I can't do that". 🟡 🤖 Hannu to DECIDE
-- [ ] **Safety refusal, false alarms:** not working. "What does drain mean?" gets refused and repeats the previous message. Val must give its own reply. 🟡 🤖 Hannu to DECIDE
-- [ ] **Unclear or off-topic messages:** for vague or unrelated messages, Val says it doesn't understand. ❌ ❌ ADD
-- [ ] **Typing in Val's chat:** W, A, S and D move the view while typing. Keys must only go to the chat while it's in use. ❌ 👤 ADD
+- [ ] **Safety refusal:** "Shut down", "Close CV-003", "Isolate" and others now get "I can't do that". ✅ 🤖 KEEP. Hannu, this changes your rule, so please check it
+- [ ] **Safety refusal, false alarms:** "What does drain mean?" now gets its own reply, and "Stop walking" still works. ✅ 🤖 KEEP
+- [ ] **Unclear or off-topic messages:** Val says "Sorry, I don't understand that". ✅ 🤖 KEEP
+- [ ] **Typing in Val's chat:** W, A, S and D stay in the chat and don't move the view. ✅ 🤖 KEEP
 - [x] **Gemma on a ThinkPad:** `./start laptop`. ✅ 👤 KEEP
-- [ ] **Qwen on the 5090:** `make model`. ✅ ❌ KEEP. Test the 9B beside the viewer
-- [ ] **60-question copilot test:** not done. ❌ ❌ ADD. Must not be cut
-- [ ] **Answers read aloud:** we don't need Val to talk. ✅ 👤 CUT
-- [ ] **Speaking to Val:** to do. Needs offline speech-to-text. ❌ ❌ ADD. First to cut
-- [ ] **Val doing actions:** to do. Link every button to phrases that trigger it. The target comes from the device named in the sentence, or from what's selected. If it's unclear, Val asks. Commands exist, with nothing connecting them. 🟡 ❌ ADD
+- [ ] **60-question copilot test:** `scripts/eval_copilot.py`. 56 of 60 met their expected result. The other 4 fell back to the records. ✅ 👤 KEEP. A person still has to read and score the answers
 
 ## Tablet and speed
 **Who: Benjamin**

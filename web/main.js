@@ -337,6 +337,8 @@ function updateLabels() {
     for (const { o } of inView.slice(0, MAX_BOXES)) o.box.visible = true;
     for (const { o, pinned } of nearby) if (pinned) o.box.visible = true;
   }
+  // A warning always shows, even past the limits or with boxes off.
+  for (const o of objects) if (o.warning && !o.gone) o.box.visible = true;
   for (const item of inView) {
     // Unconfirmed objects keep their frame, but don't crowd the view with a generic tag.
     if (item.o.asset.label !== "object" || item.o.asset.mapping) visible.push(item);
@@ -413,6 +415,22 @@ async function syncWithBackend() {
   if (changed) $("status").textContent = `Restored ${changed} saved change(s) from the backend`;
 }
 
+// Ask the backend whether an object can stand here. Without a backend, nothing can be saved anyway.
+async function checkMove(object, position) {
+  try {
+    const id = encodeURIComponent(object.asset.object_id);
+    const response = await fetch(`/api/objects/${id}/check-move`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ position }),
+    });
+    if (response.ok) return await response.json();
+  } catch {
+    // Handled below, the same as an error reply.
+  }
+  return { ok: true, reason: "", blockers: [] };
+}
+
 async function load() {
   const data = await (await fetch("assets.json")).json();
   faultTag = data.fault_tag ?? faultTag;
@@ -455,6 +473,9 @@ async function load() {
       if (!changes.length) removeAdded();
       route.syncChanges(changes);
     },
+    checkMove,
+    onMessage: (message) => ($("status").textContent = message),
+    onBlocked: (blocked) => $("hud").classList.toggle("blocked", blocked),
   });
   route = setupRoute({
     root,

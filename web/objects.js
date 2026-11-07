@@ -7,7 +7,21 @@ import { SplatMesh } from "@sparkjsdev/spark";
 const APART_SCALE = 0.45; // How far objects move away from the room's center in the pulled-apart view.
 const MIN_LIFT = 0.05;
 
-export async function setupObjects({ root, scene, camera, canvas, splat, objects, floorY, onChange }) {
+const BLOCKED_COLOR = 0xff2d2d;
+
+export async function setupObjects({
+  root,
+  scene,
+  camera,
+  canvas,
+  splat,
+  objects,
+  floorY,
+  onChange,
+  checkMove,
+  onMessage,
+  onBlocked,
+}) {
   const shapes = await fetchShapes();
   const lights = addLights(scene);
   const group = new THREE.Group();
@@ -98,8 +112,76 @@ export async function setupObjects({ root, scene, camera, canvas, splat, objects
   function startMove(object) {
     if (object.asset.mobility !== "movable") return false;
     const item = items.find((candidate) => candidate.object === object);
-    state.moving = { object, item, dragging: false, last: null };
+    const start = object.center.clone();
+    state.moving = { object, item, dragging: false, last: null, valid: start.clone(), start };
     return true;
+  }
+
+  // Show a bad spot in red: the moving box, and whatever is in its way.
+  // Drawn over everything, because thin lines get lost among the splats.
+  const marked = new Set();
+  const warningFill = new THREE.MeshBasicMaterial({
+    color: BLOCKED_COLOR,
+    transparent: true,
+    opacity: 0.3,
+    depthTest: false,
+  });
+  function mark(object, red) {
+    if (red && !marked.has(object)) {
+      const material = object.box.material;
+      object.normalColor = material.color.getHex();
+      material.color.setHex(BLOCKED_COLOR);
+      material.depthTest = false;
+      object.box.renderOrder = 12;
+      object.fill = new THREE.Mesh(object.pick.geometry, warningFill);
+      object.fill.renderOrder = 12;
+      object.box.add(object.fill);
+      object.warning = true;
+      marked.add(object);
+    } else if (!red && marked.has(object)) {
+      const material = object.box.material;
+      material.color.setHex(object.normalColor);
+      material.depthTest = true;
+      object.box.renderOrder = 0;
+      object.box.remove(object.fill);
+      object.warning = false;
+      marked.delete(object);
+    }
+    onBlocked?.(marked.size > 0);
+  }
+  function clearMarks() {
+    for (const object of [...marked]) mark(object, false);
+  }
+
+  function showCheck(moving, result) {
+    clearMarks();
+    if (result.ok) {
+      moving.valid = moving.object.center.clone();
+      onMessage?.("Release to place it here");
+      return;
+    }
+    mark(moving.object, true);
+    for (const id of result.blockers ?? []) {
+      const blocker = objects.find((candidate) => candidate.asset.object_id === id);
+      if (blocker) mark(blocker, true);
+    }
+    onMessage?.(`Can't place it here. ${result.reason}`);
+  }
+
+  // One check at a time, and the latest spot next, so a slow backend can't fall behind.
+  async function checkWhileDragging(moving) {
+    if (moving.checking) {
+      moving.checkAgain = true;
+      return;
+    }
+    moving.checking = true;
+    do {
+      moving.checkAgain = false;
+      const result = await checkMove(moving.object, moving.object.center.toArray());
+      if (state.moving !== moving) break;
+      showCheck(moving, result);
+    } while (moving.checkAgain);
+    moving.checking = false;
   }
 
   function shiftObject(moving, delta) {
@@ -138,19 +220,29 @@ export async function setupObjects({ root, scene, camera, canvas, splat, objects
       delta.y = 0;
       shiftObject(state.moving, delta);
       state.moving.last = point;
+      checkWhileDragging(state.moving);
     },
     true,
   );
-  function finishMove(event) {
-    if (!state.moving?.dragging) return;
+  async function finishMove(event) {
+    const moving = state.moving;
+    if (!moving?.dragging) return;
     event.stopPropagation();
-    const { object } = state.moving;
+    state.moving = null;
+    const { object } = moving;
+    // The spot under the pointer now is what counts, not the last one checked.
+    const result = await checkMove(object, object.center.toArray());
+    clearMarks();
+    if (!result.ok) {
+      placeAt(object, moving.valid.toArray());
+      onMessage?.(`Moved back to the last good spot. ${result.reason}`);
+      if (moving.valid.distanceTo(moving.start) < 0.001) return;
+    }
     state.changes.push({
       op: "move",
       object_id: object.asset.object_id,
       position: object.center.toArray().map((value) => Number(value.toFixed(3))),
     });
-    state.moving = null;
     onChange?.(state.changes);
   }
   canvas.addEventListener("pointerup", finishMove, true);

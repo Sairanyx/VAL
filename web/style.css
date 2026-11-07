@@ -277,3 +277,12 @@ button {
 #cant-move[hidden] {
   display: none;
 }
+
+#hud.blocked {
+  background: #b91c1c;
+  color: #fff;
+}
+#hud.blocked #stats,
+#hud.blocked #in-view {
+  color: #fee2e2;
+}

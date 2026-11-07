@@ -33,6 +33,8 @@ For a tablet or a laptop without a good GPU, cut a lighter scene first:
 2. Press **Move on floor**. Only movable objects have this button.
 3. Drag anywhere on the screen. The object follows your drag across the floor.
 4. Release to save. If a route is showing, it plans again.
+   - If the spot is taken, the object and whatever's in its way turn red, and the panel says why.
+   - Releasing on a red spot puts it back at the last good spot. A wall or fixed equipment blocks it too.
 5. **Undo changes** puts everything back.
 
 **Try this first:** the roll cage `obj-0067`. Plan a route with **Go to P-005** from the middle of the room,
@@ -47,9 +49,11 @@ see fitted shapes move.
 Tap object            web/main.js: finds the box under your finger, opens the panel
 Move on floor         web/objects.js: refuses anything that isn't movable
 Drag                  web/objects.js: moves the box, shape, and scan piece. Only on this screen so far
+                      POST /api/objects/ID/check-move: app/api/collisions.py says if it fits, for the red warning
 Release               web/objects.js: records the move
                       web/route.js: POST /api/changes, through web/serve.py to the backend
-Backend               app/api/store.py: refuses unless movable, moves the box, logs the change
+Backend               app/api/main.py: refuses a bad spot, even if the viewer's check was skipped
+                      app/api/store.py: refuses unless movable, moves the box, logs the change
                       app/api/db.py: saves it, if the database is running
 Route showing?        web/route.js: POST /api/route from the route's same start
                       app/nav/route.py: the moved box now blocks the map, so it plans around it
@@ -90,6 +94,7 @@ Add these to the URL: `?lod=0&res=2` for the sharpest image, or `?res=0.5` if it
 | "Backend has different objects" | `make web` and `make api` use different files | Pass `ASSETS=data/scene/equipment_room/assets_mapped.json` to `make web` |
 | `make api` fails on a missing file | `make mapping` hasn't run | Run `make scene mapping` |
 | No **Move on floor** button | The object is fixed or unsure | The panel says which. Try `obj-0067` |
+| Box goes red and panel says "Can't place it here" | That spot is taken | Drop it somewhere else. Tiny overlaps are allowed, because boxes are loose |
 | Only an outline moves | Not one of the four objects, or no `PIECES=` | Use the full `make web` line above |
 | Object moves, but no route change | No route showing, or it isn't in the way | **Go to P-005** first, then drag onto the line |
 | "Couldn't save the move" | The backend refused it or is down | The message says why. Restart `make api` if needed |

@@ -112,6 +112,13 @@ export async function setupBim({ root, renderer, objects, faultTag, floorY, onSe
     state.active = on;
     group.visible = on;
     panel.hidden = !on;
+    if (on) chooseDownload();
+  }
+
+  // The backend's copy shows the model as it stands now. Without one, there's still the built file.
+  async function chooseDownload() {
+    const reply = await fetch("/api/plan").catch(() => null);
+    document.getElementById("bim-download").href = reply?.ok ? "/api/plan/model.ifc" : "model.ifc";
   }
 
   // Selecting from the scan side (panel, route, copilot) keeps the BIM selection in step.
@@ -211,7 +218,7 @@ function plainElement(object) {
   const low = first.map((value, axis) => Math.min(value, second[axis]));
   const high = first.map((value, axis) => Math.max(value, second[axis]));
   return {
-    guid: "none in the file",
+    guid: "assigned on export",
     object_id: id,
     ifc_class: "IfcBuildingElementProxy",
     predefined_type: "NOTDEFINED",

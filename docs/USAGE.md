@@ -60,8 +60,8 @@ or openings aren't modelled. Tags made by rule or by eye show as `P-005?` and
 `IdentityConfirmed: no`.
 
 Objects you move follow in BIM mode. Objects added, split or combined in the viewer show as plain
-see-through boxes. **Download IFC** saves the model as `make bim` built it, without any of those
-changes: they stay in the backend, so running `make bim` again doesn't add them.
+see-through boxes. With the backend running, **Download IFC** saves the model as it stands now,
+including all of those changes. Without it, you get the file `make bim` built, which has none of them.
 
 ## Move an object
 1. Tap the object. The smallest box under your finger is selected.
@@ -122,6 +122,17 @@ Set a part to movable to move it, and its real splats go with it. **Undo changes
 2. Tap the second object. An orange box appears around both.
 3. Check the type and whether it can move, then press **Save**. **Undo changes** brings the originals back.
 
+## See the floor layout
+Press **Plan** for the room from above: walls, objects by type, the route, and an arrow showing where you are.
+Colours match BIM mode, and a dashed outline means the object can be moved.
+- **Find:** type a tag or type. `P-005` highlights one object, and `tank` highlights them all.
+- **Tap an object** to open its panel, then use **Route here**.
+- **Show pipes** adds pipes, which are hidden to keep it readable.
+- **Download DXF** saves the layout for CAD tools, with objects where they stand now.
+
+It's generated from the scan, not surveyed: objects are boxes, and the scale hasn't been checked on site. A name
+with no room to show stays hidden until you find or tap its object. Needs `make api` and `Equipment Room.ply`.
+
 ## Ask the copilot
 Select an object and press **Ask copilot**, or press **Copilot**. The note under each answer says whether the
 model worded it or it's a fixed template. Unsafe requests are refused.
@@ -133,6 +144,7 @@ model worded it or it's a fixed template. Unsafe requests are refused.
 | **Walk / Fly** | In **Walk** the route starts from wherever you move to. In **Fly** you can look around from anywhere, and the route keeps its start |
 | **Walk route** | Walks the route, and stops looking at the device |
 | **Person / Robot** | Changes the body size and height for routes |
+| **Plan** | Shows the floor layout from above |
 | **Range** | How far away frames and labels show |
 | **Boxes on** | Shows or hides frames |
 | **Scan / Both / Objects** | The real scan, fitted shapes over it, or shapes only |

@@ -32,6 +32,7 @@
   <div id="buttons">
     <button id="go-fault" hidden>Go to P-005</button>
     <button id="open-copilot">Copilot</button>
+    <button id="open-plan">Plan</button>
     <button id="add-object">Add object</button>
     <button id="follow" hidden>Walk route</button>
     <button id="clear-route" hidden>Clear route</button>
@@ -69,6 +70,20 @@
       <a id="bim-download" href="model.ifc" download="model.ifc">Download IFC</a>
     </div>
     <div id="bim-props"></div>
+  </div>
+
+  <div id="plan" hidden>
+    <div id="plan-bar">
+      <input id="plan-search" placeholder="Find a tag or type, such as P-005" autocomplete="off">
+      <button id="plan-pipes">Show pipes</button>
+      <a id="plan-dxf" href="/api/plan/layout.dxf" download="floor_layout.dxf" hidden>Download DXF</a>
+      <button id="plan-close">Close</button>
+    </div>
+    <canvas id="plan-canvas"></canvas>
+    <div id="plan-foot">
+      <div id="plan-legend"></div>
+      <div><span id="plan-note"></span> Generated from the scan, not surveyed.</div>
+    </div>
   </div>
 
   <div id="select-frame" hidden></div>

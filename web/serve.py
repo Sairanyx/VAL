@@ -73,13 +73,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         )
         try:
             with urllib.request.urlopen(request, timeout=30) as response:
-                status, body = response.status, response.read()
+                status, body, headers = response.status, response.read(), response.headers
         except urllib.error.HTTPError as error:
-            status, body = error.code, error.read()
+            status, body, headers = error.code, error.read(), error.headers
         except urllib.error.URLError:
-            status, body = 502, b'{"detail": "The backend isn\'t running: start it with make api"}'
+            status, headers = 502, {}
+            body = b'{"detail": "The backend isn\'t running: start it with make api"}'
         self.send_response(status)
-        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Type", headers.get("Content-Type", "application/json"))
+        if headers.get("Content-Disposition"):
+            self.send_header("Content-Disposition", headers["Content-Disposition"])
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)

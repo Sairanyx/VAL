@@ -87,12 +87,20 @@ html, body {
   #joystick { display: none; }
 }
 
+/* Wraps upwards on narrow screens, so no button slides off the edge. */
 #buttons {
   position: fixed;
+  left: 12px;
   right: 12px;
   bottom: 12px;
   display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: flex-end;
   gap: 8px;
+  pointer-events: none;
+}
+#buttons button {
+  pointer-events: auto;
 }
 button {
   min-width: 64px;
@@ -324,3 +332,86 @@ button {
 #bim-props dl { display: grid; grid-template-columns: auto 1fr; gap: 1px 8px; margin: 0; font-size: 12px; }
 #bim-props dt { color: var(--muted); }
 #bim-props dd { margin: 0; overflow-wrap: anywhere; }
+
+#plan {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  background: #12161b;
+  color: #e5e7eb;
+}
+#plan[hidden] {
+  display: none;
+}
+#plan-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+}
+#plan-search {
+  flex: 1;
+  min-width: 160px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid #3a4652;
+  border-radius: 6px;
+  background: #0f1419;
+  color: #e5e7eb;
+  font-size: 16px;
+}
+#plan-dxf {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid #3a4652;
+  border-radius: 6px;
+  color: #e5e7eb;
+  text-decoration: none;
+}
+#plan-dxf[hidden] {
+  display: none;
+}
+#plan-canvas {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  touch-action: manipulation;
+}
+#plan-foot {
+  padding: 6px 12px 10px;
+  font-size: 12px;
+  color: #9ca3af;
+}
+#plan-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 4px;
+}
+#plan-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 4px;
+  border-radius: 2px;
+}
+#plan-legend i.dashed {
+  box-sizing: border-box;
+  border: 1px dashed #9ca3af;
+  border-radius: 0;
+}
+/* The object panel opens over the Plan screen, below its search bar. */
+body:has(#plan:not([hidden])) #info {
+  top: 68px;
+  z-index: 5;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+}
+body:has(#plan:not([hidden])) #copilot {
+  z-index: 5;
+}

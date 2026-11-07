@@ -95,7 +95,8 @@ def solid(w: Writer, geometry: dict, rotation: np.ndarray, floor: float) -> tupl
     return place, body
 
 
-def write_ifc(model: dict, path: Path, timestamp: str | None = None) -> None:
+def ifc_text(model: dict, file_name: str = "model.ifc", timestamp: str | None = None) -> str:
+    """Return a BIM model as the text of an IFC4 STEP file."""
     rotation, floor = ifc_frame(model["room"])
     scene_id = model["scene_id"]
     w = Writer()
@@ -172,10 +173,14 @@ def write_ifc(model: dict, path: Path, timestamp: str | None = None) -> None:
         "ISO-10303-21;",
         "HEADER;",
         "FILE_DESCRIPTION(('ViewDefinition [ReferenceView_V1.2]'),'2;1');",
-        f"FILE_NAME({string(path.name)},'{stamp}',(''),(''),'','app.bim','');",
+        f"FILE_NAME({string(file_name)},'{stamp}',(''),(''),'','app.bim','');",
         "FILE_SCHEMA(('IFC4'));",
         "ENDSEC;",
         "DATA;",
     ]
     body = [f"#{index}={line};" for index, line in enumerate(w.lines, start=1)]
-    path.write_text("\n".join(header + body + ["ENDSEC;", "END-ISO-10303-21;", ""]))
+    return "\n".join(header + body + ["ENDSEC;", "END-ISO-10303-21;", ""])
+
+
+def write_ifc(model: dict, path: Path, timestamp: str | None = None) -> None:
+    path.write_text(ifc_text(model, path.name, timestamp))

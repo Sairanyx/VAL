@@ -1,6 +1,6 @@
-# viktortrilar: viktor/bim-model-fixes
-**Goal:** merge Sasha's BIM mode with fixes for what checking it found, keeping Sasha's commit as is
-**Done:** merged `yasasha/bim`. app/extract/primitives.py rejects cylinders from nearly flat arcs, and `make shapes` applies that to the Release's copy (`make bim` runs it). web/bim.js shows objects made in the viewer as plain boxes. USAGE says what the IFC leaves out
-**Verified:** 223 tests passed, 2 skipped, lint clean. Real data: only `obj-0144` changes (now a box), 0 IFC schema issues. Headless browser: split parts show in BIM mode at the right places, undo removes them, no page errors. Not tested: a real BIM tool, 5090, tablet
-**Next:** rebase `viktor/bim` on this: Plan screen and DXF only, Sasha's wall estimate, Plan screen fixes, IFC download that includes operator changes
-**Blockers:** an agent is fixing routes that ignore moved objects on `viktor/route-keeps-moved-objects`, not finished. Roihu closed until at least Monday. Local branch viktor/viewer-objects holds an unused merge: don't merge it
+# viktortrilar: viktor/bim
+**Goal:** the bird's-eye floor layout Alpo asked for, a DXF export, and an IFC download that includes operator changes, on top of Sasha's BIM mode
+**Done:** app/plan/ (floor image, DXF), web/plan.js and the Plan button, /api/plan routes including live /api/plan/model.ifc. Walls now come from Sasha's `estimate_room`, and my own IFC export is gone. web/serve.py forwards file types and names. The button row wraps instead of sliding off narrow screens. Guessed links read `P-005?` everywhere
+**Verified:** 231 tests passed, 2 skipped, lint clean. Headless browser on real data: Plan, search, tap, move, real DXF and IFC downloads, no page errors. Read back: the DXF changed by exactly the cart's 4 lines, the IFC has 0 schema issues with the cart at its new spot. Not tested: a real BIM or CAD tool, 5090, tablet
+**Next:** PR #26 (Sasha's BIM mode plus fixes) needs merging first, then this PR. Then rehearse on the 5090
+**Blockers:** merging needs Viktor's word: the permission system refused my merge of #26. An agent is fixing routes that ignore moved objects on `viktor/route-keeps-moved-objects`, not finished. Roihu closed until at least Monday. Local branch viktor/viewer-objects holds an unused merge: don't merge it

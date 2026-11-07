@@ -1,6 +1,6 @@
-# viktortrilar: viktor/split-and-occlusion (includes PR #18)
-**Goal:** let operators correct objects: move safely, split, combine, and see frames clearly
-**Done:** collisions (PR #18). This branch: Split and Combine in the viewer and backend, frames hide what's behind them, `obj-0008` off the moving list. docs/USAGE.md updated
-**Verified:** lint; 205 tests passed, 2 skipped. Browser, software rendering, light scene: split, combine, reload, undo, cancel. Not tested: 5090, tablet, frame look on the full scene
-**Next:** merge PR #18 and this one. Rehearse on the 5090. Build the precision sample from crops rendered on the 5090, as Roihu's masks are out of reach
-**Blockers:** Roihu closed until at least Monday (CSC security notice), past the deadline. Its masks, renders, and frames can't be reached, and they had no other copy. A split or combined object's scan piece doesn't split with it. Local branch viktor/viewer-objects holds an unused merge: don't merge it
+# viktortrilar: main (split, combine, collisions merged)
+**Goal:** let operators correct objects: move safely, split, combine, and see frames clearly, working with the team's highlights and live routes
+**Done:** collision check, Split, Combine, frames that hide what's behind them. Fixed clashes with live routes and highlights: routes only follow the camera in walk mode, a refused drop re-plans, collision warnings aren't overwritten
+**Verified:** lint; 213 tests passed, 2 skipped. Full flow in a headless browser with pieces, highlights and live routes: refused drop, demo move 4.31 to 5.56 m, split, combine, reload, undo, no page errors. Slow software rendering, light scene. Not tested: 5090, tablet, real model in the browser panel
+**Next:** rehearse on the 5090. Build the precision sample from crops rendered on the 5090, as Roihu's masks are out of reach. A person confirms P-005 on obj-0049
+**Blockers:** Roihu closed until at least Monday (CSC security notice). A split or combined object's scan piece doesn't split with it. Local branch viktor/viewer-objects holds an unused merge: don't merge it

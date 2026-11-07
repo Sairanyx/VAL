@@ -246,9 +246,14 @@ const adder = setupAddObject({
       objects.at(-1).addedByOperator = true;
     }
     selected = objects.at(-2);
+    highlight.select(selected);
     const names = parts.map((part) => `${part.object_id} (${part.label})`).join(" and ");
-    $("status").textContent = `Split into ${names}, not confirmed`;
-    if (route?.state.target) await route.plan(route.state.target, route.state.start);
+    const text = `Split into ${names}, not confirmed`;
+    $("status").textContent = text;
+    if (route?.state.target) {
+      await route.plan(route.state.target, route.state.start);
+      $("status").textContent = `${text}. ${$("status").textContent}`;
+    }
   },
   onCombine: async (first, other, combined) => {
     for (const object of [first, other]) {
@@ -258,8 +263,13 @@ const adder = setupAddObject({
     addAsset(combined);
     selected = objects.at(-1);
     selected.addedByOperator = true;
-    $("status").textContent = `Combined into ${combined.object_id} (${combined.label}), not confirmed`;
-    if (route?.state.target) await route.plan(route.state.target, route.state.start);
+    highlight.select(selected);
+    const text = `Combined into ${combined.object_id} (${combined.label}), not confirmed`;
+    $("status").textContent = text;
+    if (route?.state.target) {
+      await route.plan(route.state.target, route.state.start);
+      $("status").textContent = `${text}. ${$("status").textContent}`;
+    }
   },
   onSaved: async (asset) => {
     addAsset(asset);
@@ -455,6 +465,7 @@ function animate(now) {
       moving?.dragging
         ? { object_id: moving.object.asset.object_id, position: moving.object.center.toArray() }
         : null,
+      walk,
     );
   }
   $("follow").textContent = following ? "Stop" : "Walk route";
@@ -572,13 +583,19 @@ async function load() {
     checkMove,
     onMessage: (message) => ($("status").textContent = message),
     onBlocked: (blocked) => $("hud").classList.toggle("blocked", blocked),
+    onMoveCancelled: () => {
+      if (route?.state.target) route.plan(route.state.target, route.state.start);
+    },
   });
   route = setupRoute({
     root,
     camera,
     floorY: data.floor_y ?? 0,
     getEyeY: () => eyeY,
-    onMessage: (message) => ($("status").textContent = message),
+    // A collision warning says more than a route refusal caused by that same bad spot.
+    onMessage: (message) => {
+      if (!$("hud").classList.contains("blocked")) $("status").textContent = message;
+    },
   });
   $("go-fault").hidden = !objects.some((o) => kind(o.asset) === "fault");
   $("profile").hidden = false;

@@ -1,0 +1,77 @@
+Do we have the clean version of valmets splat?
+
+---
+
+Go and actually explore valmets splat it seems really really good whats going on?
+
+---
+
+Status?
+
+---
+
+So why was the earlier comparison in our favour?
+
+---
+
+Do we still have all the segmentations and objects from the valmet splats?
+
+---
+
+How can we improve
+
+---
+
+Go ahead
+
+---
+
+how can my team access the clean valmet splat
+
+---
+
+<task-notification>
+<task-id>b6dsfxnkn</task-id>
+<tool-use-id>toolu_01M1PDmUhwCs73LcRbr37xSN</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/b6dsfxnkn.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the alignment check and fetch its results" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bqeqllywt</task-id>
+<tool-use-id>toolu_01XLbSxUkCE3JXNjvdF5qJ1J</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/bqeqllywt.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the retrain and comparison jobs to finish" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b78y03id1</task-id>
+<tool-use-id>toolu_015EMtPJyMVGTHCVJV66Bm2t</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/b78y03id1.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the cleaning test and fetch its results" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+So if cleaning is the problem - how well does our unclean splat compare to the unclean valmet splat
+
+---
+
+<task-notification>
+<task-id>bsubap347</task-id>
+<tool-use-id>toolu_01XaHC4FjQbcUVJeozfyJE6X</tool-use-id>
+<output-file>/tmp/claude-1000/-home-viktor-trilar-Projects-Newbies/6293938d-e68f-4310-92b7-6bf722e3d028/tasks/bsubap347.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the fair comparison and fetch it" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+Since the chair and some other objects are missing from our splat it seems the Valmet one will just be better overall

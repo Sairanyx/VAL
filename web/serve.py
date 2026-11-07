@@ -16,11 +16,14 @@ import functools
 import http.server
 import ssl
 import subprocess
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 WEB = Path(__file__).resolve().parent
 ROOT = WEB.parent
 CERT_DIR = WEB / ".cert"  # not in git
+API = "http://127.0.0.1:8001"
 
 
 def tls_context() -> ssl.SSLContext:
@@ -47,11 +50,48 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         route = path.split("?", 1)[0]
         if route in self.routes:
             return str(self.routes[route])
+        pieces = self.routes.get("/pieces/")
+        if pieces and route.startswith("/pieces/"):
+            return str(pieces / Path(route).name)
         return super().translate_path(path)
 
     def end_headers(self) -> None:
         self.send_header("Cache-Control", "no-cache")
         super().end_headers()
+
+    def forward_to_api(self) -> None:
+        """Pass /api to the backend, so a tablet needs one address, and HTTPS pages can reach it."""
+        length = int(self.headers.get("Content-Length") or 0)
+        request = urllib.request.Request(
+            API + self.path,
+            data=self.rfile.read(length) if length else None,
+            headers={"Content-Type": self.headers.get("Content-Type", "application/json")},
+            method=self.command,
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                status, body = response.status, response.read()
+        except urllib.error.HTTPError as error:
+            status, body = error.code, error.read()
+        except urllib.error.URLError:
+            status, body = 502, b'{"detail": "The backend isn\'t running: start it with make api"}'
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_GET(self) -> None:
+        if self.path.startswith("/api/"):
+            self.forward_to_api()
+        else:
+            super().do_GET()
+
+    def do_POST(self) -> None:
+        if self.path.startswith("/api/"):
+            self.forward_to_api()
+        else:
+            self.send_error(404)
 
 
 def main() -> None:
@@ -59,6 +99,7 @@ def main() -> None:
     p.add_argument("--scene", type=Path, required=True, help="splat .ply to show")
     p.add_argument("--assets", type=Path, default=ROOT / "fixtures/sample_assets.json")
     p.add_argument("--shapes", type=Path, help="fitted shapes for the objects view")
+    p.add_argument("--pieces", type=Path, help="folder from app.scene.split_movable")
     p.add_argument("--host", default="0.0.0.0")
     p.add_argument("--port", type=int, default=8000)
     p.add_argument("--https", action="store_true", help="serve HTTPS, needed for phone sensors")
@@ -73,6 +114,9 @@ def main() -> None:
         if not args.shapes.is_file():
             p.error(f"not found: {args.shapes}")
         routes["/shapes.json"] = args.shapes.resolve()
+    if args.pieces:
+        routes["/pieces.json"] = (args.pieces / "pieces.json").resolve()
+        routes["/pieces/"] = (args.pieces / "pieces").resolve()
     handler = functools.partial(Handler, routes=routes)
     with http.server.ThreadingHTTPServer((args.host, args.port), handler) as srv:
         scheme = "https" if args.https else "http"

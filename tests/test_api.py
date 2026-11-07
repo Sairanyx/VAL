@@ -4,6 +4,7 @@ import pytest
 
 pytest.importorskip("fastapi")
 pytest.importorskip("httpx")
+pytest.importorskip("psycopg")
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -194,3 +195,68 @@ def test_copilot_uses_scene_and_clears_old_focus(tmp_path):
 
 def test_home_redirects_to_docs(client):
     assert client.get("/", follow_redirects=False).headers["location"] == "/docs"
+
+
+class FakeDatabase:
+    """Stands in for TimescaleDB, keeping changes between app starts."""
+
+    def __init__(self):
+        self.changes = []
+        self.down = False
+
+    def save_change(self, scene_id, change):
+        if self.down:
+            return False
+        self.changes.append(change)
+        return True
+
+    def ping(self):
+        return not self.down
+
+    def load_changes(self, scene_id):
+        return list(self.changes)
+
+    def clear_changes(self, scene_id):
+        self.changes = []
+
+    def telemetry(self, asset_id, limit=20):
+        return []
+
+
+def test_changes_survive_restart_and_reset_clears_them(tmp_path):
+    path = tmp_path / "assets.json"
+    path.write_text(json.dumps({"scene_id": "t", "assets": [box("near", [1, 1, 0], "movable")]}))
+    database = FakeDatabase()
+    client = TestClient(create_app(path, database=database))
+    change = {"op": "move", "object_id": "near", "position": [5, 1, 0]}
+    assert client.post("/api/changes", json=change).status_code == 200
+    restarted = TestClient(create_app(path, database=database))
+    assert restarted.get("/api/assets/near").json()["center"] == [5, 1, 0]
+    assert restarted.post("/api/changes/reset").status_code == 200
+    again = TestClient(create_app(path, database=database))
+    assert again.get("/api/assets/near").json()["center"] == [1, 1, 0]
+
+
+def test_health_says_what_is_connected(client):
+    assert client.get("/api/health").json()["objects"] == 2
+
+
+def test_changes_made_while_database_is_down_save_later(tmp_path):
+    path = tmp_path / "assets.json"
+    assets = [box("a", [1, 1, 0], "movable"), box("b", [3, 1, 0], "movable")]
+    path.write_text(json.dumps({"scene_id": "t", "assets": assets}))
+    database = FakeDatabase()
+    client = TestClient(create_app(path, database=database))
+    database.down = True
+    first = {"op": "move", "object_id": "a", "position": [5, 1, 0]}
+    reply = client.post("/api/changes", json=first)
+    assert reply.status_code == 200
+    assert reply.json()["saved"] is False
+    assert client.get("/api/assets/a").json()["center"] == [5, 1, 0]
+    health = client.get("/api/health").json()
+    assert health["database"] is False
+    assert health["unsaved_changes"] == 1
+    database.down = False
+    second = {"op": "move", "object_id": "b", "position": [6, 1, 0]}
+    assert client.post("/api/changes", json=second).json()["saved"] is True
+    assert [c["object_id"] for c in database.changes] == ["a", "b"]

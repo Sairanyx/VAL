@@ -8,7 +8,7 @@ SCENE_ASSETS=path/to/assets.json make api     # real objects
 
 import os
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,9 +16,19 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from app.api.copilot_link import ask, condition, details, load_engine
+from app.api.db import open_database
+from app.api.select_object import (
+    NothingSelected,
+    already_known,
+    crop_selection,
+    pick_object,
+    suggest_config,
+)
 from app.api.store import ChangeError, SceneStore
+from app.copilot.llm import load_writer
 from app.nav.grid import NavGrid, load_grid
 from app.nav.route import BODIES, NoRoute, placeholder_route, plan_route
+from app.scene.load import Splats, read_splats
 
 DEFAULT_ASSETS = Path("fixtures/sample_assets.json")
 UNCONFIRMED_NEW = "new, unconfirmed"
@@ -35,6 +45,14 @@ class ChangeRequest(BaseModel):
     op: Literal["add", "move", "remove"]
     object_id: str | None = None
     position: Position | None = None
+    details: dict[str, Any] | None = None
+
+
+class SelectionRequest(BaseModel):
+    origin: Position
+    corners: Annotated[list[Position], Field(min_length=4, max_length=4)]
+    rectangle: Annotated[list[float], Field(min_length=4, max_length=4)]
+    image: str | None = None
 
 
 class CopilotRequest(BaseModel):
@@ -56,9 +74,12 @@ def create_app(
     assets_path: Path | str | None = None,
     grid: NavGrid | Path | str | None = None,
     engine=None,
+    database=None,
 ) -> FastAPI:
     engine = engine or load_engine()
-    store = SceneStore(Path(assets_path or os.getenv("SCENE_ASSETS", DEFAULT_ASSETS)))
+    writer = load_writer() if engine else None
+    database = database or open_database()
+    store = SceneStore(Path(assets_path or os.getenv("SCENE_ASSETS", DEFAULT_ASSETS)), database)
     grid = grid or os.getenv("SCENE_GRID")
     if isinstance(grid, str | Path):
         grid = load_grid(Path(grid))
@@ -81,6 +102,16 @@ def create_app(
     def home() -> RedirectResponse:
         return RedirectResponse("/docs")
 
+    @app.get("/api/health")
+    def health() -> dict:
+        return {
+            "database": database.ping() if database else False,
+            "unsaved_changes": len(store.unsaved),
+            "copilot": engine is not None,
+            "floor_map": grid is not None,
+            "objects": len(store.visible()),
+        }
+
     @app.get("/api/assets")
     def list_assets() -> dict:
         return {
@@ -94,7 +125,12 @@ def create_app(
     def get_asset(object_id: str) -> dict:
         asset = with_condition(require(object_id))
         if engine:
-            return {**asset, **details(asset, engine.store)}
+            found = {**asset, **details(asset, engine.store)}
+            asset_id = (asset.get("mapping") or {}).get("asset_id")
+            stored = database.telemetry(asset_id) if database and asset_id else None
+            if stored:
+                found["telemetry"] = stored
+            return found
         return {**asset, "telemetry": [], "events": [], "maintenance": [], "documents": []}
 
     @app.get("/api/nearby")
@@ -143,7 +179,7 @@ def create_app(
         if request.object_id:
             require(request.object_id)
         if engine:
-            answer = ask(engine, store.visible(), request.question, request.object_id)
+            answer = ask(engine, store.visible(), request.question, request.object_id, writer)
             return {**answer, "placeholder": False}
         return {
             "answer": "The copilot isn't connected yet.",
@@ -162,11 +198,41 @@ def create_app(
     @app.post("/api/changes")
     def change(request: ChangeRequest) -> dict:
         try:
-            return store.apply(request.op, request.object_id, request.position)
+            return store.apply(request.op, request.object_id, request.position, request.details)
         except KeyError:
             raise HTTPException(404, f"No object {request.object_id}") from None
         except ChangeError as error:
             raise HTTPException(409, str(error)) from None
+
+    scene_splats: list[Splats] = []
+
+    def splats_for_selection() -> Splats:
+        """Read the scene once, when first needed. It holds every splat's position."""
+        if not scene_splats:
+            path = os.getenv("SCENE_PLY")
+            if not path or not Path(path).exists():
+                raise HTTPException(503, "Selecting needs the scene: set SCENE_PLY to its file.")
+            scene_splats.append(read_splats(Path(path)))
+        return scene_splats[0]
+
+    @app.post("/api/objects/propose")
+    def propose(request: SelectionRequest) -> dict:
+        """Measure a selected object and suggest its settings. Nothing is saved until confirmed."""
+        splats = splats_for_selection()
+        floor_y = store.scene.get("floor_y", 0.0)
+        try:
+            box = pick_object(splats, request.origin, request.corners, floor_y)
+        except NothingSelected as reason:
+            raise HTTPException(422, str(reason)) from None
+        crop = None
+        if writer is not None and request.image:
+            crop = crop_selection(request.image, request.rectangle)
+        tags = [a["mapping"]["tag"] for a in store.visible() if (a.get("mapping") or {}).get("tag")]
+        return {
+            **box,
+            **suggest_config(writer, crop, tags),
+            "already_known": already_known(box, store.visible()),
+        }
 
     @app.post("/api/changes/reset")
     def reset() -> dict:

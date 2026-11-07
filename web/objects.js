@@ -2,6 +2,7 @@
 // Data: /shapes.json (from app/extract/primitives.py). Without it, the viewer just shows the scan.
 // Scene coordinates are used throughout, inside `root`, as in main.js.
 import * as THREE from "three";
+import { SplatMesh } from "@sparkjsdev/spark";
 
 const APART_SCALE = 0.45; // How far objects move away from the room's center in the pulled-apart view.
 const MIN_LIFT = 0.05;
@@ -22,6 +23,16 @@ export async function setupObjects({ root, scene, camera, canvas, splat, objects
     object.shape = mesh;
   }
 
+  // Objects cut out of the scan, so dragging one moves the real thing and not only its outline.
+  const pieces = [];
+  for (const id of await fetchPieces()) {
+    const object = byId.get(id);
+    if (!object) continue;
+    object.piece = new SplatMesh({ url: `pieces/${id}.ply` });
+    root.add(object.piece);
+    pieces.push(object.piece);
+  }
+
   const roomCenter = new THREE.Vector3();
   objects.forEach((o) => roomCenter.add(o.center));
   if (objects.length) roomCenter.divideScalar(objects.length);
@@ -32,6 +43,7 @@ export async function setupObjects({ root, scene, camera, canvas, splat, objects
 
   function applyView() {
     splat.visible = state.view !== "objects";
+    for (const piece of pieces) piece.visible = splat.visible;
     group.visible = state.view !== "scan";
     lights.visible = group.visible;
     for (const item of items) {
@@ -95,6 +107,7 @@ export async function setupObjects({ root, scene, camera, canvas, splat, objects
     object.box.position.add(delta);
     object.pick.position.add(delta);
     object.center.add(delta);
+    object.piece?.position.add(delta);
     if (item) {
       item.moved.add(delta);
       placeAll();
@@ -151,6 +164,7 @@ export async function setupObjects({ root, scene, camera, canvas, splat, objects
       object.box.position.add(delta);
       object.pick.position.add(delta);
       object.center.copy(home);
+      object.piece?.position.set(0, 0, 0);
       if (item) {
         item.moved.set(0, 0, 0);
         object.pick.position.copy(item.home);
@@ -163,6 +177,15 @@ export async function setupObjects({ root, scene, camera, canvas, splat, objects
 
   applyView();
   return { state, setView, setApart, update, startMove, resetMoves, shapeCount: items.length };
+}
+
+async function fetchPieces() {
+  try {
+    const response = await fetch("pieces.json");
+    return response.ok ? await response.json() : [];
+  } catch {
+    return [];
+  }
 }
 
 async function fetchShapes() {

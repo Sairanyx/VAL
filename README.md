@@ -19,6 +19,8 @@ Should end by printing your GPU name.
 ## Commands
 | Command | What it does |
 |---|---|
+| `make db` | Start local TimescaleDB and load the Excel telemetry |
+| `make nav-check` | Test floor map, routes, mapping and API together, with a picture |
 | `make train` | Train a model |
 | `make tb` | Training graphs at http://localhost:6006 |
 | `make fmt` | Tidy code style and auto-fix lint |
@@ -26,6 +28,8 @@ Should end by printing your GPU name.
 | `make entire` | Install and enable Entire |
 | `make views` | Download rendered views for the scene |
 | `make scene` | Download the demo scene, floor map, and objects |
+| `make model` | Download the copilot's language model (about 20 GB), before going offline |
+| `make scene-full` | Also download the full-quality scene (513 MB) |
 | `make up` | Train inside Docker |
 
 ## Team workflow

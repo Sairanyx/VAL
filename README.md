@@ -25,6 +25,7 @@ Should end by printing your GPU name.
 | `make check` | Lint and test: run before opening a PR |
 | `make entire` | Install and enable Entire |
 | `make views` | Download rendered views for the scene |
+| `make scene` | Download the demo scene, floor map, and objects |
 | `make up` | Train inside Docker |
 
 ## Team workflow

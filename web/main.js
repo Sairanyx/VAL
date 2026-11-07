@@ -286,6 +286,7 @@ function showInfo(obj) {
       ? "This is fixed, so it can't be moved."
       : "Not known to be movable, so moving is off.";
   $("route-here").hidden = !route;
+  $("open-dashboard").hidden = !m?.asset_id;
   $("split-object").hidden = !route || Boolean(m);
   $("combine-object").hidden = !route || Boolean(m);
   $("info-fix").hidden = $("split-object").hidden;
@@ -334,6 +335,25 @@ async function routeTo(obj) {
   return found;
 }
 $("route-here").onclick = () => selected && routeTo(selected);
+
+// The selected object's record as charts. Drawn by the backend, so it needs make api.
+$("open-dashboard").onclick = () => {
+  if (!selected) return;
+  const image = $("dashboard-image");
+  const id = encodeURIComponent(selected.asset.object_id);
+  $("dashboard-status").textContent = "Drawing the dashboard...";
+  image.hidden = true;
+  image.onload = () => {
+    $("dashboard-status").textContent = "";
+    image.hidden = false;
+  };
+  image.onerror = () => {
+    $("dashboard-status").textContent = "Couldn't draw the dashboard. Is make api running?";
+  };
+  image.src = `/api/assets/${id}/dashboard.png`;
+  $("dashboard").hidden = false;
+};
+$("dashboard-close").onclick = () => ($("dashboard").hidden = true);
 $("duplicate-object").onclick = () => selected && duplicateObject(selected);
 $("delete-object").onclick = askToDelete;
 $("forget-object").onclick = () => selected && forgetObject(selected);
@@ -653,7 +673,8 @@ async function duplicateObject(object) {
 
 // Esc, or the back button on a phone: one step back, the most recent thing first.
 function goBack() {
-  if (!$("more-menu").hidden) showMenu(false);
+  if (!$("dashboard").hidden) $("dashboard").hidden = true;
+  else if (!$("more-menu").hidden) showMenu(false);
   else if (!$("rename-form").hidden) $("rename-form").hidden = true;
   else if (!$("delete-confirm").hidden) $("delete-confirm").hidden = true;
   else if (!$("add-panel").hidden || adder.state.active) $("add-cancel").click();

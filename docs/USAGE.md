@@ -126,7 +126,7 @@ Tap an object to find both buttons.
 - **Name it** names any object with no record link, in labels, Plan, BIM mode and the IFC. A name can't be
   a record's tag, such as `P-005`, because it would look like that device.
 - **Delete** asks first, then removes the object from the scan, the routes, BIM mode and the exports.
-  **Undo changes** brings it back. It hides the object's whole box, so a neighbour inside it goes too.
+  It hides a few small boxes around the object's own splats, so most neighbours stay. Undo brings it back.
 
 ## Go back
 Esc, or the back button on a phone, goes back one step: it closes **More**, cancels a question or a selection
@@ -173,6 +173,11 @@ Val answers from the plant's records straight away. With a language model runnin
 "In plain words" when it's ready, about 10 seconds on a ThinkPad, and only if code's checks pass. **How Val
 knows** shows what's recorded, possible causes, confidence and how it was worded. Val says when it has no
 records on something, doesn't guess which device an unlinked object is, and refuses to operate equipment.
+
+## Frame colours
+Frames are coloured by type, the same as BIM mode: pumps amber, tanks green, valves purple, pipes blue, cables
+yellow, cabinets teal, chairs and shelves pink, anything else grey, and the faulty device red. **More** has the
+full list under **Frame colours**.
 
 ## Other controls
 The main buttons are **Go to P-005**, **Plan**, **Ask Val** and **More**, with **Walk route** and **Clear route**
@@ -241,7 +246,7 @@ The open viewer runs it within about half a second. `GET /api/viewer/commands/ID
 splitting, and combining only start from a command, because a person draws or taps the rest.
 
 ## Val's voice
-Val reads its answer aloud with the device's own voice. **Voice on** turns this off. A device with
+Val reads its answer aloud with the device's own voice. It's off until you press **Voice off**. A device with
 no voice installed stays silent. Speaking to it isn't built yet: browser speech recognition usually needs
 internet, so offline needs a local model such as Whisper.
 

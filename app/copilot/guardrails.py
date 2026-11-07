@@ -14,14 +14,24 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+# Asking what a word means isn't asking anyone to do it.
+ONLY_ASKING_MEANING = (
+    r"^(?:what\s+does\s+.+\s+mean|what\s+do\s+you\s+mean\s+by\s+.+|what\s+is\s+(?:a\s+|an\s+|the\s+)?\w+"
+    r"|what's\s+(?:a\s+|an\s+|the\s+)?\w+|define\s+.+|meaning\s+of\s+.+)\s*\??$"
+)
 AUTONOMOUS_CONTROL_PATTERNS = [
+    r"\b(?:start|stop|restart|shut|turn|switch)\s+(?:it|this|that|them)\b",
     r"\b(?:turn|switch)\s+(?:on|off)\b",
     r"\b(?:start|stop|restart|shutdown|shut\s+down)(?:ing|s|ped)?\s+(?:the\s+)?(?:[a-z0-9_\-]+\s+)?(?:pump|motor|valve|equipment|machine|compressor)\b",
     r"\b(?:start|stop|restart|shutdown|shut\s+down)(?:ing|s|ped)?\s+(?:the\s+)?[a-z]+-\d+\b",
     r"\b(?:open|close)\s+(?:the\s+)?(?:[a-z0-9_\-]+\s+)?valve\b",
     r"\b(?:increase|decrease|change|set)\s+(?:the\s+)?(?:[a-z0-9_\-]+\s+)?(?:pressure|speed|flow|setpoint|power|rpm)\b",
     r"\b(?:overrid(?:e|es|ing)|bypass(?:es|ing|ed)?|disabl(?:e|es|ing)|clear(?:s|ing)?|acknowledg(?:e|es|ing)|reset(?:s|ting)?)\s+(?:the\s+|an?\s+)?(?:[a-z0-9_\-]+\s+)?(?:alarm|interlock|safety|trip)s?\b",
-    r"\b(?:actuate|pressurize|depressurize|drain|flush)\b",
+    r"\b(?:actuate|pressurize|depressurize)\b",
+    r"\b(?:drain|flush|vent|purge)\s+(?:the\s+|this\s+|that\s+|it\b|[a-z]{1,3}-\d+|[a-z]+\s+(?:line|tank|pump))",
+    r"\b(?:shut\s*down|power\s+(?:off|down|up|on)|reboot|isolate)\b(?!\s+(?:mean|means)\b)",
+    r"\b(?:open|close|start|stop|restart)\s+(?:the\s+)?[a-z]{1,3}-\d+",
+    r"\b(?:reset|silence|mute)\s+(?:the\s+|this\s+|that\s+)?(?:[a-z0-9_\-]+\s+)?(?:alarm|interlock|trip|fault)",
     r"\bexecute\s+(?:remote\s+)?control\b",
 ]
 
@@ -54,6 +64,8 @@ def check_safety(user_prompt: str) -> SafetyCheckResult:
     rather than autonomous physical action.
     """
     prompt_lower = user_prompt.lower().strip()
+    if re.match(ONLY_ASKING_MEANING, prompt_lower):
+        return SafetyCheckResult(passed=True)
     for pattern in AUTONOMOUS_CONTROL_PATTERNS:
         match = re.search(pattern, prompt_lower)
         if match:

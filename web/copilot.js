@@ -50,7 +50,7 @@ export function setupCopilot({
   getFaultTag,
   onActions,
 }) {
-  let speaking = true;
+  let speaking = false;
   let waiting = false;
   speakButton.onclick = () => {
     speaking = !speaking;

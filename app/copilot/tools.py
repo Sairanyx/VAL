@@ -269,24 +269,26 @@ COMMON_WORDS = {
     "who", "why", "how", "this", "that", "these", "those", "with", "from", "have", "has", "had",
     "can", "could", "should", "would", "will", "does", "did", "not", "any", "all", "about", "there",
     "here", "its", "it's", "what's", "tell", "show", "give", "need", "want", "please", "thanks",
+    "mean", "means", "meaning", "like", "know", "think", "get", "got", "one", "some", "much",
+    "many",
 }  # fmt: skip
 
 
 def search_docs(
-    store: DataStore, query: str = "", scope: str | None = None
+    store: DataStore, query: str = "", scope: str | None = None, min_share: float = 0.0
 ) -> list[dict[str, Any]]:
-    """Search knowledge and guidance documents."""
+    """Search knowledge and guidance documents. `min_share` of the words must be found."""
     docs = store.list_docs(scope=scope)
     if not query.strip():
         return [asdict(d) for d in docs]
-    # Whole words only, or "hi" would match "this", and common words would match every document.
+    # Whole words only: "hi" mustn't match "this", and common words would match every document.
     q_words = [w for w in re.findall(r"[a-z0-9-]{3,}", query.lower()) if w not in COMMON_WORDS]
 
     scored = []
     for d in docs:
         words = set(re.findall(r"[a-z0-9-]+", (d.title + " " + d.content).lower()))
         score = sum(1 for w in q_words if w in words)
-        if score > 0:
+        if score > 0 and score >= min_share * len(q_words):
             scored.append((score, d))
     scored.sort(key=lambda s: s[0], reverse=True)
     return [asdict(s[1]) for s in scored]

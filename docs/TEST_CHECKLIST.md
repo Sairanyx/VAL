@@ -266,7 +266,7 @@ Entering never affects the Valmet entry.
 
 ## Bugs
 Write them like this: `- [ ] Section: what you did, what happened, who's fixing it`
-- [ ] Undo: a route check failed once, showing 4.69 m. Looks like test timing, not confirmed. Viktor
-- [ ] Delete: hides the object's whole box, including neighbours. Viktor
+- [ ] Undo: a route check failed once, showing 4.69 m. Passed in every run since. Looks like test timing, not proven. Viktor
+- [ ] Delete: hides a few small boxes around the object's own splats, so far fewer neighbours go (21% fewer other splats hidden overall). Objects made in the viewer still use their whole box. Viktor
 - [ ] Move: a moved object's old spot can stay blocked. Eduard
-- [ ] Load time didn't improve. Viktor
+- [ ] Load time: 6.5 s with the light scene against 10.5 s with the full one, on the laptop with no backend. The full scene is no faster. Viktor

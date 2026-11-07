@@ -6,6 +6,7 @@ import { SparkControls, SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
 import { setupAddObject } from "./addobject.js";
 import { setupBim } from "./bim.js";
 import { setupCommands } from "./commands.js";
+import { FAULT_COLOR, LEGEND, colorForLabel } from "./colors.js";
 import { setupCopilot } from "./copilot.js";
 import { setupHighlight } from "./highlight.js";
 import { createHoverShell } from "./hover.js";
@@ -160,7 +161,6 @@ function kind(asset) {
   if (asset.mapping?.tag === faultTag) return "fault";
   return asset.mapping ? "mapped" : "plain";
 }
-const COLORS = { fault: 0xff4d4f, mapped: 0x38bdf8, plain: 0xd1d5db };
 
 // Links made by rule aren't real identities, so they're shown as a question.
 // A link made by rule or by eye is a guess, so it reads as a question.
@@ -183,7 +183,10 @@ function addAsset(asset) {
   // hide lines behind them: a frame's own back edges, and any frame further away.
   const box = new THREE.LineSegments(
     new THREE.EdgesGeometry(geom),
-    new THREE.LineBasicMaterial({ color: COLORS[kind(asset)], transparent: true }),
+    new THREE.LineBasicMaterial({
+      color: kind(asset) === "fault" ? FAULT_COLOR : colorForLabel(asset.label),
+      transparent: true,
+    }),
   );
   box.renderOrder = FRAME_ORDER + 1;
   box.position.copy(mid);
@@ -400,6 +403,14 @@ $("ask").onclick = () => {
   const linked = selected?.asset.mapping;
   copilot.open(linked ? "What's wrong with it, and what should I check first?" : "What is this?");
 };
+
+for (const [text, color] of LEGEND) {
+  const item = document.createElement("span");
+  const swatch = document.createElement("i");
+  swatch.style.background = `#${color.toString(16).padStart(6, "0")}`;
+  item.append(swatch, text);
+  $("frame-legend").append(item);
+}
 
 // The main buttons stay few. Everything else waits behind More.
 function showMenu(open) {
@@ -952,6 +963,7 @@ function chooseLabels() {
   const nearby = [];
   for (const o of objects) {
     if (o.gone) continue;
+    if (bim?.state.active && !bim.shows(o)) continue;
     pos.copy(o.center).applyMatrix4(root.matrixWorld);
     const dist = camera.position.distanceTo(pos);
     if (dist > range) continue;
@@ -1341,8 +1353,10 @@ async function load() {
     objects,
     floorY: data.floor_y ?? 0,
     onChange: (changes) => {
-      $("status").textContent = `${changes.length} object(s) moved`;
-      if (!changes.length) removeAdded();
+      if (!changes.length) {
+        $("status").textContent = "Everything's back as scanned.";
+        removeAdded();
+      }
       route.syncChanges(changes);
     },
     checkMove,

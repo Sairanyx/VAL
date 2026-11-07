@@ -94,8 +94,36 @@ INTRO = (
 )
 GREETING = "Hi, I'm Val. Tap a device and ask me about it, or ask what needs attention."
 THANKS = "You're welcome. Ask me if you need anything else."
-GREETING_WORDS = r"(hi|hello|hey|moi|hei|good (morning|afternoon|evening))( val)?"
-THANKS_WORDS = r"(thanks|thank you|thx|kiitos|ok|okay|great|cool)( val)?"
+GREETING_WORDS = r"(hi|hello|hey|moi|hei|good (morning|afternoon|evening))( there)?( val)?"
+THANKS_WORDS = (
+    r"((ok|okay|great|cool|nice|perfect|got it|good)[ ,]*)?"
+    r"(thanks|thank you|thx|kiitos|ok|okay|great|cool|nice|perfect|got it)?"
+    r"( so much| a lot)?( val)?"
+)
+BYE_WORDS = r"(bye|goodbye|see you|see ya)( val)?"
+HOW_ARE_YOU = ("how are you", "how's it going", "hows it going")
+DIAGNOSIS_WORDS = (
+    "wrong", "status", "state", "condition", "health", "issue", "problem", "fault", "flag", "why",
+    "explain", "how is", "how's", "fail", "broken", "happening", "diagnos", "tell me more", "okay",
+    "working", "running", "fine", "alarm", "signature", "foul", "cause",
+)  # fmt: skip
+MADE_UP_WORDS = ("ignore your", "ignore all", "ignore previous", "invent", "make up", "pretend",
+                 "forget your", "disregard", "guess a", "fake")  # fmt: skip
+CONFIDENCE_WORDS = ("how confident", "how sure", "confidence", "could this be wrong",
+                    "could it be wrong", "what could make this wrong")  # fmt: skip
+HISTORY_WORDS = ("happened before", "seen this before", "similar", "past case", "previous case",
+                 "history of this")  # fmt: skip
+METRICS = {
+    "vibration": ("vibration_rms_mm_s", "Vibration", " mm/s"),
+    "temperature": ("temperature_c", "Temperature", " °C"),
+    "temp": ("temperature_c", "Temperature", " °C"),
+    "pressure": ("process_pressure_bar", "Pressure", " bar"),
+    "flow": ("process_flow_pct", "Flow", "%"),
+    "current": ("current_a", "Motor current", " A"),
+}
+MEASUREMENT_WORDS = ("measurement", "reading", "telemetry", "sensor", "getting worse",
+                     "getting better", "trend", "changed recently")  # fmt: skip
+TRENDS = {"decreasing": "falling", "increasing": "rising", "stable": "steady"}
 ABOUT_VAL = (
     "who are you",
     "what are you",
@@ -108,6 +136,11 @@ ABOUT_VAL = (
 OVERVIEW_PHRASES = (
     "needs attention",
     "need attention",
+    "anything urgent",
+    "everything ok",
+    "everything fine",
+    "do first",
+    "start with",
     "most urgent",
     "what's urgent",
     "what is urgent",
@@ -130,6 +163,32 @@ NOT_IN_RECORDS = {
     "budget": "costs",
     "supplier": "suppliers",
     "warranty": "warranties",
+    "parts": "spare parts",
+    "who do i call": "contacts",
+    "phone number": "contacts",
+    "contact": "contacts",
+}
+NEXT_STEP_WORDS = ("how do i fix", "how to repair", "what do i do", "what should i do")
+SAFE_TO_WORK_WORDS = ("dangerous", "is it safe", "safe to", "can i touch", "can i work on")
+DOCUMENT_WORDS = ("manual", "document", "procedure", "guidance", "instructions")
+EQUIPMENT_WORDS = {
+    "pump": "PROCESS_PUMP",
+    "valve": "CONTROL_VALVE",
+    "motor": "MOTOR",
+    "sensor": "SENSOR",
+    "transmitter": "SENSOR",
+}
+PLACE_ANY_WORDS = {
+    "there",
+    "it",
+    "this",
+    "that",
+    "here",
+    "fault",
+    "faulty",
+    "broken",
+    "worst",
+    "one",
 }
 URGENCY_ORDER = {"high": 0, "medium": 1, "low": 2}
 
@@ -191,8 +250,9 @@ class CopilotEngine:
         if not safety_check.passed:
             return CopilotResponse(
                 answer=(
-                    f"Refusal under DOC-FIELD-SAFETY: {safety_check.violation_reason}\n\n"
-                    f"Mandatory Procedure: {safety_check.recommended_action}"
+                    "I can't do that. I don't operate equipment, I only read the records and "
+                    "explain them. If it needs doing, follow lockout/tagout and the site's "
+                    "permits, and have qualified staff do it."
                 ),
                 observations=[
                     "User command attempted autonomous physical control of plant equipment."
@@ -210,9 +270,19 @@ class CopilotEngine:
         casual = self._casual_reply(question)
         if casual:
             return casual
+        if any(word in question.lower() for word in MADE_UP_WORDS):
+            return CopilotResponse(
+                answer=(
+                    "I can't make things up. I only tell you what the plant's records show, and "
+                    "if they don't cover something, I'll say so."
+                ),
+                citations=["DOC-RAG-GUIDE"],
+                confidence=1.0,
+            )
 
         # 3. Resolve target asset (from prompt or existing focus)
         target_tag = self._resolve_target_asset(question)
+        named_tag = target_tag
         if not target_tag and self.focused_asset_tag:
             # Check if query references "it", "this", "the pump", etc.
             if self._references_context(question):
@@ -226,14 +296,31 @@ class CopilotEngine:
         # 4. Route intent
         q_lower = question.lower()
 
-        if not target_tag and self._is_overview_intent(q_lower, question, object_id):
+        if not named_tag and self._is_overview_intent(q_lower, question, object_id):
             return self._handle_overview()
+        counted = re.search(r"how many (\w+?)s?\b", q_lower)
+        if counted and counted.group(1) in EQUIPMENT_WORDS and not named_tag:
+            return self._count(counted.group(1))
 
         # A selected object with no record must never turn into the fault or the last device.
-        if not target_tag and object_id and object_id not in self.mapping:
+        if not named_tag and object_id and object_id not in self.mapping:
             if self._is_navigation_intent(q_lower):
                 return self._handle_navigation_to_object(object_id)
-            return self._describe_unlinked(object_id)
+            return self._describe_unlinked(object_id, q_lower)
+
+        unknown_place = self._unknown_place(q_lower) if not named_tag else None
+        if unknown_place:
+            return CopilotResponse(
+                answer=(
+                    f"I don't know where {unknown_place} is. I can only take you to equipment in "
+                    "this room, so tap a device or give me a tag like P-005."
+                ),
+                citations=["DOC-3D-MAPPING"],
+                confidence=1.0,
+            )
+        which = self._which_one(q_lower, named_tag, object_id)
+        if which:
+            return which
 
         missing = next((name for word, name in NOT_IN_RECORDS.items() if word in q_lower), None)
         if missing:
@@ -250,14 +337,52 @@ class CopilotEngine:
         # Intent C: Recommended Checks / Next Steps ("What should I check?", "Next steps")
         # "Why" needs the evidence as well as the check, and the diagnosis gives both.
         wants_reason = any(word in q_lower for word in ("why", "flagged", "what's wrong"))
+        about_this = bool(named_tag or object_id or self._references_context(question))
+        if self.focused_asset_tag or named_tag:
+            if about_this and any(word in q_lower for word in SAFE_TO_WORK_WORDS):
+                return self._handle_safe_to_work(target_tag or self.focused_asset_tag)
+            if about_this and any(word in q_lower for word in DOCUMENT_WORDS):
+                return self._handle_documents(target_tag or self.focused_asset_tag)
+        if (
+            any(word in q_lower for word in NEXT_STEP_WORDS)
+            and about_this
+            and self.focused_asset_tag
+        ):
+            return self._handle_next_steps(target_tag or self.focused_asset_tag)
         if self._is_next_steps_intent(q_lower) and not wants_reason:
             return self._handle_next_steps(target_tag or self.focused_asset_tag)
 
+        # Specific questions get specific answers, not the whole diagnosis.
+        device = target_tag or self.focused_asset_tag
+        pointed = about_this
+        if device and pointed:
+            if any(word in q_lower for word in CONFIDENCE_WORDS):
+                return self._handle_confidence(device)
+            if "urgen" in q_lower or "priority" in q_lower:
+                return self._handle_urgency(device)
+            if any(word in q_lower for word in HISTORY_WORDS):
+                return self._handle_history(device)
+            if "what is this" in q_lower or "what is it" in q_lower or "tell me about" in q_lower:
+                return self._handle_identity(device)
+        asked_metric = re.search(rf"\b({'|'.join(METRICS)})\b", q_lower)
+        if device and (asked_metric or any(word in q_lower for word in MEASUREMENT_WORDS)):
+            if pointed or asked_metric:
+                return self._handle_measurements(device, asked_metric, q_lower)
+
         # Intent D: Status / Condition / Diagnosis ("What's wrong?", "Condition", "Health")
-        # A question that points at no device mustn't get the last device's diagnosis.
-        about_device = object_id or self._references_context(question) or wants_reason
-        if target_tag or (self.focused_asset_tag and about_device):
-            return self._handle_diagnosis(target_tag or self.focused_asset_tag)
+        # A message that doesn't ask about a device's state mustn't get its diagnosis.
+        meaning = re.match(r"(what (is|does|are)|define|what's)\b", q_lower) and not pointed
+        meaning = meaning and not wants_reason
+        if (
+            device
+            and not meaning
+            and (
+                named_tag
+                or (pointed and any(word in q_lower for word in DIAGNOSIS_WORDS))
+                or (not pointed and wants_reason and not self._mentions_other_equipment(q_lower))
+            )
+        ):
+            return self._handle_diagnosis(device)
 
         # Intent E: General search or guidance
         return self._handle_general_query(question)
@@ -275,10 +400,16 @@ class CopilotEngine:
         """Answer greetings, thanks and questions about Val, none of which need records."""
         clean = question.strip().lower().rstrip("!.?, ")
         text = None
-        if re.fullmatch(GREETING_WORDS, clean):
+        if not clean:
+            text = "What would you like to know? Tap a device, or ask me what needs attention."
+        elif re.fullmatch(GREETING_WORDS, clean):
             text = GREETING
         elif re.fullmatch(THANKS_WORDS, clean):
             text = THANKS
+        elif re.fullmatch(BYE_WORDS, clean):
+            text = "See you. Stay safe out there."
+        elif any(phrase in clean for phrase in HOW_ARE_YOU):
+            text = "All good, thanks. What can I look up for you?"
         elif clean == "help" or any(phrase in clean for phrase in ABOUT_VAL):
             text = INTRO
         if text is None:
@@ -311,14 +442,15 @@ class CopilotEngine:
             )
         top = urgent[0]
         self.set_focus(top.tag)
+        issue = top.issue_summary[:1].lower() + top.issue_summary[1:]
         answer = (
-            f"{len(urgent)} devices are marked high urgency. Start with {top.tag}: health "
-            f"{top.health_score:.0f}/100, {top.issue_summary}. Recommended check: "
-            f"{top.recommended_next_check}."
+            f"{len(urgent)} devices are marked high urgency. I'd start with {top.tag}: its health "
+            f"is {top.health_score:.0f} out of 100, and the records point to {issue}. The first "
+            f"check is: {top.recommended_next_check}."
         )
-        others = ", ".join(f"{s.tag} ({s.health_score:.0f}/100)" for s in urgent[1:4])
+        others = ", ".join(f"{s.tag} ({s.health_score:.0f})" for s in urgent[1:4])
         if others:
-            answer += f" Also high urgency: {others}."
+            answer += f" After that, look at {others}."
         actions: list[dict[str, Any]] = []
         if self.focused_object_id:
             actions.append({"type": "highlight", "object_id": self.focused_object_id})
@@ -332,6 +464,228 @@ class CopilotEngine:
             confidence=top.model_confidence,
             actions=actions,
             focused_object_id=self.focused_object_id,
+        )
+
+    def _status_or_reply(self, tag: str) -> tuple[dict[str, Any] | None, CopilotResponse | None]:
+        status = get_status(tag, self.store, self.mapping)
+        if status:
+            self.set_focus(tag)
+            return status, None
+        reply = CopilotResponse(
+            answer=f"I don't have any current records for {tag}.",
+            citations=["DOC-RAG-GUIDE"],
+            confidence=0.5,
+        )
+        return None, reply
+
+    @staticmethod
+    def _state_words(condition: str) -> str:
+        return {
+            "attention_required": "needs attention",
+            "degraded": "is degraded",
+            "healthy": "looks healthy",
+        }.get(condition, f"is {condition.replace('_', ' ')}")
+
+    def _unknown_place(self, q_lower: str) -> str | None:
+        """Return a place the question asks for, if it isn't equipment Val knows of."""
+        found = re.search(r"(?:take me to|navigate to|route to|where is|where's)\s+(.+)", q_lower)
+        if not found:
+            return None
+        place = re.sub(r"[?.!]+$", "", found.group(1)).strip()
+        words = set(re.findall(r"[a-z]+", place)) - {"the", "a", "an", "my"}
+        known = PLACE_ANY_WORDS | set(EQUIPMENT_WORDS)
+        known |= {a.get("label", "") for a in self.sample_assets}
+        known |= {w for a in self.sample_assets for w in str(a.get("label", "")).split()}
+        if not words or words & known or words & {"pumps", "valves", "motors"}:
+            return None
+        return f"the {place}" if not place.startswith(("the ", "a ", "an ")) else place
+
+    def _mentions_other_equipment(self, q_lower: str) -> bool:
+        """Return whether a question names a kind of equipment that the current device isn't."""
+        current = self.store.get_asset(self.focused_asset_tag) if self.focused_asset_tag else None
+        kind = current.asset_class if current else ""
+        return any(word in q_lower and cls not in kind for word, cls in EQUIPMENT_WORDS.items())
+
+    def _which_one(
+        self, q_lower: str, named_tag: str | None, object_id: str | None
+    ) -> CopilotResponse | None:
+        """Ask which device, when a question names a kind of equipment and none is meant yet."""
+        if named_tag or object_id or self._is_navigation_intent(q_lower):
+            return None
+        for word in EQUIPMENT_WORDS:
+            if re.search(rf"\b(the|that|this) {word}\b", q_lower):
+                if not self.focused_asset_tag or self._mentions_other_equipment(q_lower):
+                    return CopilotResponse(
+                        answer=f"Which {word} do you mean? Tap it, or give me its tag.",
+                        citations=[],
+                        confidence=1.0,
+                    )
+        return None
+
+    def _count(self, word: str) -> CopilotResponse:
+        cls = EQUIPMENT_WORDS[word]
+        found = [a for a in self.store.list_assets() if cls in a.asset_class]
+        tags = ", ".join(a.tag for a in found[:8])
+        return CopilotResponse(
+            answer=f"The records list {len(found)} {word}s: {tags}.",
+            citations=[a.asset_id for a in found[:4]],
+            confidence=1.0,
+        )
+
+    def _handle_safe_to_work(self, tag: str) -> CopilotResponse:
+        """Never declare equipment safe. That's for the site's procedures and qualified staff."""
+        status, reply = self._status_or_reply(tag)
+        if reply:
+            return reply
+        return CopilotResponse(
+            answer=(
+                f"I can't tell you that it's safe. Only the site's procedures and qualified staff "
+                f"can. What I can say is that {tag} {self._state_words(status['condition_state'])}"
+                ". Get a permit and follow lockout/tagout before any work."
+            ),
+            citations=["DOC-FIELD-SAFETY", status["asset_id"]],
+            confidence=1.0,
+            focused_object_id=status.get("object_id"),
+        )
+
+    def _handle_documents(self, tag: str) -> CopilotResponse:
+        status, reply = self._status_or_reply(tag)
+        if reply:
+            return reply
+        docs = self.store.list_docs(scope=status["asset_class"])
+        if not docs:
+            return self._not_in_records("documents for this device")
+        titles = "; ".join(f"{d.title} ({d.doc_id})" for d in docs[:3])
+        return CopilotResponse(
+            answer=f"I don't have a manual, but this guidance covers {tag}: {titles}.",
+            citations=[d.doc_id for d in docs[:3]],
+            confidence=0.9,
+            focused_object_id=status.get("object_id"),
+        )
+
+    def _handle_confidence(self, tag: str) -> CopilotResponse:
+        """Say how sure the records are, and separately how sure the object's link is."""
+        status, reply = self._status_or_reply(tag)
+        if reply:
+            return reply
+        link = status.get("mapping_confidence")
+        answer = (
+            f"The records rate this finding on {tag} at {status['model_confidence']:.0%} "
+            "confidence."
+        )
+        if link is not None and link < 1.0:
+            answer += (
+                f" The weaker part is knowing this object really is {tag}: that link is only "
+                f"{link:.0%} certain, so check the nameplate."
+            )
+        issues = status.get("data_quality_issues") or []
+        if issues:
+            answer += f" There are also {len(issues)} data quality notes on its readings."
+        return CopilotResponse(
+            answer=answer,
+            observations=[f"Mapping: {status.get('mapping_method')}."],
+            citations=[status["asset_id"]],
+            confidence=status["model_confidence"],
+            focused_object_id=status.get("object_id"),
+        )
+
+    def _handle_urgency(self, tag: str) -> CopilotResponse:
+        status, reply = self._status_or_reply(tag)
+        if reply:
+            return reply
+        return CopilotResponse(
+            answer=(
+                f"{tag} is marked {status['urgency']} urgency, with its health at "
+                f"{status['health_score']:.0f} out of 100. Its criticality is listed as "
+                f"{status['criticality']}."
+            ),
+            citations=[status["asset_id"]],
+            confidence=status["model_confidence"],
+            focused_object_id=status.get("object_id"),
+        )
+
+    def _handle_history(self, tag: str) -> CopilotResponse:
+        status, reply = self._status_or_reply(tag)
+        if reply:
+            return reply
+        cases = search_service_cases(
+            self.store, asset_class=status["asset_class"], issue_code=status["issue_code"]
+        )
+        if not cases:
+            return CopilotResponse(
+                answer=f"I can't find a past case like this for {tag}'s type of equipment.",
+                citations=[status["asset_id"]],
+                confidence=0.8,
+                focused_object_id=status.get("object_id"),
+            )
+        first = cases[0]
+        return CopilotResponse(
+            answer=(
+                f"Yes, the records have {len(cases)} similar cases on this type of equipment. In "
+                f"{first['case_id']}, it was read as: {first['historical_interpretation']}. The "
+                f"next check then was: {first['recommended_next_check']}."
+            ),
+            observations=[f"{c['case_id']}: {c['historical_interpretation']}" for c in cases[:5]],
+            citations=[c["case_id"] for c in cases[:5]],
+            confidence=0.9,
+            focused_object_id=status.get("object_id"),
+        )
+
+    def _handle_identity(self, tag: str) -> CopilotResponse:
+        status, reply = self._status_or_reply(tag)
+        if reply:
+            return reply
+        kind = status["asset_class"].replace("_", " ").lower()
+        return CopilotResponse(
+            answer=(
+                f"This is {tag}, a {kind} in {status['area_name']}. Right now it "
+                f"{self._state_words(status['condition_state'])}, with its health at "
+                f"{status['health_score']:.0f} out of 100."
+            ),
+            citations=[status["asset_id"]],
+            confidence=status["model_confidence"],
+            focused_object_id=status.get("object_id"),
+        )
+
+    def _handle_measurements(
+        self, tag: str, asked: re.Match[str] | None, q_lower: str
+    ) -> CopilotResponse:
+        """Answer about what's measured, and say so when something isn't."""
+        status, reply = self._status_or_reply(tag)
+        if reply:
+            return reply
+        metrics = get_telemetry_summary(tag, self.store, limit=20).get("metrics", {})
+
+        def describe(key: str, nice: str, unit: str) -> str:
+            metric = metrics[key]
+            trend = TRENDS.get(metric["trend"], metric["trend"])
+            return (
+                f"{nice} is {metric['latest']}{unit} and {trend} over the last "
+                f"{metric['sample_count']} readings, between {metric['min_val']} and "
+                f"{metric['max_val']}."
+            )
+
+        known = {key: (nice, unit) for key, nice, unit in METRICS.values() if key in metrics}
+        parts = []
+        if asked:
+            key, nice, unit = METRICS[asked.group(1)]
+            if key not in metrics:
+                parts.append(f"I don't have {nice.lower()} readings for {tag}.")
+            else:
+                parts.append(describe(key, nice, unit))
+        if not asked or asked and METRICS[asked.group(1)][0] not in metrics:
+            moving = [k for k in known if metrics[k]["trend"] != "stable"] or list(known)
+            if moving:
+                lead = "Here's what is measured: " if asked else ""
+                parts.append(lead + " ".join(describe(k, *known[k]) for k in moving))
+            else:
+                parts.append(f"I don't have recent readings for {tag}.")
+        return CopilotResponse(
+            answer=" ".join(parts),
+            observations=metric_observations(metrics),
+            citations=[status["asset_id"]],
+            confidence=status["model_confidence"],
+            focused_object_id=status.get("object_id"),
         )
 
     def _scene_object(self, object_id: str) -> dict[str, Any]:
@@ -354,14 +708,21 @@ class CopilotEngine:
             mapping_status="not linked to a record",
         )
 
-    def _describe_unlinked(self, object_id: str) -> CopilotResponse:
+    def _describe_unlinked(self, object_id: str, q_lower: str = "") -> CopilotResponse:
         """Say what's known about an object with no record, without guessing its identity."""
         found = self._scene_object(object_id)
         label = found.get("label", "object")
         confidence = float(found.get("confidence") or 0.0)
         name = found.get("name")
         copied = found.get("copied_name")
-        if copied:
+        if "movable" in q_lower or "can i move" in q_lower or "move it" in q_lower:
+            mobility = found.get("mobility", "unsure")
+            words = {
+                "movable": "Yes, it's marked as movable. Press Move in its panel.",
+                "fixed": "No, it's marked as fixed.",
+            }.get(mobility, "I'm not sure. It isn't marked as movable or fixed.")
+            answer = words
+        elif copied:
             answer = (
                 f"This is {name}, a copy of {copied}, showing a {label}. It's a separate object "
                 f"with its own ID, and the records and history belong to {copied}, not this copy."
@@ -412,9 +773,8 @@ class CopilotEngine:
             if not self.store.resolve_asset_id(code):
                 return CopilotResponse(
                     answer=(
-                        f"Asset '{code}' was not found in the plant Asset Master. "
-                        "Under DOC-3D-MAPPING, I never invent identities or guess data for "
-                        "unmapped equipment."
+                        f"I can't find {code} in the plant's records, so I can't tell you "
+                        "anything about it. Could the tag be a different one?"
                     ),
                     observations=[f"Query tag '{code}' has no corresponding Asset_Master record."],
                     hypotheses=["Device does not exist or has not been commissioned/mapped."],
@@ -595,12 +955,21 @@ class CopilotEngine:
         cit_result = verify_citations(claimed_citations, evidence_ids)
 
         h_score = status["health_score"]
-        answer = (
-            f"{tag} ({asset_id}): {status['condition_state'].replace('_', ' ')}, health "
-            f"{h_score:.0f}/100. Signature: {status['issue_summary']}. "
-            f"Recommended safe check: {status['recommended_next_check']} ({doc_id}). "
-            "Follow the site's safety rules (DOC-FIELD-SAFETY)."
-        )
+        state = self._state_words(cond_str)
+        issue = status["issue_summary"]
+        issue = issue[:1].lower() + issue[1:]
+        check = status["recommended_next_check"]
+        if cond_str == "healthy":
+            answer = (
+                f"{tag} looks healthy. Its health is {h_score:.0f} out of 100 and nothing unusual "
+                f"stands out. The records just say: {check}."
+            )
+        else:
+            answer = (
+                f"{tag} {state}. Its health is {h_score:.0f} out of 100, and the records point to "
+                f"{issue}. I'd start with this check: {check}. Follow the site's safety rules "
+                "before touching anything."
+            )
 
         actions = [
             {"type": "highlight", "object_id": status.get("object_id"), "tag": tag},
@@ -659,9 +1028,9 @@ class CopilotEngine:
         cit_result = verify_citations(claimed_citations, evidence_ids)
 
         answer = (
-            f"{tag} was last serviced on {opened} under work order {wo_id}. "
-            f"Action performed: '{latest_wo['action']}' ({latest_wo['maintenance_type']}), "
-            f"with result recorded as '{latest_wo['result']}'."
+            f"{tag} was last serviced on {opened}, under work order {wo_id}. It was a "
+            f"{latest_wo['action']}, and the result was recorded as "
+            f"{latest_wo['result'].replace('_', ' ')}."
         )
 
         return CopilotResponse(
@@ -721,11 +1090,9 @@ class CopilotEngine:
         cit_result = verify_citations(claimed_citations, evidence_ids)
 
         answer = (
-            f"Recommended check for {tag}: {rec_check}. "
-            f"Per {primary_doc_id}, inspect multivariate parameters (vibration, bearing temp) "
-            "and verify locally. In accordance with safety guardrail DOC-FIELD-SAFETY, "
-            "obtain proper permits and follow Lockout/Tagout (LOTO) protocols "
-            "prior to opening inspection ports."
+            f"For {tag}, I'd start with this check: {rec_check}. The guidance also says to look "
+            "at several readings together and confirm it on site. Get the proper permits and "
+            "follow lockout/tagout before opening anything."
         )
 
         return CopilotResponse(
@@ -738,15 +1105,22 @@ class CopilotEngine:
             focused_asset=tag,
         )
 
+    @staticmethod
+    def _no_answer_opening(question: str) -> str:
+        if re.match(r"\s*(what (is|does|are)|what's|define)\b", question.lower()):
+            return "The plant's records don't cover that, so I won't guess."
+        return "I'm not sure what you mean."
+
     def _handle_general_query(self, question: str) -> CopilotResponse:
         """Handle general knowledge questions against Knowledge_Docs."""
-        docs = search_docs(self.store, query=question)
+        docs = search_docs(self.store, query=question, min_share=0.6)
         if docs:
             top_doc = docs[0]
             doc_id = top_doc["doc_id"]
-            preview = top_doc["content"][:200]
+            sentences = re.split(r"(?<=[.!?])\s+", top_doc["content"].strip())
+            preview = " ".join(sentences[:2])
             return CopilotResponse(
-                answer=f"According to {doc_id} ('{top_doc['title']}'): {preview}...",
+                answer=f"Here's what the guidance on {top_doc['title'].lower()} says: {preview}",
                 observations=[f"Matched guidance document {doc_id}."],
                 hypotheses=[],
                 citations=[doc_id, "DOC-RAG-GUIDE"],
@@ -756,8 +1130,8 @@ class CopilotEngine:
 
         return CopilotResponse(
             answer=(
-                "I couldn't find anything on that in the plant's records, so I won't guess. Try "
-                "asking what needs attention, or tap a device and ask what's wrong with it."
+                f"{self._no_answer_opening(question)} Try asking what needs attention, or tap a "
+                "device and ask what's wrong with it."
             ),
             observations=["No matching documents in Knowledge_Docs corpus."],
             hypotheses=[],

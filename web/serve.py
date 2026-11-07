@@ -73,13 +73,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         )
         try:
             with urllib.request.urlopen(request, timeout=30) as response:
-                status, body = response.status, response.read()
+                status, body, headers = response.status, response.read(), response.headers
         except urllib.error.HTTPError as error:
-            status, body = error.code, error.read()
+            status, body, headers = error.code, error.read(), error.headers
         except urllib.error.URLError:
-            status, body = 502, b'{"detail": "The backend isn\'t running: start it with make api"}'
+            status, headers = 502, {}
+            body = b'{"detail": "The backend isn\'t running: start it with make api"}'
         self.send_response(status)
-        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Type", headers.get("Content-Type", "application/json"))
+        if headers.get("Content-Disposition"):
+            self.send_header("Content-Disposition", headers["Content-Disposition"])
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -105,6 +108,7 @@ def main() -> None:
     p.add_argument("--light", type=Path, help="lighter copy of the scene for phones and tablets")
     p.add_argument("--pieces", type=Path, help="folder from app.scene.split_movable")
     p.add_argument("--highlights", type=Path, help="segmented coloured splats from make highlights")
+    p.add_argument("--bim", type=Path, help="folder from app.bim: bim.json and model.ifc")
     p.add_argument("--host", default="0.0.0.0")
     p.add_argument("--port", type=int, default=8000)
     p.add_argument("--https", action="store_true", help="serve HTTPS, needed for phone sensors")
@@ -131,6 +135,11 @@ def main() -> None:
             p.error(f"not found: {args.highlights / 'highlights.json'}; run make highlights")
         routes["/highlights.json"] = (args.highlights / "highlights.json").resolve()
         routes["/highlights/"] = args.highlights.resolve()
+    if args.bim:
+        for name in ("bim.json", "model.ifc"):
+            if not (args.bim / name).is_file():
+                p.error(f"not found: {args.bim / name}; run make bim")
+            routes[f"/{name}"] = (args.bim / name).resolve()
     handler = functools.partial(Handler, routes=routes)
     with http.server.ThreadingHTTPServer((args.host, args.port), handler) as srv:
         scheme = "https" if args.https else "http"

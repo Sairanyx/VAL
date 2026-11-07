@@ -148,15 +148,16 @@ export async function setupObjects({
   const yAxis = new THREE.Vector3(0, 1, 0);
 
   function applyView() {
-    splat.visible = state.view !== "objects";
+    const clean = state.view === "objects" || state.view === "bim";
+    splat.visible = !clean;
     for (const piece of pieces) piece.visible = splat.visible;
-    group.visible = state.view !== "scan";
-    lights.visible = group.visible;
+    group.visible = state.view === "both" || state.view === "objects";
+    lights.visible = state.view !== "scan";
     for (const item of items) {
       item.mesh.material.transparent = state.view === "both";
       item.mesh.material.opacity = state.view === "both" ? 0.75 : 1;
     }
-    scene.background = state.view === "objects" ? new THREE.Color(0x20242b) : null;
+    scene.background = clean ? new THREE.Color(0x20242b) : null;
   }
 
   function placeAll() {

@@ -5,11 +5,13 @@ import * as THREE from "three";
 import { SparkControls, SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
 import { setupAddObject } from "./addobject.js";
 import { setupCommands } from "./commands.js";
+import { setupBim } from "./bim.js";
 import { setupCopilot } from "./copilot.js";
 import { setupHighlight } from "./highlight.js";
 import { setupObjects } from "./objects.js";
 import { setupPhone } from "./phone.js";
 import { setupWalkXR, xrSupported } from "./xr.js";
+import { setupPlan } from "./plan.js";
 import { setupRoute } from "./route.js";
 
 let faultTag = "P-005"; // the pre-chosen faulty device, unless the scene's file names another
@@ -85,7 +87,9 @@ let walk = true;
 let eyeY = EYE_HEIGHT;
 let startPos = new THREE.Vector3(0, EYE_HEIGHT, 0);
 let objectLayer = null;
+let bim = null;
 let route = null;
+let plan = null;
 let selected = null;
 let boxesOn = true;
 let range = Number(params.get("range") ?? 3);
@@ -121,10 +125,13 @@ function kind(asset) {
 const COLORS = { fault: 0xff4d4f, mapped: 0x38bdf8, plain: 0xd1d5db };
 
 // Links made by rule aren't real identities, so they're shown as a question.
+// A link made by rule or by eye is a guess, so it reads as a question.
 function name(asset) {
   const link = asset.mapping;
   if (!link) return asset.label;
-  return link.method?.startsWith("procedural") ? `${link.tag}?` : link.tag;
+  const method = link.method ?? "";
+  const guess = method.startsWith("procedural") || method.includes("unconfirmed");
+  return guess ? `${link.tag}?` : link.tag;
 }
 
 function addAsset(asset) {
@@ -213,6 +220,7 @@ function showInfo(obj) {
     "</dl>";
   selected = obj;
   highlight.select(obj);
+  bim?.selectObject(obj);
   $("move-actions").hidden = a.mobility !== "movable" || !objectLayer;
   $("cant-move").hidden = a.mobility === "movable";
   $("cant-move").textContent =
@@ -487,6 +495,11 @@ canvas.addEventListener("pointerup", (e) => {
     (e.clientX / window.innerWidth) * 2 - 1,
     -(e.clientY / window.innerHeight) * 2 + 1,
   );
+  if (bim?.state.active && !adder.state.active) {
+    raycaster.setFromCamera(ndc, camera);
+    if (!bim.pick(raycaster)) $("info").hidden = true;
+    return;
+  }
   const obj = hit(ndc);
   if (obj && adder.state.combining && !adder.state.other) adder.combineWith(obj);
   else if (obj) {
@@ -568,7 +581,7 @@ function updateLabels() {
 
   nearby.sort((a, b) => a.rank - b.rank || a.dist - b.dist);
   const inView = nearby.filter((item) => item.onScreen);
-  if (boxesOn && !apart) {
+  if (boxesOn && !apart && !bim?.state.active) {
     for (const { o } of inView.slice(0, MAX_BOXES)) {
       if (!highlight.hasSurface(o)) o.box.visible = true;
     }
@@ -599,10 +612,12 @@ function animate(now) {
   const following = Boolean(route?.state.walking);
   const busy = objectLayer?.state.moving || adder.state.active || following;
   // While tracking, the device's own movement moves the camera, so the other controls stay out.
+  // Typing in the Plan screen's search box shouldn't walk the viewer around either.
   const tracked = tracking.state.active;
-  if (!phone.enabled && !busy && !tracked) controls.update(camera);
+  if (!phone.enabled && !busy && !tracked && !plan?.state.open) controls.update(camera);
   objectLayer?.update(dt);
   highlight.update();
+  bim?.update();
   if (following && !tracked) route.update(dt);
   else if (!tracked) phone.update(dt);
   route?.animate(dt);
@@ -621,9 +636,13 @@ function animate(now) {
   }
   $("follow").textContent = following ? "Stop" : "Walk route";
   if (walk && !tracked) camera.position.y = eyeY;
-  renderer.render(scene, camera);
-  tracking.update();
-  updateLabels();
+  if (plan?.state.open) {
+    plan.draw(); // The room is covered, so there's no need to draw it as well.
+  } else {
+    renderer.render(scene, camera);
+    tracking.update();
+    updateLabels();
+  }
   frames++;
   if (now - lastFps > 1000) {
     const fps = Math.round((frames * 1000) / (now - lastFps));
@@ -830,6 +849,31 @@ async function load() {
     },
   });
   $("go-fault").hidden = !objects.some((o) => kind(o.asset) === "fault");
+  plan = setupPlan({
+    ui: {
+      panel: $("plan"),
+      canvas: $("plan-canvas"),
+      search: $("plan-search"),
+      pipes: $("plan-pipes"),
+      legend: $("plan-legend"),
+      note: $("plan-note"),
+      dxf: $("plan-dxf"),
+    },
+    objects,
+    root,
+    camera,
+    route,
+    getFaultTag: () => faultTag,
+    getSelected: () => selected,
+    nameOf: (object) => name(object.asset),
+    onSelect: showInfo,
+  });
+  $("open-plan").onclick = () => plan.open();
+  $("plan-close").onclick = () => plan.close();
+  // These work in the 3D view, so the Plan screen makes way for them.
+  for (const id of ["move", "split-object", "combine-object"]) {
+    $(id).addEventListener("click", () => plan.close());
+  }
   $("profile").hidden = false;
   const views = ["scan", "both", "objects"];
   $("view-mode").onclick = () => {
@@ -845,6 +889,32 @@ async function load() {
     hideManipBar();
     objectLayer.resetMoves();
   };
+  bim = await setupBim({
+    root,
+    renderer,
+    objects,
+    faultTag,
+    floorY: data.floor_y ?? 0,
+    // Walls and the floor have no scan object, so only the BIM panel describes them.
+    onSelectObject: (object) => (object ? showInfo(object) : ($("info").hidden = true)),
+  }).catch((err) => {
+    console.error("BIM model failed to load", err);
+    return null;
+  });
+  let viewBeforeBim = "scan";
+  $("bim").hidden = !bim;
+  $("bim").onclick = () => {
+    const on = !bim.state.active;
+    if (on) viewBeforeBim = objectLayer.state.view;
+    objectLayer.setView(on ? "bim" : viewBeforeBim);
+    bim.setActive(on);
+    $("bim").textContent = on ? "Exit BIM" : "BIM";
+    $("view-mode").disabled = on;
+    $("apart").disabled = on;
+    $("status").textContent = on
+      ? `BIM model: ${bim.elementCount} elements, simulated from the scan`
+      : "Back to the scan";
+  };
   // Starting states from the URL, for screenshots and rehearsals.
   if (params.has("view")) {
     objectLayer.setView(params.get("view"));
@@ -856,7 +926,7 @@ async function load() {
   }
   await syncWithBackend();
   setupCommands(commandHandlers());
-  window.plantViewer = { objects, objectLayer, camera, route, copilot, showInfo, adder }; // For browser tests and debugging.
+  window.plantViewer = { objects, objectLayer, camera, route, copilot, showInfo, adder, bim, plan }; // For browser tests and debugging.
   if (params.has("camera")) {
     const [x, y, z, yaw, pitch] = params.get("camera").split(",").map(Number);
     camera.position.set(x, y, z);

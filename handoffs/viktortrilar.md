@@ -1,6 +1,6 @@
-# viktortrilar: viktor/move-any-object
-**Goal:** let operators correct objects: move safely, split, combine, and see frames clearly, working with the team's highlights and live routes
-**Done:** collision check, Split, Combine, frames that hide what's behind them. Fixed clashes with live routes and highlights: routes only follow the camera in walk mode, a refused drop re-plans, collision warnings aren't overwritten
-**Verified:** lint; 213 tests passed, 2 skipped. Full flow in a headless browser with pieces, highlights and live routes: refused drop, demo move 4.31 to 5.56 m, split, combine, reload, undo, no page errors. Slow software rendering, light scene. Not tested: 5090, tablet, real model in the browser panel
-**Next:** rehearse on the 5090. Build the precision sample from crops rendered on the 5090, as Roihu's masks are out of reach. A person confirms P-005 on obj-0049
-**Blockers:** Roihu closed until at least Monday (CSC security notice). Objects cut on demand take neighbours in their box along, and leave marks. Local branch viktor/viewer-objects holds an unused merge: don't merge it
+# viktortrilar: viktor/bim
+**Goal:** the bird's-eye floor layout Alpo asked for, a DXF export, and an IFC download that includes operator changes, on top of Sasha's BIM mode
+**Done:** app/plan/ (floor image, DXF), web/plan.js and the Plan button, /api/plan routes including live /api/plan/model.ifc. Walls now come from Sasha's `estimate_room`, and my own IFC export is gone. web/serve.py forwards file types and names. The button row wraps instead of sliding off narrow screens. Guessed links read `P-005?` everywhere
+**Verified:** 231 tests passed, 2 skipped, lint clean. Headless browser on real data: Plan, search, tap, move, real DXF and IFC downloads, no page errors. Read back: the DXF changed by exactly the cart's 4 lines, the IFC has 0 schema issues with the cart at its new spot. Not tested: a real BIM or CAD tool, 5090, tablet
+**Next:** PR #26 (Sasha's BIM mode plus fixes) needs merging first, then this PR. Then rehearse on the 5090
+**Blockers:** merging needs Viktor's word: the permission system refused my merge of #26. An agent is fixing routes that ignore moved objects on `viktor/route-keeps-moved-objects`, not finished. Roihu closed until at least Monday. Local branch viktor/viewer-objects holds an unused merge: don't merge it

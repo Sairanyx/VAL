@@ -2,7 +2,15 @@ import pytest
 
 np = pytest.importorskip("numpy")
 
-from app.extract.primitives import basis_from_up, fit_box, fit_circle, fit_cylinder, fit_object  # noqa: E402
+from app.extract.primitives import (  # noqa: E402
+    MIN_SCORE,
+    basis_from_up,
+    fit_box,
+    fit_circle,
+    fit_cylinder,
+    fit_object,
+    good_fit,
+)
 
 UP = np.array([0.0, -1.0, 0.0])
 
@@ -41,6 +49,18 @@ def surface_of_box(random, size, count=3000):
     signs = random.choice([-0.5, 0.5], count)
     points[np.arange(count), faces] = signs * np.array(size)[faces]
     return points
+
+
+def test_nearly_flat_arc_is_not_trusted_for_a_radius():
+    random = np.random.default_rng(3)
+
+    def arc(degrees):
+        angles = np.radians(random.uniform(0, degrees, 500))
+        return np.column_stack([np.cos(angles), random.uniform(-1.0, 0.0, 500), np.sin(angles)])
+
+    flat, round_enough = fit_cylinder(arc(50), UP), fit_cylinder(arc(120), UP)
+    assert flat["score"] >= MIN_SCORE and flat["flat_arc"] and not good_fit(flat)
+    assert not round_enough["flat_arc"] and good_fit(round_enough)
 
 
 def test_box_fit_recovers_a_turned_box():

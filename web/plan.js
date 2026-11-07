@@ -1,38 +1,32 @@
-// Bird's-eye floor layout: the room from above, with objects, the route, and where you are.
-// Generated from the scan, not surveyed, and it says so on screen.
+// Plan: a 2D blueprint of the room from above, with the walls, the equipment, the route, and where
+// you are. Generated from the scan, not surveyed, and it says so on screen.
+//
+// It's light on purpose. Walls and the room outline come from the BIM model (bim.json, built
+// offline), the walkable floor from /api/plan/walkable, and equipment from the objects as they stand
+// now. Nothing heavy is computed to open it, and it redraws at most about ten times a second.
 
 const PADDING = 16;
 const LABEL_HEIGHT = 16;
-const FAULT_COLOR = "#ff2d2d";
-const LINKED_COLOR = "#ffffff";
+const MARGIN_M = 0.5; // metres of paper around the room
+const FRAME_MS = 100;
+
+// Blueprint colours: paper, a faint 1 m grid, white lines.
+const PAPER = "#123a63";
+const GRID = "rgba(255, 255, 255, 0.07)";
+const WALKABLE = [0x1d, 0x52, 0x86]; // a lighter blue where a person can walk
+const WALL = "#f1f5f9";
+const LINE = "#cfe3f7";
+const LINKED = "#ffffff";
+const FAULT_COLOR = "#ff6b4a";
 const FOUND_COLOR = "#facc15";
-const ROUTE_COLOR = "#22d3ee";
-const OTHER_COLOR = "#9ca3af";
-// The same colours as BIM mode, so a type looks the same in both.
-const TYPE_COLORS = {
-  tank: "#22c55e",
-  pump: "#f59e0b",
-  valve: "#a855f7",
-  pipe: "#3b82f6",
-  hose: "#3b82f6",
-  "pipe fitting": "#93c5fd",
-  cable: "#eab308",
-  "electrical cabinet": "#14b8a6",
-  "light fixture": "#fde68a",
-  sensor: "#ec4899",
-  gauge: "#ec4899",
-  chair: "#b45309",
-  shelf: "#b45309",
-};
+const ROUTE_COLOR = "#38bdf8";
+const FAINT = "rgba(207, 227, 247, 0.45)";
 const LEGEND = [
   ["Faulty device", FAULT_COLOR],
-  ["Linked to a record", LINKED_COLOR],
-  ["Tank", TYPE_COLORS.tank],
-  ["Pump", TYPE_COLORS.pump],
-  ["Valve", TYPE_COLORS.valve],
-  ["Cabinet", TYPE_COLORS["electrical cabinet"]],
-  ["Furniture", TYPE_COLORS.chair],
-  ["Other", OTHER_COLOR],
+  ["Linked to a record", LINKED],
+  ["Other equipment", FAINT],
+  ["Walkable floor", `rgb(${WALKABLE.join(",")})`],
+  ["Route", ROUTE_COLOR],
 ];
 const HIDDEN_UNLESS_ASKED = new Set(["pipe", "pipe fitting", "cable", "hose", "light fixture"]);
 
@@ -48,8 +42,16 @@ export function setupPlan({
   onSelect,
 }) {
   const context = ui.canvas.getContext("2d");
-  const image = new Image();
-  const state = { open: false, ready: false, description: null, showPipes: false, found: new Set() };
+  const floor = document.createElement("canvas"); // the walkable mask, one pixel per cell
+  const state = {
+    open: false,
+    ready: false,
+    description: null, // { x_min, x_max, z_min, z_max, walls: [{ x0, x1, z0, z1 }] }
+    floor: null, // { x0, z0, x1, z1 } of the walkable mask, once loaded
+    showPipes: false,
+    found: new Set(),
+    lastDraw: 0,
+  };
 
   function fit() {
     const box = ui.canvas.getBoundingClientRect();
@@ -75,12 +77,6 @@ export function setupPlan({
   function toScreen(view, x, z) {
     const d = state.description;
     return [view.left + (x - d.x_min) * view.scale, view.top + (d.z_max - z) * view.scale];
-  }
-
-  function colorOf(object) {
-    if (object.asset.mapping?.tag === getFaultTag()) return FAULT_COLOR;
-    if (object.asset.mapping) return LINKED_COLOR;
-    return TYPE_COLORS[object.asset.label] ?? OTHER_COLOR;
   }
 
   function isHighlighted(object) {
@@ -133,10 +129,49 @@ export function setupPlan({
       const spot = free ?? (rank > 1 ? spots[0] : null);
       if (!spot) continue;
       placed.push({ x: spot[0], y: spot[1], width });
-      c.fillStyle = "rgba(15, 20, 25, 0.9)";
+      c.fillStyle = "rgba(18, 58, 99, 0.92)";
       c.fillRect(spot[0], spot[1], width, LABEL_HEIGHT);
       c.fillStyle = color;
       c.fillText(text, spot[0] + 4, spot[1] + 12);
+    }
+  }
+
+  function drawGrid(c, view) {
+    const d = state.description;
+    c.strokeStyle = GRID;
+    c.lineWidth = 1;
+    c.beginPath();
+    for (let x = Math.ceil(d.x_min); x <= d.x_max; x++) {
+      const [sx] = toScreen(view, x, d.z_max);
+      c.moveTo(sx, view.top);
+      c.lineTo(sx, view.top + (d.z_max - d.z_min) * view.scale);
+    }
+    for (let z = Math.ceil(d.z_min); z <= d.z_max; z++) {
+      const [, sy] = toScreen(view, d.x_min, z);
+      c.moveTo(view.left, sy);
+      c.lineTo(view.left + (d.x_max - d.x_min) * view.scale, sy);
+    }
+    c.stroke();
+  }
+
+  function drawFloor(c, view) {
+    const f = state.floor;
+    if (!f) return;
+    const [x, y] = toScreen(view, f.x0, f.z1);
+    c.imageSmoothingEnabled = true;
+    c.drawImage(floor, x, y, (f.x1 - f.x0) * view.scale, (f.z1 - f.z0) * view.scale);
+  }
+
+  function drawWalls(c, view) {
+    c.fillStyle = WALL;
+    for (const wall of state.description.walls) {
+      const [left, top] = toScreen(view, wall.x0, wall.z1);
+      c.fillRect(
+        left,
+        top,
+        Math.max((wall.x1 - wall.x0) * view.scale, 3),
+        Math.max((wall.z1 - wall.z0) * view.scale, 3),
+      );
     }
   }
 
@@ -145,16 +180,18 @@ export function setupPlan({
     if (!path?.length) return;
     c.beginPath();
     c.strokeStyle = ROUTE_COLOR;
-    c.lineWidth = 4;
+    c.lineWidth = 3;
+    c.setLineDash([8, 5]);
     path.forEach((point, index) => {
       const [x, y] = toScreen(view, point[0], point[2]);
       if (index) c.lineTo(x, y);
       else c.moveTo(x, y);
     });
     c.stroke();
+    c.setLineDash([]);
   }
 
-  // Where you are, and which way you face.
+  // Where you are, and which way you face: a dot with a wedge, as on a paper plan.
   function drawViewer(c, view) {
     const here = root.worldToLocal(camera.position.clone());
     const ahead = root.worldToLocal(
@@ -162,21 +199,20 @@ export function setupPlan({
     );
     const [x, y] = toScreen(view, here.x, here.z);
     const [aheadX, aheadY] = toScreen(view, ahead.x, ahead.z);
-    c.save();
-    c.translate(x, y);
-    c.rotate(Math.atan2(aheadY - y, aheadX - x));
+    const facing = Math.atan2(aheadY - y, aheadX - x);
     c.beginPath();
-    c.moveTo(14, 0);
-    c.lineTo(-8, -8);
-    c.lineTo(-4, 0);
-    c.lineTo(-8, 8);
+    c.moveTo(x, y);
+    c.arc(x, y, 30, facing - 0.45, facing + 0.45);
     c.closePath();
-    c.fillStyle = ROUTE_COLOR;
-    c.strokeStyle = "#0f1419";
-    c.lineWidth = 2;
+    c.fillStyle = "rgba(56, 189, 248, 0.3)";
     c.fill();
+    c.beginPath();
+    c.arc(x, y, 6, 0, 2 * Math.PI);
+    c.fillStyle = ROUTE_COLOR;
+    c.fill();
+    c.lineWidth = 2;
+    c.strokeStyle = "#ffffff";
     c.stroke();
-    c.restore();
   }
 
   // One metre, in the scan's own units, which haven't been checked on site.
@@ -184,59 +220,51 @@ export function setupPlan({
     const d = state.description;
     const x = view.left + 14;
     const y = view.top + (d.z_max - d.z_min) * view.scale - 12;
+    c.strokeStyle = WALL;
+    c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(x, y - 5);
+    c.lineTo(x, y);
+    c.lineTo(x + view.scale, y);
+    c.lineTo(x + view.scale, y - 5);
+    c.stroke();
     c.font = "12px system-ui, sans-serif";
     c.textAlign = "left";
-    c.fillStyle = "rgba(15, 20, 25, 0.9)";
-    c.fillRect(x - 8, y - 24, Math.max(view.scale + 16, 120), 32);
-    c.strokeStyle = "#f8fafc";
-    c.lineWidth = 3;
-    c.beginPath();
-    c.moveTo(x, y);
-    c.lineTo(x + view.scale, y);
-    c.stroke();
-    c.fillStyle = "#f8fafc";
+    c.fillStyle = WALL;
     c.fillText("1 m, scan's scale", x, y - 8);
   }
 
-  function draw() {
+  function draw(now = performance.now()) {
     if (!state.open || !state.ready) return;
+    if (now - state.lastDraw < FRAME_MS) return;
+    state.lastDraw = now;
     const view = fit();
     const c = context;
-    const d = state.description;
     c.setTransform(view.ratio, 0, 0, view.ratio, 0, 0);
-    c.clearRect(0, 0, view.width, view.height);
-    c.drawImage(
-      image,
-      view.left,
-      view.top,
-      (d.x_max - d.x_min) * view.scale,
-      (d.z_max - d.z_min) * view.scale,
-    );
-
-    c.strokeStyle = "#f8fafc";
-    c.lineWidth = 3;
-    for (const wall of d.walls) {
-      c.beginPath();
-      c.moveTo(...toScreen(view, ...wall.start));
-      c.lineTo(...toScreen(view, ...wall.end));
-      c.stroke();
-    }
+    c.fillStyle = PAPER;
+    c.fillRect(0, 0, view.width, view.height);
+    drawGrid(c, view);
+    drawFloor(c, view);
+    drawWalls(c, view);
 
     const labels = [];
     for (const object of objects) {
       if (!shown(object)) continue;
       const box = footprint(view, object);
-      const color = colorOf(object);
+      const fault = object.asset.mapping?.tag === getFaultTag();
       const highlighted = isHighlighted(object);
-      c.fillStyle = `${color}33`;
-      c.fillRect(box.left, box.top, box.width, box.height);
+      const color = fault ? FAULT_COLOR : object.asset.mapping ? LINKED : FAINT;
+      if (fault || highlighted) {
+        c.fillStyle = `${fault ? FAULT_COLOR : FOUND_COLOR}33`;
+        c.fillRect(box.left, box.top, box.width, box.height);
+      }
       c.strokeStyle = highlighted ? FOUND_COLOR : color;
-      c.lineWidth = highlighted || color === FAULT_COLOR ? 3 : 1.5;
-      c.setLineDash(object.asset.mobility === "movable" ? [5, 4] : []);
+      c.lineWidth = highlighted || fault ? 2.5 : object.asset.mapping ? 1.5 : 1;
+      c.setLineDash(object.asset.mobility === "movable" ? [4, 3] : []);
       c.strokeRect(box.left, box.top, box.width, box.height);
       if (object.asset.mapping || highlighted) {
-        const rank = highlighted ? 3 : color === FAULT_COLOR ? 2 : 1;
-        labels.push({ text: nameOf(object), box, color, rank });
+        const rank = highlighted ? 3 : fault ? 2 : 1;
+        labels.push({ text: nameOf(object), box, color: highlighted ? FOUND_COLOR : color, rank });
       }
     }
     c.setLineDash([]);
@@ -277,13 +305,13 @@ export function setupPlan({
   function search(text) {
     const wanted = text.trim().toLowerCase();
     state.found.clear();
+    state.lastDraw = 0;
     ui.note.textContent = "";
     if (!wanted) return;
     const here = objects.filter((object) => !object.gone);
     const byTag = here.filter(
       (object) =>
         (object.asset.mapping?.tag ?? "").toLowerCase().includes(wanted) ||
-        (object.asset.name ?? "").toLowerCase().includes(wanted) ||
         object.asset.object_id.toLowerCase() === wanted,
     );
     const byType = here.filter((object) => object.asset.label?.toLowerCase() === wanted);
@@ -297,6 +325,7 @@ export function setupPlan({
 
   ui.pipes.onclick = () => {
     state.showPipes = !state.showPipes;
+    state.lastDraw = 0;
     ui.pipes.textContent = state.showPipes ? "Hide pipes" : "Show pipes";
   };
 
@@ -313,24 +342,84 @@ export function setupPlan({
   dashed.append(sample, "Dashed: can move");
   ui.legend.append(dashed);
 
+  // The room and walls from the BIM model, built offline. Without it, the room is framed on the
+  // objects, with no walls drawn.
+  async function loadRoom() {
+    const model = await fetch("bim.json")
+      .then((response) => (response.ok ? response.json() : null))
+      .catch(() => null);
+    const faces = model?.room?.faces;
+    const walls = (model?.elements ?? [])
+      .filter((element) => element.ifc_class === "IfcWall" && element.geometry?.type === "box")
+      .map(({ geometry: { center, size } }) => ({
+        x0: center[0] - size[0] / 2,
+        x1: center[0] + size[0] / 2,
+        z0: center[2] - size[2] / 2,
+        z1: center[2] + size[2] / 2,
+      }));
+    let bounds;
+    if (faces) {
+      bounds = [faces.first_min, faces.first_max, faces.second_min, faces.second_max];
+    } else {
+      const xs = objects.map((o) => o.center.x);
+      const zs = objects.map((o) => o.center.z);
+      bounds = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)];
+    }
+    for (const wall of walls) {
+      bounds = [
+        Math.min(bounds[0], wall.x0),
+        Math.max(bounds[1], wall.x1),
+        Math.min(bounds[2], wall.z0),
+        Math.max(bounds[3], wall.z1),
+      ];
+    }
+    state.description = {
+      x_min: bounds[0] - MARGIN_M,
+      x_max: bounds[1] + MARGIN_M,
+      z_min: bounds[2] - MARGIN_M,
+      z_max: bounds[3] + MARGIN_M,
+      walls,
+    };
+  }
+
+  // Where a person can walk now, as lighter paper. Optional: the plan works without it.
+  async function loadFloor() {
+    const reply = await fetch("/api/plan/walkable")
+      .then((response) => (response.ok ? response.json() : null))
+      .catch(() => null);
+    if (!reply || reply.axes?.[0] !== 0 || reply.axes?.[1] !== 2) return;
+    const [rows, cols] = reply.shape; // rows run along x, columns along z
+    const bits = Uint8Array.from(atob(reply.mask), (ch) => ch.charCodeAt(0));
+    floor.width = rows;
+    floor.height = cols;
+    const c = floor.getContext("2d");
+    const pixels = c.createImageData(rows, cols);
+    for (let i = 0; i < rows; i++) {
+      for (let j = 0; j < cols; j++) {
+        const index = i * cols + j;
+        if (!((bits[index >> 3] >> (7 - (index & 7))) & 1)) continue;
+        const p = ((cols - 1 - j) * rows + i) * 4; // +z up the page
+        pixels.data.set([...WALKABLE, 255], p);
+      }
+    }
+    c.putImageData(pixels, 0, 0);
+    const [x0, z0] = reply.origin;
+    state.floor = { x0, z0, x1: x0 + rows * reply.cell, z1: z0 + cols * reply.cell };
+  }
+
   async function open() {
     state.open = true;
+    state.lastDraw = 0;
     ui.panel.hidden = false;
+    loadFloor().then(() => (state.lastDraw = 0)); // moved objects change it, so refresh each time
     if (state.ready) return;
-    ui.note.textContent = "Building the layout...";
-    try {
-      const response = await fetch("/api/plan");
-      const reply = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(reply.detail ?? `backend error ${response.status}`);
-      state.description = reply;
-      image.src = "/api/plan/floor.png";
-      await image.decode();
-      state.ready = true;
-      ui.dxf.hidden = false;
-      ui.note.textContent = "";
-    } catch (error) {
-      ui.note.textContent = `Couldn't build the layout: ${error.message}.`;
-    }
+    ui.note.textContent = "Drawing the plan...";
+    await loadRoom();
+    state.ready = true;
+    ui.dxf.hidden = false;
+    ui.note.textContent = state.description.walls.length
+      ? ""
+      : "No BIM model, so no walls: run make bim.";
   }
 
   function close() {

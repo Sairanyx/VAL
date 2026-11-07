@@ -458,3 +458,111 @@ def test_a_copy_has_its_own_id_and_the_operator_can_name_it(tmp_path):
     assert rename(copy_id, "p-005") == 409  # A record's tag would look like that device.
     assert rename(copy_id, "   ") == 409
     assert rename("pump", "Something else") == 409  # Its record names it.
+
+
+def test_undo_takes_back_only_the_latest_change(client):
+    first = {"op": "move", "object_id": "near", "position": [2, 1, 0]}
+    second = {"op": "move", "object_id": "near", "position": [3, 1, 0]}
+    client.post("/api/changes", json=first)
+    client.post("/api/changes", json=second)
+
+    undone = client.post("/api/changes/undo").json()
+    assert undone["undone"]["position"] == [3, 1, 0]
+    assert [c["position"] for c in undone["changes"]] == [[2, 1, 0]]
+    assert client.get("/api/assets/near").json()["center"] == [2, 1, 0]
+
+    client.post("/api/changes/undo")
+    assert client.get("/api/assets/near").json()["center"] == [1, 1, 0]
+    assert client.post("/api/changes/undo").status_code == 409
+
+
+def test_undo_brings_back_a_deleted_object(client):
+    client.post("/api/changes", json={"op": "remove", "object_id": "near"})
+    assert "near" not in [a["object_id"] for a in client.get("/api/assets").json()["assets"]]
+    client.post("/api/changes/undo")
+    assert "near" in [a["object_id"] for a in client.get("/api/assets").json()["assets"]]
+
+
+def test_removing_only_the_info_keeps_a_movable_object_in_the_way(tmp_path):
+    assets = [box("target", [5.5, -0.5, 1.0], "fixed"), box("bucket", [3.0, -0.5, 1.0], "movable")]
+    path = tmp_path / "assets.json"
+    path.write_text(json.dumps({"scene_id": "t", "assets": assets}))
+    client = TestClient(create_app(path, open_floor(tmp_path), database=FakeDatabase()))
+    request = {"start": [1.0, 0.0, 1.0], "object_id": "target"}
+    assert client.post("/api/route", json=request).status_code == 409  # the bucket blocks it
+
+    forget = {"op": "remove", "object_id": "bucket", "details": {"keep_splats": True}}
+    assert client.post("/api/changes", json=forget).status_code == 200
+    assert "bucket" not in [a["object_id"] for a in client.get("/api/assets").json()["assets"]]
+    assert client.post("/api/route", json=request).status_code == 409  # still in the scan
+
+    client.post("/api/changes/undo")
+    client.post("/api/changes", json={"op": "remove", "object_id": "bucket"})
+    assert client.post("/api/route", json=request).status_code == 200  # really gone
+
+
+def test_raising_an_object_moves_its_whole_box_up(client):
+    raised = {"op": "move", "object_id": "near", "position": [1, 0.5, 0]}  # +y is down: 0.5 m up
+    assert client.post("/api/changes", json=raised).status_code == 200
+    asset = client.get("/api/assets/near").json()
+    assert asset["center"] == [1, 0.5, 0]
+    assert asset["bbox_min"][1] == 0.0 and asset["bbox_max"][1] == 1.0
+
+
+def test_walkable_floor_follows_a_moved_object(tmp_path):
+    np = pytest.importorskip("numpy")
+    import base64
+
+    assets = [box("cart", [5.0, -0.5, 1.0], "movable")]
+    path = tmp_path / "assets.json"
+    path.write_text(json.dumps({"scene_id": "t", "assets": assets}))
+    client = TestClient(create_app(path, open_floor(tmp_path), database=FakeDatabase()))
+
+    def walkable():
+        body = client.get("/api/plan/walkable").json()
+        assert body["shape"] == [120, 40] and body["axes"] == [0, 2]
+        bits = np.frombuffer(base64.b64decode(body["mask"]), dtype=np.uint8)
+        return np.unpackbits(bits)[: 120 * 40].reshape(120, 40).astype(bool)
+
+    def at(mask, x, z):  # 5 cm cells from the origin (0, 0), x along rows, z along columns
+        return mask[int(x / 0.05), int(z / 0.05)]
+
+    before = walkable()
+    assert before.any() and not at(before, 5.0, 1.0)
+    client.post(
+        "/api/changes", json={"op": "move", "object_id": "cart", "position": [1.0, -0.5, 1.0]}
+    )
+    after = walkable()
+    assert at(after, 5.0, 1.0) and not at(after, 1.0, 1.0)
+
+
+def test_walkable_floor_needs_a_floor_map(client):
+    assert client.get("/api/plan/walkable").status_code == 404
+
+
+def corridor(tmp_path, assets):
+    path = tmp_path / "assets.json"
+    path.write_text(json.dumps({"scene_id": "t", "assets": assets}))
+    return TestClient(create_app(path, open_floor(tmp_path), database=FakeDatabase()))
+
+
+def test_a_copy_blocks_routes_even_when_its_source_is_fixed(tmp_path):
+    # Fixed objects block through the permanent map, which a copy isn't part of.
+    client = corridor(
+        tmp_path, [box("target", [5.5, -0.5, 1.0], "fixed"), box("pump", [0.7, -0.5, 1.0], "fixed")]
+    )
+    request = {"start": [1.5, 0.0, 1.0], "object_id": "target"}
+    assert client.post("/api/route", json=request).status_code == 200
+    copy = {"op": "duplicate", "object_id": "pump", "position": [3.0, -0.5, 1.0]}
+    assert client.post("/api/changes", json=copy).status_code == 200
+    assert client.post("/api/route", json=request).status_code == 409  # the copy fills the corridor
+
+
+def test_routes_stay_inside_the_floor_map(tmp_path):
+    client = corridor(tmp_path, [box("target", [5.5, -0.5, 1.0], "fixed")])
+    path = client.post("/api/route", json={"start": [1.0, 0.0, 1.0], "object_id": "target"}).json()
+    for x, _, z in path["path"]:
+        assert 0.0 <= x <= 6.0 and 0.0 <= z <= 2.0
+    # Starting far outside the room is refused, not routed through walls.
+    outside = {"start": [-5.0, 0.0, 1.0], "object_id": "target"}
+    assert client.post("/api/route", json=outside).status_code == 409

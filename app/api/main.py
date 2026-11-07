@@ -6,6 +6,7 @@ make api                                      # fixture, on http://localhost:800
 SCENE_ASSETS=path/to/assets.json make api     # real objects
 """
 
+import base64
 import hashlib
 import io
 import json
@@ -37,8 +38,14 @@ from app.api.store import GONE, ChangeError, SceneStore
 from app.bim.ifc import ifc_text
 from app.bim.model import build_model
 from app.copilot.llm import can_reword, load_writer, warm_up
-from app.nav.grid import NavGrid, load_grid
-from app.nav.route import BODIES, NoRoute, placeholder_route, plan_route
+from app.nav.grid import NavGrid, largest_region, load_grid
+from app.nav.route import (
+    BODIES,
+    NoRoute,
+    clearance_with_footprints,
+    placeholder_route,
+    plan_route,
+)
 from app.plan.export_dxf import write_dxf
 from app.plan.layout import build_layout
 from app.scene.load import Splats, read_splats, write_splats
@@ -154,6 +161,12 @@ def footprints(
             if preview and asset["object_id"] == preview.object_id:
                 boxes.append(shifted_box(asset, preview.position, getattr(preview, "yaw", None)))
             else:
+                boxes.append((asset["bbox_min"], asset["bbox_max"]))
+    # Objects whose info was removed but which are still in the scan stay in the way. Fixed ones
+    # are already part of the permanent map.
+    for asset in store.assets.values():
+        if asset["status"] == "removed" and asset.get("splats_kept"):
+            if asset["mobility"] == "movable" and asset["object_id"] != target_id:
                 boxes.append((asset["bbox_min"], asset["bbox_max"]))
     return boxes
 
@@ -471,6 +484,27 @@ def create_app(
     def plan_image() -> Response:
         return Response(plan_layout()["png"], media_type="image/png")
 
+    @app.get("/api/plan/walkable")
+    def plan_walkable(profile: Literal["robot", "person"] = "person") -> dict:
+        """Where a body can walk right now, as a mask over the floor map. Walk mode keeps to it.
+
+        The same map, body width, and moved objects' footprints as routing, so walking and routes
+        agree. The mask is packed bits, row by row, over `shape`.
+        """
+        if grid is None:
+            raise HTTPException(404, "No floor map is loaded")
+        width, band = BODIES[profile]
+        clearance = clearance_with_footprints(grid, footprints(store, ""), band)
+        walk = largest_region(clearance >= width / 2)
+        return {
+            "origin": [float(v) for v in grid.origin],
+            "cell": float(grid.cell),
+            "axes": [int(a) for a in grid.axes],
+            "shape": [int(n) for n in walk.shape],
+            "mask": base64.b64encode(np.packbits(walk, axis=None).tobytes()).decode(),
+            "changes": len(store.changes),
+        }
+
     @app.get("/api/plan/layout.dxf")
     def plan_dxf() -> Response:
         """Return the layout for CAD tools, with objects where they stand now."""
@@ -503,6 +537,14 @@ def create_app(
         model = build_model(document, shapes_where_they_stand(), room)
         headers = {"Content-Disposition": 'attachment; filename="model.ifc"'}
         return Response(ifc_text(model), media_type="application/x-step", headers=headers)
+
+    @app.post("/api/changes/undo")
+    def undo() -> dict:
+        """Take back only the latest change. Reset takes back all of them."""
+        undone = store.undo_last()
+        if undone is None:
+            raise HTTPException(409, "Nothing to undo")
+        return {"undone": undone, "changes": store.changes}
 
     @app.post("/api/changes/reset")
     def reset() -> dict:

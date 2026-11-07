@@ -651,7 +651,7 @@ body.tablet:has(#manip-bar:not([hidden])) #joystick {
   z-index: 4;
   display: flex;
   flex-direction: column;
-  background: #12161b;
+  background: #123a63;
   color: #e5e7eb;
 }
 #plan[hidden] {
@@ -727,3 +727,5 @@ body:has(#plan:not([hidden])) #info {
 body:has(#plan:not([hidden])) #copilot {
   z-index: 5;
 }
+
+.menu-keys { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }

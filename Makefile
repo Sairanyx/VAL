@@ -12,6 +12,8 @@ PIECES_FROM ?= $(SCENE_DIR)/Equipment Room.ply
 PIECES_DIR ?= $(SCENE_DIR)/cut
 HIGHLIGHTS_DIR ?= $(SCENE_DIR)/highlights
 HIGHLIGHTS ?= $(if $(filter $(SCENE_DIR)/%,$(SCENE)),$(if $(wildcard $(HIGHLIGHTS_DIR)/highlights.json),$(HIGHLIGHTS_DIR)))
+# Phones and tablets load this lighter scene. Not with PIECES: it still has the cut-out objects.
+LIGHT ?= $(if $(PIECES),,$(if $(filter $(SCENE_DIR)/%,$(SCENE)),$(wildcard $(SCENE_DIR)/light_full.ply)))
 MODEL ?= Qwen3.5-9B
 MODEL_DIR ?= data/models/$(MODEL)
 
@@ -68,8 +70,8 @@ train:   ## train a model
 tb:      ## training graphs at http://localhost:6006
 	uv run tensorboard --logdir runs
 SCENE ?= data/scene/sample/scene.ply
-web:     ## web viewer on port 8000, SCENE= picks the splat, HTTPS=1 for phone sensors
-	uv run python web/serve.py --scene "$(SCENE)" $(if $(HTTPS),--https) $(if $(ASSETS),--assets "$(ASSETS)") $(if $(SHAPES),--shapes "$(SHAPES)") $(if $(PIECES),--pieces "$(PIECES)") $(if $(HIGHLIGHTS),--highlights "$(HIGHLIGHTS)")
+web:     ## web viewer on port 8000, SCENE= picks the splat, HTTPS=1 for phone sensors, LIGHT= for phones
+	uv run python web/serve.py --scene "$(SCENE)" $(if $(HTTPS),--https) $(if $(ASSETS),--assets "$(ASSETS)") $(if $(SHAPES),--shapes "$(SHAPES)") $(if $(PIECES),--pieces "$(PIECES)") $(if $(HIGHLIGHTS),--highlights "$(HIGHLIGHTS)") $(if $(LIGHT),--light "$(LIGHT)")
 fmt:     ## tidy code style and auto-fix lint
 	uv run --only-group dev ruff format .
 	uv run --only-group dev ruff check --fix .

@@ -25,6 +25,18 @@ const params = new URLSearchParams(location.search);
 const RES = Number(params.get("res") ?? 1);
 const LOD = params.get("lod") !== "0";
 const LOD_SPLATS = params.has("splats") ? Number(params.get("splats")) : undefined;
+// Phones and tablets load the light scene (every splat, base colour only, about 4x smaller) when
+// the server offers one. ?scene=full or ?scene=light overrides the choice on any device.
+const TOUCH = window.matchMedia("(pointer: coarse)").matches;
+
+async function pickScene() {
+  const wanted = params.get("scene") ?? (TOUCH ? "light" : "full");
+  if (wanted === "light") {
+    const head = await fetch("scene-light.ply", { method: "HEAD" }).catch(() => null);
+    if (head?.ok) return { url: "scene-light.ply", label: "light" };
+  }
+  return { url: "scene.ply", label: "full" };
+}
 
 const $ = (id) => document.getElementById(id);
 const canvas = $("view");
@@ -557,13 +569,15 @@ async function load() {
   startPos.y = eyeY;
   camera.position.copy(startPos);
 
-  const splat = new SplatMesh({ url: "scene.ply", lod: LOD });
+  const sceneFile = await pickScene();
+  const splat = new SplatMesh({ url: sceneFile.url, lod: LOD });
   root.add(splat);
   renderer.setAnimationLoop(animate);
   await splat.initialized;
   const count = splat.packedSplats?.numSplats || splat.splats?.numSplats; // 0 or missing with LOD
   $("status").textContent =
-    `${data.assets.length} objects · ${count ? `${count.toLocaleString()} splats · ` : ""}` +
+    `${data.assets.length} objects · ${sceneFile.label} scene · ` +
+    `${count ? `${count.toLocaleString()} splats · ` : ""}` +
     `res ${RES}, LOD ${LOD ? "on" : "off"}${LOD_SPLATS ? ` (${LOD_SPLATS})` : ""} · ` +
     "drag to look, WASD to move";
 

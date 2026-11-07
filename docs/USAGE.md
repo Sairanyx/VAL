@@ -12,6 +12,7 @@ git pull
 make scene      # objects, floor map, and light scenes
 make mapping    # links Excel records to objects, writes assets_mapped.json
 make pieces     # cuts movable objects out of the scene
+make highlights # exports cyan segmented surfaces for object selection
 make db         # optional, needs Docker: keeps changes after a restart
 make model      # optional, about 20 GB: the copilot's language model
 ```
@@ -27,6 +28,21 @@ Open http://localhost:8000. On a tablet on the same network, use `http://<this m
 
 For a tablet or a laptop without a good GPU, cut a lighter scene first:
 `make pieces PIECES_FROM=data/scene/equipment_room/light_full.ply`
+
+## Highlight an object's surface
+Run `make highlights`, then restart your viewer. Clicking an object tints its segmented
+splats cyan and hides its selected box; selecting another object replaces the highlight.
+The highlight follows dragging and undo and is independent of the **Boxes** toggle.
+
+The four cut-out movable objects highlight their whole cut piece, the same splats that move when
+dragged, so run `make pieces` before `make highlights`. Other objects show detected surfaces only:
+missed parts remain missing. Operator-added objects have no segmentation yet; a message explains this.
+**Objects** mode still shows fitted shapes instead of scanned surfaces.
+
+Generate highlights from the original PLY, not `cut/base.ply` or a reduced scene: labels index the
+original scene. Generated highlights are loaded automatically for scenes under `SCENE_DIR`.
+For a different scene, pass its own `HIGHLIGHTS=path/to/highlights`, or disable loading with
+`HIGHLIGHTS=`.
 
 ## Move an object
 1. Tap the object. The smallest box under your finger is selected.

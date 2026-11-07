@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { SparkControls, SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
 import { setupAddObject } from "./addobject.js";
 import { setupCopilot } from "./copilot.js";
+import { setupHighlight } from "./highlight.js";
 import { setupObjects } from "./objects.js";
 import { setupPhone } from "./phone.js";
 import { setupRoute } from "./route.js";
@@ -58,6 +59,11 @@ let route = null;
 let selected = null;
 let boxesOn = true;
 let range = Number(params.get("range") ?? 3);
+const highlight = setupHighlight({
+  root,
+  objectLayer: () => objectLayer,
+  onMessage: (message) => ($("status").textContent = message),
+});
 
 function resize() {
   const w = window.innerWidth;
@@ -152,6 +158,7 @@ function showInfo(obj) {
     rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("") +
     "</dl>";
   selected = obj;
+  highlight.select(obj);
   $("move").hidden = a.mobility !== "movable" || !objectLayer;
   $("cant-move").hidden = a.mobility === "movable";
   $("cant-move").textContent =
@@ -173,6 +180,7 @@ async function routeTo(obj) {
   $("clear-route").hidden = !found;
   $("follow").textContent = "Walk route";
   selected = obj;
+  highlight.select(obj);
 }
 $("route-here").onclick = () => selected && routeTo(selected);
 const copilot = setupCopilot({
@@ -214,6 +222,7 @@ const adder = setupAddObject({
     const added = objects.at(-1);
     added.addedByOperator = true;
     selected = added;
+    highlight.select(added);
     const added_text = `Added ${asset.object_id}: ${asset.label}, not confirmed`;
     $("status").textContent = added_text;
     if (route?.state.target) {
@@ -334,8 +343,12 @@ function updateLabels() {
   nearby.sort((a, b) => a.rank - b.rank || a.dist - b.dist);
   const inView = nearby.filter((item) => item.onScreen);
   if (boxesOn && !apart) {
-    for (const { o } of inView.slice(0, MAX_BOXES)) o.box.visible = true;
-    for (const { o, pinned } of nearby) if (pinned) o.box.visible = true;
+    for (const { o } of inView.slice(0, MAX_BOXES)) {
+      if (!highlight.hasSurface(o)) o.box.visible = true;
+    }
+    for (const { o, pinned } of nearby) {
+      if (pinned && !highlight.hasSurface(o)) o.box.visible = true;
+    }
   }
   for (const item of inView) {
     // Unconfirmed objects keep their frame, but don't crowd the view with a generic tag.
@@ -365,6 +378,7 @@ function animate(now) {
   const busy = objectLayer?.state.moving || adder.state.active || following;
   if (!phone.enabled && !busy) controls.update(camera);
   objectLayer?.update(dt);
+  highlight.update();
   if (following) route.update(dt);
   else phone.update(dt);
   if (!following && !adder.state.active) {

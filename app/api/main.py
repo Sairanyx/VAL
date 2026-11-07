@@ -397,10 +397,9 @@ def create_app(
 
     def move_check(object_id: str, position: list[float], yaw: float | None = None) -> MoveCheck:
         asset = require(object_id)
-        # Check the box at the new angle, so turning can't push an object into another.
-        low, high = shifted_box(asset, asset["center"], yaw)
-        turned = {**asset, "bbox_min": low, "bbox_max": high}
-        return check_move(turned, position, store.visible(), grid, store.original(object_id))
+        # Checked at the new angle, so turning can't push an object into another.
+        original = store.original(object_id)
+        return check_move(asset, position, store.visible(), grid, original, yaw)
 
     @app.post("/api/objects/{object_id}/check-move")
     def check_a_move(object_id: str, request: MoveCheckRequest) -> dict:

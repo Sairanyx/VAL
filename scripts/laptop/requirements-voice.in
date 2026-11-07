@@ -1,0 +1,3 @@
+# Talking to Val. Without it, typing to Val still works.
+faster-whisper>=1.2.1
+av<16

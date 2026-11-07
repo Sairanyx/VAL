@@ -74,3 +74,27 @@ so say that in the technical note.
 - **The brief still names the old file.** Confirm the new name is acceptable when submitting.
 - **Files the pack mentions are missing:** `telemetry_full_14d_30min.csv` (the workbook has a 3-day
   sample) and the 38 RAG markdown files (the workbook has 8 core docs).
+
+## How we cover the brief
+Checked against the docx, 2026-11-07.
+
+| Required | State | Where |
+|---|---|---|
+| Extract and 3D-frame as many assets as possible | Done: 440 objects. Precision sample still to score | `app/extract`, frames in the viewer |
+| Map statuses, telemetry and metadata, with a faulty target | Done: all 30 records, procedural and marked, `P-005` as the fault. The other 410 objects have no record, as the pack only holds 30 | `app/copilot/mapping.py` |
+| A worker or robot walks an automatic, collision-free route | Done: A* on the floor map, for a person or a robot, re-planned when things move | `app/nav`, `web/route.js`, `web/avatar.js` |
+| Highlight frames and Excel metadata nearby, along the way | Done: frames, labels and a "Nearby" line within range | `web/main.js` |
+| AI diagnosis triggered on reaching the device | Done: starts by itself, cites evidence IDs, gives confidence, safe checks only | `app/copilot` |
+| Grounded in the Excel pack, per its RAG, safety and mapping rules | Done. 60-question test recorded, hand scoring still open | `docs/RESULTS.md` |
+| Status along the path, from the AI (scoring criterion 3) | Partly: the status shows on labels and the Nearby line, but Val doesn't speak on the way | |
+| Lightweight display | Done: a web viewer | `web/` |
+| Modular, automated backend | Done: `make pipeline` from one config, but only dry-run from start to end | `scripts/pipeline.py` |
+| Runnable locally or clearly recorded | Runs from a zip on Linux. Windows and Mac untested. Video not recorded yet | `make bundle` |
+| Repo with a concise README and setup | Done. The team name is still a placeholder | `README.md` |
+| 5-8 slides | Not done (Benjamin, with Sasha, Eduard, Hannu) | `docs/PITCH.md` |
+| Video, 5 minutes at most | Not done (Benjamin). The form wants it ideally under 2 minutes, working in the first 20 seconds | |
+| Technical note on models, libraries and software | Not done (Sasha) | |
+| Extra credit: objects you can move | Done, by cutting each object's own splats. Only some cuts are clean | `app/scene` |
+
+The brief names `Industrial Boiler Room.ply`: say in the technical note that we used its replacement,
+`Equipment Room.ply`, from Valmet.

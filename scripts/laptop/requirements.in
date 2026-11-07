@@ -1,0 +1,11 @@
+# What the demo needs to run. No torch, no training: those stay on the development machines.
+fastapi>=0.162.0
+uvicorn>=0.54.0
+websockets
+pydantic
+numpy>=2.0
+scipy
+pandas>=2.2
+openpyxl
+pillow
+psycopg[binary]>=3.3.8

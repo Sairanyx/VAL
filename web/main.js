@@ -20,8 +20,10 @@ import { setupFilters } from "./filters.js";
 import { setupPlan } from "./plan.js";
 import { setupWalkable } from "./walkable.js";
 import { setupWalkXR, xrSupported } from "./xr.js";
+import { setupAvatar } from "./avatar.js";
 import { setupRoute } from "./route.js";
 import { setupTour } from "./tour.js";
+import { setupViews } from "./views.js";
 
 let faultTag = "P-005"; // the pre-chosen faulty device, unless the scene's file names another
 const EYE_HEIGHT = 1.6; // metres above the floor in walk mode (scene units look close to metres)
@@ -80,7 +82,18 @@ async function pickScene() {
 const $ = (id) => document.getElementById(id);
 const canvas = $("view");
 
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: false });
+// Say what's wrong, on a laptop whose browser can't draw this at all.
+if (!document.createElement("canvas").getContext("webgl2")) {
+  $("loading-text").textContent =
+    "This browser can't draw 3D here. Try Chrome or Edge, with graphics acceleration turned on.";
+  throw new Error("No WebGL 2");
+}
+// On a laptop with two graphics chips, ask for the faster one.
+const renderer = new THREE.WebGLRenderer({
+  canvas,
+  antialias: false,
+  powerPreference: "high-performance",
+});
 // Rendering every splat at full high-DPI resolution is the main cost; 1 pixel per CSS pixel is enough.
 renderer.setPixelRatio(RES);
 const scene = new THREE.Scene();
@@ -116,6 +129,7 @@ const pacing = setupPacing({
   camera,
   baseRes: RES,
   adaptive: ADAPTIVE,
+  auto: !params.has("res") && !ADAPTIVE,
   isBusy: () =>
     phone.enabled ||
     Boolean(objectLayer?.state.moving) ||
@@ -128,6 +142,7 @@ const pacing = setupPacing({
 let walk = true;
 let flight = null; // the camera on its way to an object's best view
 let tour = null;
+let stages = null; // darkness, simple BIM, blob BIM, point cloud, real view
 let eyeY = EYE_HEIGHT;
 let startPos = new THREE.Vector3(0, EYE_HEIGHT, 0);
 let startTurn = new THREE.Quaternion(); // which way you face at the start
@@ -740,7 +755,9 @@ async function duplicateObject(object) {
 function goBack() {
   if (!$("more-menu").hidden) showMenu(false);
   else if (!$("rename-form").hidden) $("rename-form").hidden = true;
+  else if (!$("help-panel").hidden) $("help-panel").hidden = true;
   else if (tour?.state.running) tour.stop();
+  else if (stages?.state.stage === "dark") stages.set("real");
   else if (!$("delete-confirm").hidden) $("delete-confirm").hidden = true;
   else if (!$("add-panel").hidden || adder.state.active) $("add-cancel").click();
   else if (objectLayer?.state.moving) $("manip-done").click();
@@ -770,7 +787,13 @@ window.addEventListener("keydown", (event) => {
   const key = event.key.toLowerCase();
   const command = event.ctrlKey || event.metaKey;
   let handled = false;
-  if (command && key === "z") handled = press("undo-last");
+  if (key === "?") {
+    $("help-panel").hidden = !$("help-panel").hidden;
+    handled = true;
+  } else if (key.startsWith("arrow") && objectLayer?.state.moving && !command) {
+    nudgeObject(key, event.shiftKey);
+    handled = true;
+  } else if (command && key === "z") handled = press("undo-last");
   else if (command) return; // leave the browser's own shortcuts alone
   else if (key === "delete" || key === "backspace") {
     if (selected) handled = $("delete-confirm").hidden ? press("delete-object") : press("delete-yes");
@@ -785,6 +808,7 @@ window.addEventListener("keydown", (event) => {
   else if (key === "pagedown" && !$("manip-bar").hidden) handled = press("manip-lower");
   else if (key === "f") handled = press("mode");
   else if (key === "g") handled = press("go-fault");
+  else if (key === "b") handled = press("next-view");
   else if (key === "l") handled = press("open-list");
   else if (key === "t") handled = press("open-filters");
   else if (key === "v") {
@@ -843,9 +867,9 @@ function hideManipBar() {
 function updateStatusForMode(mode) {
   if (!selected) return;
   if (mode === "rotate") {
-    $("status").textContent = `Rotate ${name(selected.asset)}: Drag across screen, tap 45°, or twist with 2 fingers`;
+    $("status").textContent = `Rotate ${name(selected.asset)}: Arrow keys or drag across screen, tap 45°, or twist with 2 fingers`;
   } else {
-    $("status").textContent = `Move ${name(selected.asset)}: Drag along floor · Hold Shift to rotate`;
+    $("status").textContent = `Move ${name(selected.asset)}: Arrow keys or drag along the floor · Page Up and Down for height · R to rotate`;
   }
 }
 
@@ -855,6 +879,40 @@ $("move").onclick = () => {
     showManipBar("move");
   }
 };
+// Arrow keys, only while moving or rotating an object. Up is away from you and right is to your
+// right, on the floor, wherever you're facing. Shift goes further. Each press is checked and saved.
+const NUDGE_M = 0.05;
+const NUDGE_FAR_M = 0.25;
+const NUDGE_TURN = Math.PI / 36; // 5 degrees
+const NUDGE_FAR_TURN = Math.PI / 12; // 15 degrees
+let nudging = false;
+async function nudgeObject(key, far) {
+  const object = objectLayer?.state.moving?.object;
+  if (!object || nudging) return;
+  const yaw = object.yaw || 0;
+  nudging = true;
+  try {
+    let result;
+    if ($("manip-mode-rotate").classList.contains("active")) {
+      if (key !== "arrowleft" && key !== "arrowright") return;
+      const sign = key === "arrowleft" ? -1 : 1;
+      const step = far ? NUDGE_FAR_TURN : NUDGE_TURN;
+      result = await objectLayer.moveTo(object, undefined, yaw + sign * step);
+    } else {
+      const ahead = camera.getWorldDirection(new THREE.Vector3()).setY(0).normalize();
+      const right = new THREE.Vector3().crossVectors(ahead, camera.up).normalize();
+      const metres = far ? NUDGE_FAR_M : NUDGE_M;
+      const direction = { arrowup: ahead, arrowdown: ahead.clone().negate(), arrowright: right, arrowleft: right.clone().negate() }[key];
+      const toScene = new THREE.Matrix4().copy(root.matrixWorld).invert();
+      const shift = direction.clone().transformDirection(toScene).multiplyScalar(metres);
+      result = await objectLayer.moveTo(object, object.center.clone().add(shift).toArray(), yaw);
+    }
+    if (!result.ok) $("status").textContent = result.message;
+  } finally {
+    nudging = false;
+  }
+}
+
 // Height: 10 cm a press. The object being moved, or the selected one.
 const RAISE_STEP = 0.1;
 async function raiseObject(metres) {
@@ -865,6 +923,8 @@ async function raiseObject(metres) {
     ? `${name(object.asset)} ${metres > 0 ? "raised" : "lowered"} ${Math.abs(metres) * 100} cm`
     : result.message;
 }
+$("open-help").onclick = () => ($("help-panel").hidden = !$("help-panel").hidden);
+$("help-close").onclick = () => ($("help-panel").hidden = true);
 $("manip-raise").onclick = () => raiseObject(RAISE_STEP);
 $("manip-lower").onclick = () => raiseObject(-RAISE_STEP);
 
@@ -888,6 +948,7 @@ $("manip-done").onclick = () => {
 };
 
 function hit(ndc) {
+  if (stages?.state.stage === "dark") return null;
   raycaster.setFromCamera(ndc, camera);
   const candidates = objects
     .filter((o) => !o.gone && o.pick.layers.isEnabled(0) && (!filters || filters.passes(o)))
@@ -1049,6 +1110,7 @@ function chooseLabels() {
   for (const o of objects) {
     if (o.gone) continue;
     if (bim?.state.active && !bim.shows(o)) continue;
+    if (stages?.state.stage === "dark" || stages?.state.stage === "points") continue;
     const filtering = filters?.isActive();
     if (filtering && !filters.passes(o) && o !== selected) continue;
     pos.copy(o.center).applyMatrix4(root.matrixWorld);
@@ -1073,7 +1135,7 @@ function chooseLabels() {
 
   nearby.sort((a, b) => a.rank - b.rank || a.dist - b.dist);
   const inView = nearby.filter((item) => item.onScreen);
-  if (boxesOn && !apart && !bim?.state.active) {
+  if (boxesOn && !apart && !stages?.isQuiet()) {
     for (const { o } of inView.slice(0, MAX_BOXES)) {
       if (!highlight.hasSurface(o)) o.box.visible = true;
     }
@@ -1327,6 +1389,8 @@ function commandHandlers() {
   return {
     select: ({ object_id }) => showInfo(find(object_id)),
     focus_object: ({ object_id }) => goLookAt(find(object_id)),
+    set_stage: ({ stage }) => stages.set(stage),
+    next_stage: () => stages.next(),
     start_demo: () => {
       tour.start();
     },
@@ -1501,6 +1565,12 @@ async function load() {
       if (!$("hud").classList.contains("blocked")) $("status").textContent = message;
     },
     onOutOfStep: syncWithBackend,
+    avatar: setupAvatar({ parent: scene }),
+    // Reaching the faulty device starts the diagnosis, without being asked.
+    onArrive: (target) => {
+      if (kind(target.asset) !== "fault") return;
+      copilot.open(`What's wrong with ${target.name.replace(/\?$/, "")}?`);
+    },
   });
   $("go-fault").hidden = !objects.some((o) => kind(o.asset) === "fault");
   plan = setupPlan({
@@ -1544,7 +1614,8 @@ async function load() {
       close: $("filter-close"),
     },
     objects,
-    onChange: () => {
+    onChange: (stage, text) => {
+      $("status").textContent = text;
       lastChosen = 0;
       objectList?.refresh();
       pacing.wake();
@@ -1569,7 +1640,7 @@ async function load() {
   $("focus-object").onclick = () => selected && goLookAt(selected);
   alerts = setupAlerts({
     filters,
-    isHidden: () => Boolean(bim?.state.active), // BIM shows a clean model, not the room's state
+    isHidden: () => Boolean(stages?.isQuiet()), // Only the real view shows the room's state
     root,
     camera,
     objects,
@@ -1642,6 +1713,16 @@ async function load() {
   }
   await syncWithBackend();
   setupCommands(commandHandlers());
+  stages = setupViews({
+    root,
+    bim,
+    press: (id) => $(id).click(),
+    button: $("next-view"),
+    onChange: () => {
+      lastChosen = 0;
+      pacing.wake();
+    },
+  });
   tour = setupTour({
     ui: {
       panel: $("tour"),
@@ -1661,7 +1742,7 @@ async function load() {
       route,
       copilot,
       objectList,
-      bim: () => bim,
+      views: stages,
       nameOf: (object) => name(object.asset).replace(/\?$/, ""),
       fault: () => objects.find((o) => kind(o.asset) === "fault" && !o.gone),
       goLookAt,
@@ -1675,7 +1756,7 @@ async function load() {
   });
   $("start-tour").onclick = () => tour.start();
   if (params.has("demo")) tour.start();
-  window.plantViewer = { tour, filters, objects, objectLayer, camera, route, copilot, showInfo, adder, bim, plan, pacing }; // For browser tests and debugging.
+  window.plantViewer = { views: stages, tour, scene, filters, objects, objectLayer, camera, route, copilot, showInfo, adder, bim, plan, pacing }; // For browser tests and debugging.
   if (params.has("camera")) {
     const [x, y, z, yaw, pitch] = params.get("camera").split(",").map(Number);
     camera.position.set(x, y, z);

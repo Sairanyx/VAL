@@ -1,0 +1,3 @@
+# The IFC and DXF downloads. Without them, everything else still works.
+ifcopenshell
+ezdxf

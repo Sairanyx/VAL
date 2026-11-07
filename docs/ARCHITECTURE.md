@@ -21,7 +21,7 @@ flowchart LR
 | 2. Make scene | Video or scan | Splat `.ply` | Works by hand. Demo uses Valmet's file |
 | 3. Understand it | Splat, Excel | Objects, floor map, links | One command, only a dry run so far |
 | 4. Check it | All outputs | Pass or fail, what needs a person | Works |
-| 5. Use it | All outputs | The live demo | Works. 5090 and tablet untested |
+| 5. Use it | All outputs | The live demo | Works on a laptop. The zip is untested on Windows and Mac |
 | 6. Update it | Moves and edits | Saved changes | In-app done. Clip and rescan not built |
 
 ## 1–2. From recording to scene
@@ -71,7 +71,7 @@ run continues. `DRY=1` shows the steps. Mapping, pieces, highlights and BIM are 
 | Everything together | `make nav-check` | Floor, routes, links, copilot and moves work on real data |
 | Routes against the scan | `scripts/check_routes.py` | Routes don't pass through solid splats |
 | A person | Open the viewer, read the report | Labels, `P-005` and routes look right |
-| The rehearsal | 5090 and tablet, internet off | The real demo works |
+| The rehearsal | Demo laptop, internet off, and the zip on another laptop | The real demo works |
 
 ## 5. Using it
 
@@ -87,7 +87,10 @@ flowchart LR
   CP --> T
 ```
 
-Start it with `./start laptop`, `./start browser` or `./start tablet`. The model runs on the server, never the tablet.
+Start it with `./start laptop`, `./start browser` or `./start tablet`, or on someone else's laptop from the zip
+that `make bundle` builds, which holds the demo's backend, viewer and data, with its own Python packages and no
+torch. The browser's graphics draw the scene, and the server only answers the API and Val, so a small machine is
+enough to serve it. Without a language model, Val answers from the records.
 
 ## 6. Updating the space
 
@@ -111,7 +114,7 @@ The original scan is never overwritten, so **Undo changes** can always go back.
 
 | What | Problem | Do this |
 |---|---|---|
-| `make pipeline` | Only had a dry run | Run it for real on the 5090 |
+| `make pipeline` | Only had a dry run | Run it for real on a GPU machine |
 | Mapping, pieces, highlights, BIM | Separate from the pipeline, in a set order | Add them as pipeline steps |
 | `make scene` and `make pipeline` | Two ways to get the same files | Download for the demo, pipeline for a new room |
 | `app/extract/masks`, `merge`, `label` | A second extraction route nobody runs | Pick one route and retire the other |

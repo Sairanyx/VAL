@@ -21,6 +21,15 @@ make voice-model # about 460 MB: lets you talk to Val, with no internet
 ```
 Run these with internet. The demo itself needs none.
 
+## Run it on someone else's laptop
+`make bundle` builds `dist/val-demo.zip`, about 520 MB. It holds Valmet's data, so it stays out of git.
+To point it at other files, see `python scripts/make_bundle.py --help`.
+
+On the laptop: unzip it, double-click `START-WINDOWS.bat` or `START-MAC.command`, or run
+`sh START-LINUX.sh`. The first run needs internet once, and sets up Python inside the folder (about
+1.1 GB, nothing outside it). After that it starts in seconds with no internet, on free ports, and opens
+the browser. Val answers from the records with no model. Changes last until it stops.
+
 ## Run it
 **The short way:** `./start laptop` on a ThinkPad or anything else with no graphics card, `./start browser` on a
 PC with one, or `./start tablet` for the Lenovo. Each starts the
@@ -100,6 +109,11 @@ Others are cut by their box when you press **Move**, which takes a moment. Anyth
 moves too, and the floor they leave may look dark. If it can't be cut, the outline moves instead, and the
 panel says so. This needs `Equipment Room.ply` in `data/scene/equipment_room/`.
 
+With the keyboard while moving: **arrow keys** move it away from you and to the side, 5 cm a press, or 25 cm
+with Shift. **Page Up** and **Page Down** raise and lower it. **R** switches to rotating, where the left and right
+arrow keys turn it by 5 degrees, or 15 with Shift. Objects only turn around the upright axis. Each press is checked
+and saved, and a refused one says why. **Enter** finishes. Outside these modes, the arrow keys walk.
+
 ### What happens when you move something
 ```text
 Tap object            web/main.js: finds the box under your finger, opens the panel
@@ -154,11 +168,12 @@ Set a part to movable to move it, and its real splats go with it. **Undo changes
 3. Check the type and whether it can move, then press **Save**. **Undo changes** brings the originals back.
 
 ## See the floor layout
-Press **Map** for the room from above as a blueprint: walls, the walkable floor, equipment with an Excel record, the route, and where you are.
+On a computer, a see-through minimap sits in the top-left corner: walls, fixed equipment, the target, the route,
+and where you are. On a phone or tablet, **Map** shows it. **Map** or **×** hides it, and clicking it, or **⛶**, opens the
+full map. Pipes, cables, lights and movable things stay in the 3D view, unless a filter or search asks for them.
 Colours match BIM mode, and a dashed outline means the object can be moved.
 - **Find:** type a tag or type. `P-005` highlights one object, and `tank` highlights them all.
 - **Tap an object** to open its panel, then use **Route here**.
-- **Show pipes** adds pipes, which are hidden to keep it readable.
 - **Download DXF** saves the layout for CAD tools, with objects where they stand now.
 
 It's generated from the scan, not surveyed: objects are boxes, and the scale hasn't been checked on site. A name
@@ -181,17 +196,38 @@ Frames are coloured by type, the same as BIM mode: pumps amber, tanks green, val
 yellow, cabinets teal, chairs and shelves pink, anything else grey, and the faulty device red. **Actions** has the
 full list under **Frame colours**.
 
+## Run the guided demo
+**Actions**, then **Demo**, or say "Start the demo". It goes from darkness up to the real room, then
+filters, the list, a route, a move, the walk, Val and the safety rules, in about a minute and a half.
+**Pause**, **Next** and **Stop** are on its caption, and Esc stops it. It puts everything back afterwards.
+Add `?demo=1` to the address to start it on opening. **?** or the **?** key lists every control.
+
+## Choose how the room is shown
+**View** under **Actions**, or the **B** key, goes round: darkness, simple BIM, blob BIM, point cloud,
+real view. By voice: "Go dark", "Show the simple BIM", "Blob BIM", "Show the point cloud", "Real view",
+"Next view". Frames and alerts only show on the real view.
+
+## Filter what you see
+**Filters**, or the **T** key: condition, type, and whether it can move. They narrow frames, labels, the
+Objects panel, the map and BIM at once. **Alerts nearby** sets which conditions get a label: off,
+attention only, attention and degraded, or all. By voice: "Show only pumps", "Just the degraded pumps",
+"Show me what's urgent", "Hide the pipes", "Turn off alerts", "Show all alerts", "Clear the filters".
+
+## Go to an object's best view
+Pick a row in **Objects**, press **Focus** on an object's panel, or say "Focus on P-005". It flies to a
+spot on the floor with a clear line of sight, far enough back to see it all, and side-on to long objects.
+
 ## Other controls
-The main buttons are **Go to P-005**, **Map**, **Ask Val** and **Actions**, with **Walk route** and **Clear route**
-while a route shows. Everything else is in **Actions**.
+The main buttons are **Go to P-005**, **?**, **Filters**, **Objects**, **Map**, **Ask Val** and **Actions**, with
+**Walk route** and **Clear route** while a route shows. Everything else is in **Actions**.
 
 | Control | What it does |
 |---|---|
 | **Go to P-005** | Plans a route to the faulty device from where you stand. Arrows show the way |
 | **Movement: Walk / Fly** | In **Walk** the route starts from wherever you move to. In **Fly** you can look around from anywhere, and the route keeps its start |
-| **Walk route** | Walks the route, and stops looking at the device |
+| **Walk route** | A worker walks the route and you follow, or a robot with **Route for: Robot**. Reaching the faulty device starts Val's diagnosis |
 | **Route for: Person / Robot** | Changes the body size and height for routes |
-| **Map** | Shows the room from above as a blueprint, with the equipment that has a record |
+| **Map** | Shows or hides the minimap. Click the minimap for the full map |
 | **Range** | How far away frames and labels show |
 | **Boxes on** | Shows or hides frames |
 | **View: Scan / Both / Objects** | The real scan, fitted shapes over it, or shapes only |
@@ -200,12 +236,13 @@ while a route shows. Everything else is in **Actions**.
 | **Phone** | Turn the device to look, and walk to move. Needs `make web HTTPS=1` |
 
 ## If it's slow
-The viewer helps itself: it stops redrawing while nothing changes, lowers the resolution while moving if the
-device can't keep up and sharpens when you stop, and uses the light scene on anything without a graphics card.
+The viewer helps itself: it stops redrawing while nothing changes, uses the light scene on anything without a
+graphics card, and lowers the resolution for good, in up to two steps, if turning stays under about 22 frames a
+second. `?res=1` turns that off. A browser with no 3D at all says so on the loading screen.
 These go in the URL:
 - `?res=0.5` draws fewer pixels. `?lod=0&res=2` is the sharpest.
 - `?scene=light` or `?scene=full` chooses the scene.
-- `?adaptive=0` keeps the resolution fixed. `?debug=1` shows the frame rate.
+- `?adaptive=1` changes the resolution while moving, which flickers. `?debug=1` shows the frame rate.
 
 On a laptop, use `./start laptop`: objects are cut from the light scene, which `./start browser` doesn't do.
 

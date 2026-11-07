@@ -21,7 +21,7 @@ MODEL_DIR ?= data/models/$(MODEL)
 LAPTOP_MODEL ?= gemma4:e2b
 VOICE_MODEL ?= small.en
 
-.PHONY: setup entire views scene scene-full model laptop-model voice-model pieces highlights shapes bim pipeline gpu train tb web fmt lint test check up api floor mapping db nav-check start-browser start-laptop start-tablet
+.PHONY: setup entire views scene scene-full model laptop-model voice-model pieces highlights shapes bim bundle pipeline gpu train tb web fmt lint test check up api floor mapping db nav-check start-browser start-laptop start-tablet
 
 setup:   ## install everything
 	uv sync
@@ -61,6 +61,8 @@ shapes:  ## fit object shapes again, which applies newer fit rules to the Releas
 	uv run python -m app.extract.primitives $(SCENE_DIR)/assets_final.json "$(SCENE_DIR)/Equipment Room.ply" $(SCENE_DIR)/splat_labels.npy $(SCENE_DIR)/shapes.json
 bim: shapes ## simulated BIM model of the room for the viewer's BIM mode, plus model.ifc (IFC4)
 	uv run python -m app.bim "$(SCENE_DIR)/Equipment Room.ply" $(SCENE_DIR)/assets_mapped.json $(SCENE_DIR)/shapes.json $(BIM_DIR) --labels $(SCENE_DIR)/splat_labels.npy --label-assets $(SCENE_DIR)/assets_final.json $(if $(wildcard $(PIECES_DIR)/pieces.json),--pieces $(PIECES_DIR))
+bundle:  ## build dist/val-demo.zip for someone else's laptop. Holds Valmet's data: keep it out of git
+	uv run --no-project python scripts/make_bundle.py
 pipeline: ## run a scene through everything: make pipeline CONFIG=scenes/equipment_room.toml, DRY=1 to preview
 	uv run python scripts/pipeline.py $(or $(CONFIG),scenes/equipment_room.toml) $(if $(DRY),--dry-run)
 start-browser: ## start everything for a laptop or PC. Same as ./start browser

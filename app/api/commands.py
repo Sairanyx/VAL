@@ -14,6 +14,11 @@ OBJECT = {"object_id": "str"}
 ACTIONS: dict[str, dict[str, Any]] = {
     "select": {"args": OBJECT, "does": "Select an object and open its details"},
     "focus_object": {"args": OBJECT, "does": "Go to an object's best view and select it"},
+    "set_stage": {
+        "args": {"stage": "str"},
+        "does": "Show the room as: dark, box (simple BIM), mesh (blob BIM), points or real",
+    },
+    "next_stage": {"args": {}, "does": "Show the next view of the room"},
     "start_demo": {"args": {}, "does": "Start the guided demo"},
     "stop_demo": {"args": {}, "does": "Stop the guided demo"},
     "close_panels": {"args": {}, "does": "Close the details and Val windows"},

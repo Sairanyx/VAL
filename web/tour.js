@@ -86,11 +86,39 @@ export function setupTour({ ui, handlers, press, view }) {
     const fault = view.fault();
     const tag = fault ? view.nameOf(fault) : "";
     const count = view.objects.filter((o) => !o.gone).length;
+    const stage = (name) => view.views.available.includes(name);
     const steps = [
       {
-        title: "A real room",
-        text: "This is the equipment room, scanned and shown as a live 3D scene. It runs on our own server, with no internet.",
-        run: async () => press("reset"),
+        title: "From nothing",
+        text: "We start with no model at all, and build up to the real room.",
+        run: async () => {
+          press("reset");
+          view.views.set("dark");
+        },
+        hold: 3000,
+      },
+      stage("box") && {
+        title: "Simple BIM",
+        text: "A simple model made automatically from the scan: walls, and each object as a fitted shape, coloured by type. It exports as IFC. It's simulated, not surveyed.",
+        run: async () => view.views.set("box"),
+        hold: 6000,
+      },
+      stage("mesh") && {
+        title: "Blob BIM",
+        text: "The same objects with their real shape, as surfaces built from the scan.",
+        run: async () => view.views.set("mesh"),
+        hold: 5000,
+      },
+      {
+        title: "Point cloud",
+        text: "The scan itself, with every splat drawn as a small dot.",
+        run: async () => view.views.set("points"),
+        hold: 5000,
+      },
+      {
+        title: "The real room",
+        text: "And the full scan, shown live as Gaussian splats. It runs on this machine, with no internet.",
+        run: async () => view.views.set("real"),
         hold: 6000,
       },
       {
@@ -155,7 +183,7 @@ export function setupTour({ ui, handlers, press, view }) {
         },
         {
           title: "Walk there",
-          text: "Walking the route, nearby equipment shows its frame and details as you pass.",
+          text: "A worker walks the route, on the floor and around what's in the way. Nearby equipment shows its frame and details as they pass.",
           run: async () => {
             handlers.walk_route();
             await until(() => !view.route.state.walking, WALK_LIMIT_MS);
@@ -165,10 +193,12 @@ export function setupTour({ ui, handlers, press, view }) {
           hold: 1500,
         },
         {
-          title: "Ask Val on arrival",
-          text: `Val answers from the Excel records and cites them. It keeps what's recorded apart from what it infers, and says how sure it is.`,
+          title: "The diagnosis starts on arrival",
+          text: `Reaching ${tag} starts Val by itself. It answers from the Excel records and cites them, and says how sure it is.`,
           run: async () => {
-            view.copilot.open(`Why is ${tag} at attention required?`);
+            if (document.getElementById("copilot").hidden) {
+              view.copilot.open(`What's wrong with ${tag}?`);
+            }
             await wait(800);
             await valAnswered();
           },
@@ -196,24 +226,16 @@ export function setupTour({ ui, handlers, press, view }) {
         press("copilot-close");
       },
     });
-    if (view.bim()) {
-      steps.push({
-        title: "A BIM model from the scan",
-        text: "The same objects as a simple BIM model, with their properties and an IFC file to download. It's simulated from the scan, not surveyed.",
-        run: async () => {
-          handlers.set_bim({ on: true });
-        },
-        hold: 8000,
-        after: async () => handlers.set_bim({ on: false }),
-      });
-    }
     steps.push({
       title: "That's the tour",
       text: "Everything is back as it was. Open Filters, Objects, the Map or Val to carry on from here.",
-      run: async () => press("reset"),
+      run: async () => {
+        view.closeInfo();
+        press("reset");
+      },
       hold: 4000,
     });
-    return steps;
+    return steps.filter(Boolean);
   }
 
   async function undoOurMove() {
@@ -226,7 +248,7 @@ export function setupTour({ ui, handlers, press, view }) {
   async function tidy(before) {
     if (view.route.state.walking) handlers.stop_walking();
     await undoOurMove();
-    if (view.bim()?.state.active) handlers.set_bim({ on: false });
+    view.views.set("real");
     handlers.clear_filters();
     view.closeFilters();
     view.objectList.close();

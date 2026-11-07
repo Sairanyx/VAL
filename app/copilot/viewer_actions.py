@@ -55,6 +55,13 @@ CONDITION_WORDS = {
     r"healthy|fine|ok|okay|green": "healthy",
     r"no records?|unlinked|without (?:a )?records?|unmapped": "none",
 }
+STAGE_WORDS = {
+    r"go dark|darkness|dark view": ("dark", "Darkness."),
+    r"simple bim|box bim": ("box", "Simple BIM."),
+    r"blob bim|mesh bim|blobs": ("mesh", "Blob BIM."),
+    r"point cloud|points view": ("points", "The point cloud."),
+    r"real view|real room": ("real", "The real view."),
+}
 FILTER_VERB = r"\b(?:only|just|filter|show|display|highlight|see|list)\b"
 GENERIC_THINGS = r"(?:equipment|devices?|objects?|things?|items?|assets?)"
 
@@ -147,6 +154,11 @@ def _filters(question: str, asked: str) -> Match | None:
 
     `asked` is the whole sentence, because "just" and "only" can be cleaned off the start.
     """
+    for words, (stage, say) in STAGE_WORDS.items():
+        if re.search(rf"\b(?:{words})\b", question):
+            return Match("set_stage", say, {"stage": stage})
+    if re.search(r"\b(?:next|change|switch)(?: the)? view\b", question):
+        return Match("next_stage", "Next view.")
     if re.search(r"\b(?:demo|tour)\b", question):
         if re.search(r"\b(?:stop|end|cancel|exit|leave|finish)\b", question):
             return Match("stop_demo", "Demo stopped.")
@@ -210,7 +222,7 @@ def _filters(question: str, asked: str) -> Match | None:
 
 def _on_object(question: str) -> Match | None:
     """Actions on one device or object. The caller finds which, and never guesses."""
-    if re.match(r"(?:focus on|focus|take me to|show me|go look at|look at)\b", question):
+    if re.match(r"focus(?: on)?\b", question):
         return Match("focus_object", "Here's {name}.", needs_object=True)
     if re.match(r"(?:select|pick|highlight)\b", question):
         return Match("select", "Selected {name}.", needs_object=True)

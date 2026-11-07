@@ -42,7 +42,8 @@ def tls_context() -> ssl.SSLContext:
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):
-    def __init__(self, *args, routes: dict[str, Path], **kwargs):
+    def __init__(self, *args, routes: dict[str, Path], api: str | None = None, **kwargs):
+        self.api = api or API
         self.routes = routes
         super().__init__(*args, directory=str(WEB), **kwargs)
 
@@ -69,7 +70,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         """Pass /api to the backend, so a tablet needs one address, and HTTPS pages can reach it."""
         length = int(self.headers.get("Content-Length") or 0)
         request = urllib.request.Request(
-            API + self.path,
+            self.api + self.path,
             data=self.rfile.read(length) if length else None,
             headers={"Content-Type": self.headers.get("Content-Type", "application/json")},
             method=self.command,
@@ -114,6 +115,7 @@ def main() -> None:
     p.add_argument("--bim", type=Path, help="folder from app.bim: bim.json and model.ifc")
     p.add_argument("--host", default="0.0.0.0")
     p.add_argument("--port", type=int, default=8000)
+    p.add_argument("--api-port", type=int, default=8001, help="where the backend is")
     p.add_argument("--https", action="store_true", help="serve HTTPS, needed for phone sensors")
     args = p.parse_args()
 
@@ -146,7 +148,8 @@ def main() -> None:
         if (args.bim / "meshes.bin").is_file():
             routes["/meshes.bin"] = (args.bim / "meshes.bin").resolve()
         routes["/bim/splats/"] = (args.bim / "splats").resolve()
-    handler = functools.partial(Handler, routes=routes)
+    api = f"http://127.0.0.1:{args.api_port}"
+    handler = functools.partial(Handler, routes=routes, api=api)
     with http.server.ThreadingHTTPServer((args.host, args.port), handler) as srv:
         scheme = "https" if args.https else "http"
         if args.https:

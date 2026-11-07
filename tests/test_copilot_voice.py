@@ -76,6 +76,12 @@ def test_missing_model_is_reported_not_downloaded(tmp_path: Path):
         ("Open the objects list", "open_list", {}),
         ("Find tanks on the map", "find_on_map", {"text": "tanks"}),
         ("Start the demo", "start_demo", {}),
+        ("Go dark", "set_stage", {"stage": "dark"}),
+        ("Show the simple BIM", "set_stage", {"stage": "box"}),
+        ("Blob BIM", "set_stage", {"stage": "mesh"}),
+        ("Show the point cloud", "set_stage", {"stage": "points"}),
+        ("Back to the real view", "set_stage", {"stage": "real"}),
+        ("Next view", "next_stage", {}),
         ("Stop the demo", "stop_demo", {}),
     ],
 )

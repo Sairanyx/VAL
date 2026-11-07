@@ -728,7 +728,7 @@ body.tablet:has(#manip-bar:not([hidden])) #joystick {
 body.tablet #plan-mini-tools { opacity: 0.9; }
 body.tablet #plan-mini-tools button { min-width: 34px; min-height: 34px; }
 body:has(#plan.mini:not([hidden])) #hud { top: calc(min(180px, 30vh) + 20px); }
-body:has(#plan.mini:not([hidden])) #bim-panel { max-height: calc(100vh - min(180px, 30vh) - 110px); }
+body:has(#plan.mini:not([hidden])) #bim-panel { max-height: calc(100vh - min(180px, 30vh) - 160px); }
 #plan-bar {
   display: flex;
   flex-wrap: wrap;
@@ -964,3 +964,33 @@ body:has(#copilot:not([hidden])) #plan:not(.mini) #plan-bar {
     transform: none;
   }
 }
+
+/* Complete darkness: only the buttons, faintly, to get back out. */
+body[data-view="dark"] #hud,
+body[data-view="dark"] #plan,
+body[data-view="dark"] #info,
+body[data-view="dark"] #alert-badges { display: none; }
+body[data-view="dark"] #buttons { opacity: 0.25; }
+
+#help-panel {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  bottom: 68px;
+  z-index: 8;
+  width: min(460px, calc(100vw - 24px));
+  overflow-y: auto;
+  padding: 10px 16px 14px;
+  border-radius: 8px;
+  background: rgba(17, 22, 28, 0.97);
+  color: #e5e7eb;
+}
+#help-panel[hidden] { display: none; }
+#help-panel h3 { margin: 12px 0 4px; color: var(--muted); font-size: 13px; font-weight: 600; }
+#help-panel p { margin: 6px 0; font-size: 14px; line-height: 1.4; }
+#help-panel dl { display: grid; grid-template-columns: 8.5em 1fr; gap: 3px 10px; margin: 0; font-size: 14px; }
+#help-panel dt { font-weight: 600; }
+#help-panel dd { margin: 0; line-height: 1.35; }
+#open-help { min-width: 44px; padding: 0 10px; }
+/* The tour shows the model, not its property sheet. */
+body:has(#tour:not([hidden])) #bim-panel { display: none; }

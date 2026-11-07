@@ -499,6 +499,8 @@ export async function setupBim({
       item.element.name = `${name || label} (${id})`;
       if (state.selected === item) showProperties(item.element);
     },
+    looks,
+    setLook,
     items, // For browser tests.
     elementCount: items.length,
   };

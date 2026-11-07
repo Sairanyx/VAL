@@ -1,9 +1,18 @@
-.PHONY: setup entire gpu train tb fmt lint test check up
+VIEWS_TAG ?= views-v1
+VIEWS_FILE ?= equipment_room_views_v1.tar
+
+.PHONY: setup entire views gpu train tb fmt lint test check up
 
 setup:   ## install everything
 	uv sync
 entire:  ## install and enable Entire, set AGENT= for other agents
 	bash scripts/setup_entire.sh
+views:   ## get rendered views from the GitHub Release, or use ARCHIVE=path for a local copy
+ifndef ARCHIVE
+	mkdir -p data/scene
+	gh release download $(VIEWS_TAG) --pattern $(VIEWS_FILE) --dir data/scene --clobber
+endif
+	uv run scripts/views_archive.py unpack $(or $(ARCHIVE),data/scene/$(VIEWS_FILE)) data/scene/equipment_room
 gpu:     ## check the GPU works
 	uv run python -m app.gpu_check
 train:   ## train a model

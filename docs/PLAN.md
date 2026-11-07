@@ -208,6 +208,21 @@ The scan is a fixed background, with objects in an editable layer and a log of c
 mixed up, and moved objects keep their old lighting. Pick the cleanest objects for the demo, and only
 make the clear ones movable. If the viewer can't handle moving splats, use point clouds for moved objects.
 
+**Mobility:** every object in `assets.json` gets `mobility`: `movable`, `fixed`, or `unsure`, plus the
+reason. It's movable only if the label and geometry both agree, and `unsure` behaves as fixed. Objects
+touching a wall or ceiling, or long and thin ones, are fixed. Pipes, tanks, pumps, valves, motors,
+cabinets, and doors are fixed. Carts, ladders, boxes, buckets, chairs, and tools can be movable.
+- The viewer shows a lock on fixed objects. The API also rejects moving them.
+- Fixed objects go on the permanent floor map. Only movable ones are in the footprint layer.
+- The separated view can pull everything apart. That's only for viewing, so nothing is logged.
+- Later: group connected pipe pieces into one `pipe_run`.
+
+**New objects:** the twin only knows about something once it's been seen or entered.
+1. See it: manual "Add obstacle" on the tablet (demo), a short clip (future), or cameras (future).
+2. Add its footprint to the routing map straight away, with status `new, unconfirmed` and `fixed`.
+3. Describe it. Labels outside the list use `other` plus free text, such as "passenger car".
+4. Keep `mapping: null` until an engineer links it. If no route remains, say so and say why.
+
 **Detecting changes:**
 1. **Manually on the tablet:** "Add obstacle" or "Removed". This is what we demo.
 2. **Short clip (future):** film the area, locate the frames in the scene, compare against a render of
@@ -266,7 +281,7 @@ scene's axes, so +y points down in `Equipment Room.ply`. Each file has one owner
 
 | File | Owner | Contents |
 |---|---|---|
-| `assets.json` | Sasha | Objects with label, confidence, center, and box. See the fixture |
+| `assets.json` | Sasha | Objects with label, confidence, center, box, and `mobility`. See the fixture |
 | `splat_labels.npy` | Sasha | One integer per splat: its object's index in `assets`, or -1 for background |
 | `objects/*.ply`, `background.ply` | Viktor | The scene, split by object |
 | `mapping.json` | Hannu | `object_id` to `asset_id`, `tag`, `method`, and `confidence` |
@@ -308,6 +323,11 @@ Optional, and only after the main demo works. Ask the MLH coach whether we can e
 
 ## Getting started
 - **Scene and data:** get `Equipment Room.ply` and the Valmet folder from Viktor, not from git.
+- **Rendered views:** run `make views` (needs GitHub's `gh` CLI from cli.github.com, not the unrelated
+  `gh` package on PyPI, and `gh auth login`), or download the `views-v1` Release in
+  a browser and run `make views ARCHIVE=path/to/file.tar`. They go in `data/scene/equipment_room/`:
+  `render/` for the room, `render_detail/` for small objects. Each has `views/`, `depth/`, and
+  `cameras.json`. Delete Releases before making the repo public.
 - **Check your copy:** the SHA-256 of `Equipment Room.ply` starts `83d8c7d99316c08c`.
 - **GPU:** the 5090 is shared, so agree who's using it. Roihu needs `project_2020113` membership, so ask
   Viktor. Most ThinkPads can only handle coding and the viewer.

@@ -92,6 +92,9 @@ scene.add(xrOffset);
 xrOffset.add(root);
 
 const controls = new SparkControls({ canvas });
+// Spark turns the camera with Insert and Delete; Delete deletes the selected object here instead.
+delete controls.fpsMovement.keycodeRotateMapping.Delete;
+delete controls.fpsMovement.keycodeRotateMapping.Insert;
 const phone = setupPhone({
   camera,
   button: $("phone"),
@@ -640,8 +643,37 @@ function goBack() {
   else return false;
   return true;
 }
+// Keyboard shortcuts. Never while typing into Val or a name box, so letters stay letters.
+// WASD, Q/E and the arrows stay with the camera.
 window.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") goBack();
+  if (event.key === "Escape") {
+    goBack();
+    return;
+  }
+  if (isTyping() || event.altKey) return;
+  const press = (id) => {
+    const button = $(id);
+    if (!button || button.hidden || button.disabled) return false;
+    button.click();
+    return true;
+  };
+  const key = event.key.toLowerCase();
+  const command = event.ctrlKey || event.metaKey;
+  let handled = false;
+  if (command && key === "z") handled = press("undo-last");
+  else if (command) return; // leave the browser's own shortcuts alone
+  else if (key === "delete" || key === "backspace") {
+    if (selected) handled = $("delete-confirm").hidden ? press("delete-object") : press("delete-yes");
+  } else if (key === "enter") {
+    if (!$("delete-confirm").hidden) handled = press("delete-yes");
+    else if (!$("manip-bar").hidden) handled = press("manip-done");
+  } else if (key === "m" && selected) handled = press("move");
+  else if (key === "r" && !$("manip-bar").hidden) handled = press("manip-mode-rotate");
+  else if (key === "c" && selected) handled = press("duplicate-object");
+  else if (key === "n" && selected) handled = press("rename-object");
+  else if (key === "f") handled = press("mode");
+  else if (key === "g") handled = press("go-fault");
+  if (handled) event.preventDefault();
 });
 // One spare history entry catches the back button. With nothing left to close, it leaves the page.
 history.pushState({ viewer: true }, "");

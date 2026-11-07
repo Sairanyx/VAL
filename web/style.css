@@ -727,3 +727,5 @@ body:has(#plan:not([hidden])) #info {
 body:has(#plan:not([hidden])) #copilot {
   z-index: 5;
 }
+
+.menu-keys { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }

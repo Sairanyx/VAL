@@ -665,6 +665,7 @@ async function load() {
     floorY: data.floor_y ?? 0,
     // Walls and the floor have no scan object, so only the BIM panel describes them.
     onSelectObject: (object) => (object ? showInfo(object) : ($("info").hidden = true)),
+    onMessage: (message) => ($("status").textContent = message),
   }).catch((err) => {
     console.error("BIM model failed to load", err);
     return null;

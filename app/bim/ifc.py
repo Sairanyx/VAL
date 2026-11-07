@@ -1,7 +1,8 @@
 """Write a BIM model as an IFC4 STEP file, without extra dependencies.
 
-The IFC file is Z-up in metres with the floor at Z = 0. Boxes and cylinders become extruded
-solids; properties go into Valmet_* property sets. Open it in any IFC viewer, such as Bonsai.
+The IFC file is Z-up in metres with the floor at Z = 0. Scan meshes become triangulated face sets;
+objects without one, and the room, become extruded solids. Properties go into Valmet_* property
+sets. Open it in any IFC viewer, such as Bonsai.
 """
 
 import datetime as dt
@@ -95,8 +96,29 @@ def solid(w: Writer, geometry: dict, rotation: np.ndarray, floor: float) -> tupl
     return place, body
 
 
-def ifc_text(model: dict, file_name: str = "model.ifc", timestamp: str | None = None) -> str:
-    """Return a BIM model as the text of an IFC4 STEP file."""
+def tessellation(w: Writer, mesh: dict, rotation: np.ndarray, floor: float) -> tuple[str, str]:
+    """Placement at the mesh centre, and its triangles in IFC coordinates around it."""
+    points = mesh["vertices"].astype(np.float64) @ rotation.T - [0, 0, floor]
+    centre = (points.min(0) + points.max(0)) / 2
+    local = points - centre
+    coords = ",".join(f"({real(x)},{real(y)},{real(z)})" for x, y, z in local)
+    faces = ",".join(f"({a + 1},{b + 1},{c + 1})" for a, b, c in mesh["faces"])
+    point_list = w.add(f"IFCCARTESIANPOINTLIST3D(({coords}),$)")
+    body = w.add(f"IFCTRIANGULATEDFACESET({point_list},$,$,({faces}),$)")
+    return w.placement(centre), body
+
+
+def ifc_text(
+    model: dict,
+    file_name: str = "model.ifc",
+    timestamp: str | None = None,
+    meshes: dict | None = None,
+) -> str:
+    """Return a BIM model as the text of an IFC4 STEP file.
+
+    Meshes, keyed by object ID, are written as triangulated bodies instead of simple solids.
+    """
+    meshes = meshes or {}
     rotation, floor = ifc_frame(model["room"])
     scene_id = model["scene_id"]
     w = Writer()
@@ -138,9 +160,15 @@ def ifc_text(model: dict, file_name: str = "model.ifc", timestamp: str | None = 
 
     products = []
     for element in model["elements"]:
-        place, body = solid(w, element["geometry"], rotation, floor)
+        mesh = meshes.get(element["object_id"])
+        if mesh:
+            place, body = tessellation(w, mesh, rotation, floor)
+            kind = "Tessellation"
+        else:
+            place, body = solid(w, element["geometry"], rotation, floor)
+            kind = "SweptSolid"
         local = w.add(f"IFCLOCALPLACEMENT({root_place},{place})")
-        shape = w.add(f"IFCSHAPEREPRESENTATION({body_ctx},'Body','SweptSolid',({body}))")
+        shape = w.add(f"IFCSHAPEREPRESENTATION({body_ctx},'Body','{kind}',({body}))")
         definition = w.add(f"IFCPRODUCTDEFINITIONSHAPE($,$,({shape}))")
         product = w.add(
             f"{element['ifc_class'].upper()}('{element['guid']}',$,{string(element['name'])},"
@@ -182,5 +210,7 @@ def ifc_text(model: dict, file_name: str = "model.ifc", timestamp: str | None = 
     return "\n".join(header + body + ["ENDSEC;", "END-ISO-10303-21;", ""])
 
 
-def write_ifc(model: dict, path: Path, timestamp: str | None = None) -> None:
-    path.write_text(ifc_text(model, path.name, timestamp))
+def write_ifc(
+    model: dict, path: Path, timestamp: str | None = None, meshes: dict | None = None
+) -> None:
+    path.write_text(ifc_text(model, path.name, timestamp, meshes))

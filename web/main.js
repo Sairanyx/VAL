@@ -31,7 +31,7 @@ const TABLET_SPLATS = 500000;
 //   res     render resolution relative to the screen (default 1; 0.5 is about 4x fewer pixels)
 //   lod     1 = level of detail on: far-away areas use fewer, bigger splats (default 1)
 //   splats  how many splats LOD aims to draw per frame (default: Spark's choice for the device)
-//   adaptive  0 keeps the resolution fixed while moving (default 1)
+//   adaptive  1 lowers the resolution while moving, for slow devices (default 0: it flickers)
 //   debug   1 shows the frame rate and object counts
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has("debug");
@@ -44,7 +44,9 @@ document.body.classList.toggle("tablet", TABLET);
 const MAX_LABELS = TABLET ? 5 : 8;
 const RES = Number(params.get("res") ?? (TABLET ? TABLET_RES : 1));
 const LOD = params.get("lod") !== "0";
-const ADAPTIVE = params.get("adaptive") !== "0";
+// Off by default: changing the resolution resizes the canvas, which flickers on every start and
+// stop. Turn it on for a device that can't keep up.
+const ADAPTIVE = params.get("adaptive") === "1";
 const LOD_SPLATS = params.has("splats")
   ? Number(params.get("splats"))
   : TABLET
@@ -930,6 +932,12 @@ function chooseLabels() {
 }
 
 let lastTime = 0;
+
+// True while a text box, such as Val's chat, has the keyboard.
+function isTyping() {
+  const element = document.activeElement;
+  return Boolean(element?.matches?.("input, textarea, select, [contenteditable='true']"));
+}
 let lastStep = 0;
 let frames = 0;
 let lastFps = performance.now();
@@ -939,7 +947,9 @@ function animate(now) {
   // Typing in the Plan screen's search box shouldn't walk the viewer around. While tracking, the
   // device's own movement moves the camera, so the other controls stay out.
   const tracked = tracking.state.active;
-  if (!phone.enabled && !busy && !tracked && !plan?.state.open) controls.update(camera);
+  // Keys typed into Val or a name box are for that box, not for walking.
+  const typingNow = isTyping();
+  if (!phone.enabled && !busy && !tracked && !plan?.state.open && !typingNow) controls.update(camera);
   const stepTime = lastStep ? (now - lastStep) / 1000 : 0;
   lastStep = now;
   if (following && !tracked) route.update(stepTime);

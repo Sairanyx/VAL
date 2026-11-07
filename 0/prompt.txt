@@ -1,0 +1,41 @@
+Copies should be same object but not same ID if that makes sense - the operator can name it if needed
+
+---
+
+Merge and push to main after it is ready
+
+---
+
+Check if there is anything to pull and merge from other users and combine everything into main so we check it with the team
+
+---
+
+Speed up the merge so others can use it we can improve later
+
+---
+
+Run everything so I fire it up in my browser
+
+---
+
+Read the checklist and go over everything that is assigned to me
+
+---
+
+Close the site meanwhile
+
+---
+
+First merge pull Benjamins  bugfixes. Start on those two then lets tackle the floor and wall being clickable in all the modes since they shouldn't be interactable, when isolating an object in BIM there is a bug where other object labels show up without reason (ss attached). CVal instructions still seem weird so keep stress testing it with different prompts an we make Val more human like/less chatbot style? We should also have colored bounding boxes depending on the groups (you can use the filtering that BIM views use) and you can decide the colors (so lets say pipes are 1 color, pumps are color 2 etc etc.) How are we handling new objects adding - do we need to shoot a video and resplat that specific area/ add the splats in there? If so how are we handling that? Regarding voice mode how heavy would be whisper/another TTS- STT model on top of our current deployment? How are we handling demo deployment - the deliverables allows us to submit a demo site (probably github.io, but that means we would need to use one computer as the server and if multiple people would check the demo it would explode?) what do you suggest?
+
+---
+
+Alright let's adopt Whisper into this then (check eddies stuff first) and make it work with Val (so Val can take voice commands). We have access to Google AI lab API from the hackathon so we could deploy there? Also how feasible and how big of an improvement is converting the backend to rust?
+
+---
+
+We can use ElevenLabs for voice sims
+
+---
+
+Merge ASAP so the others start working on the presentation while we will continue with optimization and bugfixing

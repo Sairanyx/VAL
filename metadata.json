@@ -1,0 +1,72 @@
+{
+  "cli_version": "0.13.1",
+  "checkpoint_id": "01M6VNC8QCBVZMQP78RSRWAQM0",
+  "strategy": "manual-commit",
+  "branch": "viktor/polish",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "AGENTS.md",
+    "Makefile",
+    "README.md",
+    "app/api/main.py",
+    "app/copilot/copilot.py",
+    "app/copilot/guardrails.py",
+    "app/copilot/guardrails_patterns.py",
+    "app/copilot/viewer_actions.py",
+    "app/copilot/voice.py",
+    "docs/ARCHITECTURE.md",
+    "docs/RESULTS.md",
+    "docs/TEST_CHECKLIST.md",
+    "docs/USAGE.md",
+    "handoffs/eduard-rednic.md",
+    "handoffs/viktortrilar.md",
+    "pyproject.toml",
+    "scripts/eval_copilot.py",
+    "start",
+    "tests/test_copilot.py",
+    "tests/test_copilot_voice.py",
+    "uv.lock",
+    "web/copilot.js",
+    "web/index.html",
+    "web/main.js",
+    "web/style.css",
+    "web/voice.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 30,
+    "cache_creation_tokens": 46189,
+    "cache_read_tokens": 10492933,
+    "output_tokens": 24061,
+    "api_call_count": 12,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
+    }
+  },
+  "redaction": {
+    "replacements": 194,
+    "layers": {
+      "betterleaks": 21,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 18,
+      "credentialed_uri": 4,
+      "entropy": 22,
+      "key_context": 147,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

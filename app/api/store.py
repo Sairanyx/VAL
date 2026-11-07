@@ -67,6 +67,14 @@ class SceneStore:
         """Return an object's record from the scan, before any moves. New objects have none."""
         return next((a for a in self.scene["assets"] if a["object_id"] == object_id), None)
 
+    def home_box(self, object_id: str) -> dict | None:
+        """Return where an object's splats are in the scan, however far it has moved since."""
+        asset = self.assets.get(object_id)
+        if asset is None:
+            return None
+        home = self.original(object_id) or asset.get("home") or asset
+        return {key: home[key] for key in ("bbox_min", "bbox_max", "center")}
+
     def visible(self) -> list[dict]:
         return [a for a in self.assets.values() if a["status"] not in GONE]
 
@@ -161,8 +169,13 @@ class SceneStore:
             # Only what an operator may set: identity and status never come from this.
             asset.update({k: v for k, v in details.items() if k in OPERATOR_FIELDS})
             asset["label_grade"] = "operator_added"
+        self._remember_home(asset)
         self.assets[object_id] = asset
         return asset
+
+    @staticmethod
+    def _remember_home(asset: dict) -> None:
+        asset["home"] = {key: list(asset[key]) for key in ("bbox_min", "bbox_max", "center")}
 
     def _split(self, parent: dict, details: dict | None) -> list[str]:
         """Replace an object with its parts. Its record link isn't guessed onto either of them."""
@@ -190,6 +203,7 @@ class SceneStore:
             }
             asset.update({k: v for k, v in part.items() if k in OPERATOR_FIELDS})
             asset["label_grade"] = "operator_added"
+            self._remember_home(asset)
             self.assets[object_id] = asset
             ids.append(object_id)
         parent["status"] = "split"
@@ -226,6 +240,7 @@ class SceneStore:
         }
         asset.update({k: v for k, v in (details or {}).items() if k in COMBINE_FIELDS})
         asset["label_grade"] = "operator_added"
+        self._remember_home(asset)
         self.assets[object_id] = asset
         first["status"] = other["status"] = "combined"
         return object_id

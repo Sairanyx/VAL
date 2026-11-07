@@ -6,13 +6,16 @@ make api                                      # fixture, on http://localhost:800
 SCENE_ASSETS=path/to/assets.json make api     # real objects
 """
 
+import hashlib
 import os
+import tempfile
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
+import numpy as np
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
 from app.api.collisions import MoveCheck, check_move
@@ -30,7 +33,8 @@ from app.api.store import GONE, ChangeError, SceneStore
 from app.copilot.llm import load_writer
 from app.nav.grid import NavGrid, load_grid
 from app.nav.route import BODIES, NoRoute, placeholder_route, plan_route
-from app.scene.load import Splats, read_splats
+from app.scene.load import Splats, read_splats, write_splats
+from app.scene.split_movable import FLOOR_MARGIN, split_movable
 
 DEFAULT_ASSETS = Path("fixtures/sample_assets.json")
 UNCONFIRMED_NEW = "new, unconfirmed"
@@ -271,6 +275,29 @@ def create_app(
                 raise HTTPException(503, "Selecting needs the scene: set SCENE_PLY to its file.")
             scene_splats.append(read_splats(Path(path)))
         return scene_splats[0]
+
+    piece_files = Path(tempfile.mkdtemp(prefix="object-pieces-"))
+
+    @app.get("/api/objects/{object_id}/home")
+    def object_home(object_id: str) -> dict:
+        """Say where an object's splats are in the scan, to hide them there when it's moved."""
+        require(object_id)
+        return {**store.home_box(object_id), "floor_margin": FLOOR_MARGIN}
+
+    @app.get("/api/objects/{object_id}/splats.ply")
+    def object_splats(object_id: str) -> FileResponse:
+        """Cut an object's splats out of the scan, for moving the real thing."""
+        require(object_id)
+        path = piece_files / f"{hashlib.sha256(object_id.encode()).hexdigest()}.ply"
+        if not path.exists():
+            splats = splats_for_selection()
+            home = store.home_box(object_id)
+            up = np.asarray(store.scene.get("up") or (0.0, -1.0, 0.0), dtype=np.float64)
+            axis = int(np.argmax(np.abs(up)))
+            floor_height = store.scene.get("floor_y", 0.0) * float(up[axis])
+            _, pieces = split_movable(splats, [{**home, "object_id": object_id}], floor_height, up)
+            write_splats(pieces[object_id], path)
+        return FileResponse(path, media_type="application/octet-stream")
 
     @app.post("/api/objects/propose")
     def propose(request: SelectionRequest) -> dict:

@@ -57,9 +57,11 @@ For a different scene, pass its own `HIGHLIGHTS=path/to/highlights`, or disable 
 then drag the cage onto the route. The route bends around it. To drag from a better view without changing
 the route, press **Walk** to switch to **Fly** first.
 
-Three objects move as the real scan: `obj-0067`, `obj-0021`, and `obj-0112`. Other movable objects
-only move as an outline, so they stay put in Scan view. Press **Scan** to switch to **Both** or **Objects** to
-see fitted shapes move.
+Every movable object moves as the real scan, including split and combined ones. `obj-0067`, `obj-0021`, and
+`obj-0112` are cut in advance by `make pieces`, with the floor behind them patched, so they look cleanest.
+Others are cut by their box when you press **Move on floor**, which takes a moment. Anything else in the box
+moves too, and the floor they leave may look dark. If it can't be cut, the outline moves instead, and the
+panel says so. This needs `Equipment Room.ply` in `data/scene/equipment_room/`.
 
 ### What happens when you move something
 ```text
@@ -92,7 +94,7 @@ screens only pick up changes when reloaded.
 2. Drag a box around one part. Orange is what you selected, and blue is the rest.
 3. Check the type and whether each can move, then press **Save**. Both are marked "new, unconfirmed".
 
-The parts move as outlines, not as the real scan. **Undo changes** brings the original back.
+Set a part to movable to move it, and its real splats go with it. **Undo changes** brings the original back.
 
 ## Combine objects that are really one thing
 1. Tap the first object, and press **Combine with...**. Objects linked to a record can't be combined.
@@ -127,7 +129,7 @@ Add these to the URL: `?lod=0&res=2` for the sharpest image, or `?res=0.5` if it
 | No **Move on floor** button | The object is fixed or unsure | The panel says which. Try `obj-0067` |
 | Box goes red and panel says "Can't place it here" | That spot is taken | Drop it somewhere else. Tiny overlaps are allowed, because boxes are loose |
 | Route jumps or disappears as you look around | You're in Walk mode, so it starts from where you are | Press **Walk** to switch to **Fly**, then **Go to P-005** again |
-| Only an outline moves | Not one of the three objects, or no `PIECES=` | Use the full `make web` line above |
+| Only an outline moves | The backend couldn't cut it | Check `make api` is running and `Equipment Room.ply` is in place |
 | Object moves, but no route change | No route showing, or it isn't in the way | **Go to P-005** first, then drag onto the line |
 | "Couldn't save the move" | The backend refused it or is down | The message says why. Restart `make api` if needed |
 | "Couldn't add an object: Selecting needs the scene" | `Equipment Room.ply` is missing | Put it in `data/scene/equipment_room/` |

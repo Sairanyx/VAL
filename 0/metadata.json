@@ -1,0 +1,98 @@
+{
+  "cli_version": "0.13.1",
+  "checkpoint_id": "01M6SZAK4JS2NXVW3ABJK1S9SJ",
+  "session_id": "6293938d-e68f-4310-92b7-6bf722e3d028",
+  "strategy": "manual-commit",
+  "created_at": "2026-11-07T03:02:45.979066306Z",
+  "branch": "viktor/scene-full",
+  "checkpoints_count": 3,
+  "files_touched": [
+    ".env.example",
+    "Makefile",
+    "README.md",
+    "app/api/db.py",
+    "app/api/main.py",
+    "app/api/store.py",
+    "app/copilot/guardrails.py",
+    "app/copilot/mapping.py",
+    "compose.yaml",
+    "docs/RESULTS.md",
+    "handoffs/eduard-rednic.md",
+    "pyproject.toml",
+    "tests/test_api.py",
+    "tests/test_copilot.py",
+    "tests/test_copilot_mapping.py",
+    "uv.lock"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "76ef9e0a94a3",
+  "checkpoint_transcript_start": 6195,
+  "transcript_lines_at_start": 6195,
+  "compact_transcript_start": 609,
+  "token_usage": {
+    "input_tokens": 30,
+    "cache_creation_tokens": 8044,
+    "cache_read_tokens": 2170897,
+    "output_tokens": 4864,
+    "api_call_count": 11,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
+    }
+  },
+  "redaction": {
+    "replacements": 130,
+    "layers": {
+      "betterleaks": 6,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 18,
+      "credentialed_uri": 0,
+      "entropy": 18,
+      "key_context": 94,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01GDDneDXG3QDA4UoEd3YrKQ",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "superpowers:brainstorming"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "ac8450c94420",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 36,
+        "end": 37,
+        "entry_ids": [
+          "393b1dbd-d251-41e4-90cd-d7386063a680"
+        ],
+        "tool_use_id": "toolu_01GDDneDXG3QDA4UoEd3YrKQ"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01GDDneDXG3QDA4UoEd3YrKQ"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: superpowers:brainstorming",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 90
+  }
+}

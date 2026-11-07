@@ -2,44 +2,87 @@
   "_note": "Fake geometry for building against. Real output goes in data/scene/<scene_id>/.",
   "scene_id": "sample",
   "floor_y": 1.25,
-  "start": [0.0, 1.25, 0.0],
+  "start": [
+    0.0,
+    1.25,
+    0.0
+  ],
   "assets": [
     {
       "object_id": "obj-0001",
       "label": "pump",
       "label_confidence": 0.82,
-      "center": [2.4, 0.75, -1.8],
-      "bbox_min": [2.0, 0.25, -2.2],
-      "bbox_max": [2.8, 1.25, -1.4],
+      "center": [
+        2.4,
+        0.75,
+        -1.8
+      ],
+      "bbox_min": [
+        2.0,
+        0.25,
+        -2.2
+      ],
+      "bbox_max": [
+        2.8,
+        1.25,
+        -1.4
+      ],
       "mapping": {
         "asset_id": "ASSET-017",
         "tag": "P-005",
         "method": "procedural",
         "confidence": 0.3
-      }
+      },
+      "mobility": "fixed"
     },
     {
       "object_id": "obj-0002",
       "label": "valve",
       "label_confidence": 0.67,
-      "center": [-1.5, 0.55, 1.2],
-      "bbox_min": [-1.7, 0.35, 1.0],
-      "bbox_max": [-1.3, 0.75, 1.4],
+      "center": [
+        -1.5,
+        0.55,
+        1.2
+      ],
+      "bbox_min": [
+        -1.7,
+        0.35,
+        1.0
+      ],
+      "bbox_max": [
+        -1.3,
+        0.75,
+        1.4
+      ],
       "mapping": {
         "asset_id": "ASSET-003",
         "tag": "CV-003",
         "method": "procedural",
         "confidence": 0.3
-      }
+      },
+      "mobility": "fixed"
     },
     {
       "object_id": "obj-0003",
       "label": "ladder",
       "label_confidence": 0.91,
-      "center": [3.6, 0.3, 2.5],
-      "bbox_min": [3.4, -0.65, 2.3],
-      "bbox_max": [3.8, 1.25, 2.7],
-      "mapping": null
+      "center": [
+        3.6,
+        0.3,
+        2.5
+      ],
+      "bbox_min": [
+        3.4,
+        -0.65,
+        2.3
+      ],
+      "bbox_max": [
+        3.8,
+        1.25,
+        2.7
+      ],
+      "mapping": null,
+      "mobility": "movable"
     }
   ]
 }

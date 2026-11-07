@@ -317,6 +317,7 @@ def create_app(
     # A few recent states: a drag asks with and without the dragged object, turn about.
     opened_maps: dict[tuple, NavGrid] = {}
     scan_cells: list = []  # each splat's cell and height, then its opacity
+    building_map = threading.Lock()
 
     def floor_map(also_left: str | None = None) -> NavGrid | None:
         """Return the floor map with the spots that objects have left open again.
@@ -345,27 +346,30 @@ def create_app(
         key = (tuple(sorted(moved)), tuple(sorted(deleted - moved)))
         if not key[0] and not key[1]:
             return grid
-        if key not in opened_maps:
-            opened = grid
-            if key[0]:
-                try:
-                    splats = splats_for_selection()
-                except HTTPException:
-                    splats = None
-                if splats is not None:
-                    if not scan_cells:  # once: the scan doesn't move
-                        scan_cells.append(splat_cells(grid, splats.positions))
-                        scan_cells.append(splats.opacities)
-                    own = left_splats(key[0], splats.positions)
-                    boxes = [home_corners(object_id) for object_id in key[0]]
-                    opened = vacate(
-                        opened, splats.positions, scan_cells[1], own, boxes, scan_cells[0]
-                    )
-            if key[1]:
-                opened = open_boxes(opened, [home_corners(object_id) for object_id in key[1]])
-            if len(opened_maps) >= OPENED_MAPS_KEPT:
-                del opened_maps[next(iter(opened_maps))]  # the oldest
-            opened_maps[key] = opened
+        # Requests run on several threads, and one map is built once, whichever asks first.
+        with building_map:
+            if key not in opened_maps:
+                opened = grid
+                if key[0]:
+                    try:
+                        splats = splats_for_selection()
+                    except HTTPException:
+                        splats = None
+                    if splats is not None:
+                        if not scan_cells:  # once: the scan doesn't move
+                            scan_cells.extend(
+                                [splat_cells(grid, splats.positions), splats.opacities]
+                            )
+                        own = left_splats(key[0], splats.positions)
+                        boxes = [home_corners(object_id) for object_id in key[0]]
+                        opened = vacate(
+                            opened, splats.positions, scan_cells[1], own, boxes, scan_cells[0]
+                        )
+                if key[1]:
+                    opened = open_boxes(opened, [home_corners(object_id) for object_id in key[1]])
+                if len(opened_maps) >= OPENED_MAPS_KEPT:
+                    del opened_maps[next(iter(opened_maps))]  # the oldest
+                opened_maps[key] = opened
         return opened_maps[key]
 
     def home_corners(object_id: str) -> tuple[list[float], list[float]]:

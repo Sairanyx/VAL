@@ -93,7 +93,7 @@ def harmonics_rotation(rotation: np.ndarray, degree: int = 3, samples: int = 400
         return _eval_sh_bases_fast(count, tensor).numpy()[:, 1:]
 
     # A rotated scene shows at direction d what the original showed at R^T d.
-    return np.linalg.lstsq(bases(directions), bases(directions @ rotation), rcond=None)[0].T
+    return np.linalg.lstsq(bases(directions), bases(directions @ rotation), rcond=None)[0]
 
 
 def transform_splats(

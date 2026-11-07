@@ -13,9 +13,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from app.api.store import ChangeError, SceneStore
-from app.nav.route import placeholder_route
+from app.nav.grid import NavGrid, load_grid
+from app.nav.route import NoRoute, placeholder_route, plan_route
 
 DEFAULT_ASSETS = Path("fixtures/sample_assets.json")
+UNCONFIRMED_NEW = "new, unconfirmed"
 Position = Annotated[list[float], Field(min_length=3, max_length=3)]
 PROFILES = {"robot": 0.3, "person": 0.6, "carrying": 1.2}
 
@@ -37,8 +39,23 @@ class CopilotRequest(BaseModel):
     object_id: str | None = None
 
 
-def create_app(assets_path: Path | str | None = None) -> FastAPI:
+def footprints(store: SceneStore, target_id: str) -> list[tuple[list[float], list[float]]]:
+    """Return boxes that block routes on top of the map: movable and newly added objects."""
+    return [
+        (asset["bbox_min"], asset["bbox_max"])
+        for asset in store.visible()
+        if asset["object_id"] != target_id
+        and (asset["mobility"] == "movable" or asset["status"] == UNCONFIRMED_NEW)
+    ]
+
+
+def create_app(
+    assets_path: Path | str | None = None, grid: NavGrid | Path | str | None = None
+) -> FastAPI:
     store = SceneStore(Path(assets_path or os.getenv("SCENE_ASSETS", DEFAULT_ASSETS)))
+    grid = grid or os.getenv("SCENE_GRID")
+    if isinstance(grid, str | Path):
+        grid = load_grid(Path(grid))
     app = FastAPI(title="Field-service copilot API")
     # The viewer is served from another port on the local network.
     app.add_middleware(
@@ -74,6 +91,26 @@ def create_app(assets_path: Path | str | None = None) -> FastAPI:
     @app.post("/api/route")
     def route(request: RouteRequest) -> dict:
         asset = require(request.object_id)
+        if grid is not None:
+            try:
+                found = plan_route(
+                    grid,
+                    tuple(request.start),
+                    tuple(asset["bbox_min"]),
+                    tuple(asset["bbox_max"]),
+                    width=PROFILES[request.profile],
+                    footprints=footprints(store, request.object_id),
+                )
+            except NoRoute as reason:
+                raise HTTPException(409, str(reason)) from None
+            return {
+                "path": found.path,
+                "length": round(found.length, 3),
+                "stop_distance": round(found.stop_distance, 3),
+                "profile": request.profile,
+                "width": PROFILES[request.profile],
+                "placeholder": False,
+            }
         floor_y = store.scene.get("floor_y", request.start[1])
         path, length = placeholder_route(tuple(request.start), tuple(asset["center"]), floor_y)
         return {

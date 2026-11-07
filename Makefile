@@ -3,8 +3,9 @@ VIEWS_FILE ?= equipment_room_views_v1.tar
 SCENE_TAG ?= scene-v2
 SCENE_FILE ?= scene_v2.tar
 SCENE_DIR ?= data/scene/splat_v2
+SCENE_FULL ?= clean.ply
 
-.PHONY: setup entire views scene gpu train tb web fmt lint test check up api floor
+.PHONY: setup entire views scene scene-full gpu train tb web fmt lint test check up api floor
 
 setup:   ## install everything
 	uv sync
@@ -25,6 +26,10 @@ endif
 	tar -xf $(or $(ARCHIVE),data/scene/$(SCENE_FILE)) -C $(SCENE_DIR)
 	@echo "Viewer: make web SCENE=$(SCENE_DIR)/light_full.ply ASSETS=$(SCENE_DIR)/assets_viewer.json SHAPES=$(SCENE_DIR)/shapes.json"
 	@echo "API:    SCENE_ASSETS=$(SCENE_DIR)/assets_viewer.json SCENE_GRID=$(SCENE_DIR)/nav_grid.npz make api"
+scene-full: ## get the full-quality scene (513 MB), for the viewer on a PC and rebuilding the floor map
+	mkdir -p $(SCENE_DIR)
+	gh release download $(SCENE_TAG) --pattern $(SCENE_FULL) --dir $(SCENE_DIR) --clobber
+	@echo "Viewer: make web SCENE=$(SCENE_DIR)/$(SCENE_FULL) ASSETS=$(SCENE_DIR)/assets_viewer.json SHAPES=$(SCENE_DIR)/shapes.json"
 gpu:     ## check the GPU works
 	uv run python -m app.gpu_check
 api:     ## backend API at http://localhost:8001/docs

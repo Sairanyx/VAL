@@ -27,6 +27,7 @@ def copilot_assets(assets: list[dict]) -> list[dict[str, Any]]:
             "label": asset.get("label", "object"),
             "name": asset.get("name"),
             "copied_name": asset.get("copied_name"),
+            "mobility": asset.get("mobility"),
             "confidence": asset.get("label_confidence", 0.0),
             "center": asset["center"],
             "box": {"min": asset["bbox_min"], "max": asset["bbox_max"]},

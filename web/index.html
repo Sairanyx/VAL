@@ -60,6 +60,10 @@
       <button id="range" data-stay>Range 3 m</button>
       <button id="apart" data-stay>Apart</button>
     </div>
+    <details>
+      <summary>Frame colours</summary>
+      <div id="frame-legend"></div>
+    </details>
     <h3>Change the room</h3>
     <div class="menu-grid">
       <button id="add-object">Add object</button>
@@ -184,13 +188,15 @@
     <button id="copilot-close" aria-label="Close">&times;</button>
     <div id="val-head">
       <h2>Val</h2>
-      <button type="button" id="copilot-speak">Voice on</button>
     </div>
     <div id="val-context"></div>
     <div id="val-messages"></div>
     <div id="val-suggestions"></div>
     <form id="copilot-form">
-      <input id="copilot-input" placeholder="Ask Val" autocomplete="off">
+      <button type="button" id="val-mic" data-state="idle" aria-label="Talk to Val">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V22h2v-3.08A7 7 0 0 0 19 12h-2Z"/></svg>
+      </button>
+      <input id="copilot-input" placeholder="Ask or talk to Val" autocomplete="off">
       <button type="submit" class="primary">Ask</button>
     </form>
   </div>

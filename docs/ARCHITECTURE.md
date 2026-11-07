@@ -83,8 +83,8 @@ flowchart LR
   CP --> LLM["Local language model"]
   API --> DB[("TimescaleDB<br/>changes and telemetry")]
   API --> FILES["Scene files<br/>objects, floor, Excel"]
-  V["Voice, later"] -.-> CMD["Viewer commands"]
-  CMD --> T
+  V["Talking to Val<br/>app/copilot/voice.py"] --> CP
+  CP --> T
 ```
 
 Start it with `./start laptop`, `./start browser` or `./start tablet`. The model runs on the server, never the tablet.

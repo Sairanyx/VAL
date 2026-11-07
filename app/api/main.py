@@ -17,7 +17,8 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import numpy as np
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
@@ -38,6 +39,7 @@ from app.api.store import GONE, ChangeError, SceneStore
 from app.bim.ifc import ifc_text
 from app.bim.model import build_model
 from app.copilot.llm import can_reword, load_writer, warm_up
+from app.copilot.voice import MAX_AUDIO_BYTES, TRANSCRIBER
 from app.nav.grid import NavGrid, largest_region, load_grid
 from app.nav.route import (
     BODIES,
@@ -48,6 +50,7 @@ from app.nav.route import (
 )
 from app.plan.export_dxf import write_dxf
 from app.plan.layout import build_layout
+from app.scene.cover import cover_boxes
 from app.scene.load import Splats, read_splats, write_splats
 from app.scene.split_movable import FLOOR_MARGIN, split_movable
 
@@ -179,6 +182,7 @@ def create_app(
 ) -> FastAPI:
     engine = engine or load_engine()
     writer = load_writer() if engine else None
+    TRANSCRIBER.warm_up()
     if engine:
         warm_up(engine, writer)
     database = database or open_database()
@@ -315,6 +319,22 @@ def create_app(
             "changes": len(store.changes),
         }
 
+    @app.post("/api/copilot/transcribe")
+    async def transcribe(request: Request) -> dict:
+        """Turn recorded speech into text on this machine. The audio isn't kept."""
+        if not TRANSCRIBER.installed:
+            raise HTTPException(503, "Speech isn't installed. Run this once: make voice-model")
+        audio = await request.body()
+        if not audio:
+            raise HTTPException(400, "No audio was received.")
+        if len(audio) > MAX_AUDIO_BYTES:
+            raise HTTPException(413, "That recording is too long.")
+        tags = {asset.tag for asset in engine.store.list_assets()} if engine else set()
+        try:
+            return await run_in_threadpool(TRANSCRIBER.transcribe, audio, tags)
+        except Exception as error:
+            raise HTTPException(422, f"Couldn't read that recording: {error}") from error
+
     @app.post("/api/copilot/query")
     def copilot(request: CopilotRequest) -> dict:
         if request.object_id:
@@ -393,6 +413,54 @@ def create_app(
         """Say where an object's splats are in the scan, to hide them there when it's moved."""
         require(object_id)
         return {**store.home_box(object_id), "floor_margin": FLOOR_MARGIN}
+
+    scan_members: dict[str, Any] = {}
+
+    def members_of(asset: dict) -> np.ndarray | None:
+        """Return where an object's own splats are in the scan, or None if that isn't known."""
+        if not scan_members:
+            folder = store.path.parent
+            labels, final = folder / "splat_labels.npy", folder / "assets_final.json"
+            scan_members["labels"] = np.load(labels) if labels.exists() else None
+            names = json.loads(final.read_text())["assets"] if final.exists() else []
+            scan_members["index"] = {a["object_id"]: i for i, a in enumerate(names)}
+        ids = asset.get("combined_from") or [asset["object_id"]]
+        indices = [scan_members["index"].get(object_id) for object_id in ids]
+        labels = scan_members["labels"]
+        positions = splats_for_selection().positions
+        if labels is None or len(labels) != len(positions) or None in indices:
+            return None
+        return positions[np.isin(labels, indices)].astype(np.float64)
+
+    @app.get("/api/objects/{object_id}/cover")
+    def object_cover(object_id: str) -> dict:
+        """Say what to hide in the scan to delete an object, without taking its neighbours."""
+        # Not require: after a reload, the viewer asks about objects that are already deleted.
+        asset = store.get(object_id)
+        if asset is None:
+            raise HTTPException(404, f"No object {object_id}")
+        up = np.asarray(store.scene.get("up") or (0.0, -1.0, 0.0), dtype=np.float64)
+        floor_height = store.scene.get("floor_y", 0.0) * float(up[int(np.argmax(np.abs(up)))])
+        points = members_of(asset)
+        home = store.home_box(object_id)
+        if points is not None:
+            points = points[points @ up > floor_height + FLOOR_MARGIN]
+            limit = (np.asarray(home["bbox_min"]), np.asarray(home["bbox_max"]))
+            boxes = cover_boxes(points, limit)
+            if boxes:
+                return {"boxes": boxes, "method": "the object's own splats"}
+        low, high = (
+            np.minimum(home["bbox_min"], home["bbox_max"]),
+            np.maximum(home["bbox_min"], home["bbox_max"]),
+        )
+        axis = int(np.argmax(np.abs(up)))
+        # Stop just above the floor, which stays.
+        if up[axis] < 0:
+            high[axis] = min(high[axis], store.scene.get("floor_y", 0.0) - FLOOR_MARGIN)
+        else:
+            low[axis] = max(low[axis], store.scene.get("floor_y", 0.0) + FLOOR_MARGIN)
+        box = {"bbox_min": low.tolist(), "bbox_max": high.tolist()}
+        return {"boxes": [box], "method": "the object's whole box"}
 
     @app.get("/api/objects/{object_id}/splats.ply")
     def object_splats(object_id: str) -> FileResponse:

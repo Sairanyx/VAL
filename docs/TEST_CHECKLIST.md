@@ -20,10 +20,10 @@ brackets belong to that person.
 
 | Person | Parts up to and including Setup and pipeline |
 |---|---|
-| **Eduard** | Routes and nearby, Saving, Backend commands. Scoring: navigation, backend. Setup: database, nav-check, `./start` |
+| **Eduard** | Val. Scoring: navigation, backend. Setup: database, nav-check, `./start` |
 | **Viktor** | Changing objects. Plan. Setup: scene, pieces, highlights, BIM, pipeline, video to splat, updates |
 | **Sasha** | Selecting an object. BIM. Scoring: extraction. Setup: LiDAR decision |
-| **Hannu** | Val. Scoring: AI diagnostics. Setup: mapping, language models |
+| **Hannu** | Routes and nearby, Saving, Backend commands. Scoring: AI diagnostics. Setup: mapping, language models |
 | **Benjamin** | Main buttons, More menu, Tablet and speed. Scoring: demo |
 | **Everyone** | `make setup`, `make gpu`, `make check` on your own machine |
 
@@ -74,7 +74,7 @@ brackets belong to that person.
 - [ ] **Esc or phone back:** goes back one step. ✅ 🤖 KEEP
 
 ## Routes and nearby
-**Who: Eduard**
+**Who: Hannu**
 
 - [ ] **Route avoids obstacles:** never through walls or equipment. ✅ 🤖 KEEP. 383 of 384 passed
 - [ ] **Live updates while walking:** every 0.1 m. ✅ 🤖 KEEP. Check it isn't jumpy
@@ -104,7 +104,7 @@ brackets belong to that person.
 - [ ] **Old spot unblocks after a move:** known issue, it can stay blocked. 🟡 ❌ ADD a fix
 
 ## Saving
-**Who: Eduard**
+**Who: Hannu**
 
 - [ ] **Saved at once:** about 14 ms when you let go. ✅ 🤖 KEEP
 - [ ] **Survives a restart:** API and database. ✅ 🤖 KEEP
@@ -130,25 +130,25 @@ brackets belong to that person.
 - [ ] (Viktor) **Plan's scale:** not checked on site. 🟡 ❌ KEEP. Say it's generated
 
 ## Val
-**Who: Hannu**
+**Who: Eduard**
 
-- [ ] **Instant answer from records:** ✅ 🤖 KEEP
-- [ ] **"In plain words":** model summary, about 10 s on a ThinkPad. ✅ 👤 KEEP. Gemma's answers are terse
-- [ ] **What needs attention:** ranks devices. ✅ 🤖 KEEP
-- [ ] **What's wrong, what to check, last service:** with sources. ✅ 🤖 KEEP
-- [ ] **Take me there:** draws the route. ✅ 🤖 KEEP
-- [ ] **Follow-up questions:** "it" stays on the same machine. ✅ 🤖 KEEP
-- [ ] **Suggestions:** fit what's selected. ✅ 🤖 KEEP
-- [ ] **How Val knows:** evidence, causes, confidence. ✅ 🤖 KEEP
-- [ ] **Doesn't guess:** no records means it says so. ✅ 🤖 KEEP
-- [ ] **Safety refusal:** Hannu's rule. Misses "Shut down", "Close CV-003", "Isolate". 🟡 🤖 Hannu to DECIDE
-- [ ] **Safety refusal, false alarms:** refuses "What does drain mean?". 🟡 🤖 Hannu to DECIDE
-- [ ] **Gemma on a ThinkPad:** `./start laptop`. ✅ 👤 KEEP
-- [ ] **Qwen on the 5090:** `make model`. ✅ ❌ KEEP. Test the 9B beside the viewer
-- [ ] **60-question copilot test:** ❌ ❌ ADD. Must not be cut
-- [ ] **Answers read aloud:** Voice on or off. May need `speech-dispatcher`. ✅ 👤 KEEP if it works
-- [ ] **Speaking to Val:** ❌ ❌ DECIDE. Needs offline speech-to-text. First to cut
-- [ ] **Val doing actions by voice:** commands exist, with nothing connecting speech. 🟡 ❌ DECIDE
+- [ ] **Talking to Val:** press the mic or **V**, speak, and it stops by itself. Runs on our server with no internet. Works in a browser with spoken test audio. ✅ 🤖 KEEP. Try a real voice and the tablet's mic, in a noisy room
+- [ ] **Val doing actions:** say or type it, like "Hide the frames" or "Delete it". The wording can vary, and it only acts on what's selected or named. ✅ 🤖 KEEP
+- [x] **Instant answer from records:** ✅ 🤖 KEEP
+- [x] **"In plain words":** model summary, about 10 s on a ThinkPad. ✅ 👤 KEEP. Gemma's answers are terse
+- [ ] **What needs attention:** ranks devices by urgency, then health. Automated check passes, so check the ranking makes sense. ✅ 🤖 KEEP
+- [x] **What's wrong, what to check, last service:** with sources. ✅ 🤖 KEEP
+- [ ] **Make path:** the new name for "Take me there". It draws the route, and **Walk route** does the walking. ✅ 🤖 KEEP
+- [x] **Follow-up questions:** "it" stays on the same machine. ✅ 🤖 KEEP
+- [x] **Suggestions:** fit what's selected. ✅ 🤖 KEEP
+- [x] **How Val knows:** evidence, causes, confidence. ✅ 🤖 KEEP
+- [x] **Doesn't guess:** no records means it says so. ✅ 🤖 KEEP
+- [ ] **Safety refusal:** "Shut down", "Close CV-003", "Isolate" and others now get "I can't do that". ✅ 🤖 KEEP. Hannu, this changes your rule, so please check it
+- [ ] **Safety refusal, false alarms:** "What does drain mean?" now gets its own reply, and "Stop walking" still works. ✅ 🤖 KEEP
+- [ ] **Unclear or off-topic messages:** Val says "Sorry, I don't understand that". ✅ 🤖 KEEP
+- [ ] **Typing in Val's chat:** W, A, S and D stay in the chat and don't move the view. ✅ 🤖 KEEP
+- [x] **Gemma on a ThinkPad:** `./start laptop`. ✅ 👤 KEEP
+- [ ] **60-question copilot test:** `scripts/eval_copilot.py`. 56 of 60 met their expected result. The other 4 fell back to the records. ✅ 👤 KEEP. A person still has to read and score the answers
 
 ## Tablet and speed
 **Who: Benjamin**
@@ -164,7 +164,7 @@ brackets belong to that person.
 - [ ] **Pre-made 3D models for nearby objects:** ❌ ❌ DECIDE. Parked, with the VR mode
 
 ## Backend commands
-**Who: Eduard**
+**Who: Hannu**
 
 - [ ] **Every viewer action as a command:** `POST /api/viewer/commands`. ✅ 🤖 KEEP
 - [ ] **Action list:** `GET /api/viewer/actions`. ✅ 🤖 KEEP
@@ -263,7 +263,7 @@ Entering never affects the Valmet entry.
 
 ## Bugs
 Write them like this: `- [ ] Section: what you did, what happened, who's fixing it`
-- [ ] Undo: a route check failed once, showing 4.69 m. Looks like test timing, not confirmed. Viktor
-- [ ] Delete: hides the object's whole box, including neighbours. Viktor
+- [ ] Undo: a route check failed once, showing 4.69 m. Passed in every run since. Looks like test timing, not proven. Viktor
+- [ ] Delete: hides a few small boxes around the object's own splats, so far fewer neighbours go (21% fewer other splats hidden overall). Objects made in the viewer still use their whole box. Viktor
 - [ ] Move: a moved object's old spot can stay blocked. Eduard
-- [ ] Load time didn't improve. Viktor
+- [ ] Load time: 6.5 s with the light scene against 10.5 s with the full one, on the laptop with no backend. The full scene is no faster. Viktor

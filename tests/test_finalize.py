@@ -83,6 +83,29 @@ def test_person_overrides_always_win():
     assert final["mobility"] == "movable"
 
 
+def test_ai_review_beats_models_but_not_a_person():
+    item = asset("obj-1", "pipe", [0, 0, 0], [0.5, 0.5, 0.5])
+    qwen = {"obj-1": {"label": "box"}}
+    final = by_id(finalize(document(item, *ROOM), qwen, {}, ai_review={"obj-1": "pump"}), "obj-1")
+    assert final["label"] == "pump"
+    assert final["label_grade"] == "ai_reviewed"
+    person = {"obj-1": {"label": "valve"}}
+    final = by_id(
+        finalize(document(item, *ROOM), qwen, person, ai_review={"obj-1": "pump"}), "obj-1"
+    )
+    assert final["label"] == "valve"
+    assert final["label_grade"] == "verified"
+
+
+def test_other_shows_as_object_and_unknown_review_is_ignored():
+    item = asset("obj-1", "pipe", [0, 0, 0], [0.5, 0.5, 0.5])
+    final = by_id(finalize(document(item, *ROOM), {}, {}, ai_review={"obj-1": "other"}), "obj-1")
+    assert final["label"] == "object"
+    assert final["suggested_label"] == "other"
+    final = by_id(finalize(document(item, *ROOM), {}, {}, ai_review={"obj-1": "unknown"}), "obj-1")
+    assert final["label_grade"] == "unknown"
+
+
 def test_object_with_no_vision_reply_stays_unknown():
     item = asset("obj-1", "box", [0, 0, 0], [0.5, 0.5, 0.5])
     final = by_id(finalize(document(item, *ROOM), {}, {}), "obj-1")

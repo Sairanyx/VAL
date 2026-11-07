@@ -34,7 +34,7 @@ FIXED_LABELS = {
 }
 MOVABLE_LABELS = {"cart", "ladder", "box", "bucket", "barrel", "chair", "tool", "bag"}
 SAM_TO_QWEN = {"cabinet": "electrical cabinet"}
-TRUSTED_GRADES = {"verified", "likely"}
+TRUSTED_GRADES = {"verified", "ai_reviewed", "likely"}
 
 
 def box_measures(asset: dict, up: np.ndarray) -> dict:
@@ -112,8 +112,10 @@ def finalize(
     qwen: dict[str, dict],
     overrides: dict[str, dict],
     wall_margin: float = 0.1,
+    ai_review: dict[str, str] | None = None,
 ) -> dict:
     """Return a copy of the assets document with labels, grades, and mobility filled in."""
+    ai_review = ai_review or {}
     up = np.asarray(document.get("up", (0.0, -1.0, 0.0)), dtype=np.float64)
     up /= np.linalg.norm(up)
     assets = document["assets"]
@@ -142,6 +144,9 @@ def finalize(
         override = overrides.get(object_id, {})
         if "label" in override:
             suggestion, grade, grade_reason = override["label"], "verified", "confirmed by a person"
+        elif ai_review.get(object_id, "unknown") != "unknown":
+            suggestion, grade = ai_review[object_id], "ai_reviewed"
+            grade_reason = "labelled in a visual review by an AI, not checked by a person"
         mobility, mobility_reason = decide_mobility(
             suggestion, grade, measures, floor, room_top, touches_wall
         )
@@ -151,7 +156,9 @@ def finalize(
         result.append(
             {
                 **asset,
-                "label": suggestion if grade in TRUSTED_GRADES else "object",
+                "label": suggestion
+                if grade in TRUSTED_GRADES and suggestion != "other"
+                else "object",
                 "label_grade": grade,
                 "label_reason": grade_reason,
                 "suggested_label": suggestion,
@@ -171,13 +178,15 @@ def main() -> None:
     parser.add_argument("qwen", type=Path)
     parser.add_argument("out", type=Path)
     parser.add_argument("--overrides", type=Path)
+    parser.add_argument("--ai-review", type=Path, help='JSON of {"obj-0001": "pump"}')
     args = parser.parse_args()
 
     document = json.loads(args.assets.read_text())
     replies = [json.loads(line) for line in args.qwen.read_text().splitlines() if line]
     qwen = {reply["object_id"]: reply for reply in replies}
     overrides = json.loads(args.overrides.read_text()) if args.overrides else {}
-    final = finalize(document, qwen, overrides)
+    review = json.loads(args.ai_review.read_text()) if args.ai_review else {}
+    final = finalize(document, qwen, overrides, ai_review=review)
     args.out.write_text(json.dumps(final, indent=1))
     assets = final["assets"]
     print(

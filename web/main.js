@@ -13,6 +13,7 @@ import { THIN_LABELS, pickFront } from "./pick.js";
 import { setupObjects } from "./objects.js";
 import { setupPacing } from "./pacing.js";
 import { setupPhone } from "./phone.js";
+import { setupAlerts } from "./alerts.js";
 import { setupObjectList } from "./objectlist.js";
 import { setupPlan } from "./plan.js";
 import { setupWalkable } from "./walkable.js";
@@ -119,7 +120,7 @@ const pacing = setupPacing({
     Boolean(route?.state.walking) ||
     tracking.state.active,
   isDragging: () => Boolean(objectLayer?.state.moving?.dragging),
-  isAnimated: () => Boolean(route?.state.route),
+  isAnimated: () => Boolean(route?.state.route) || Boolean(alerts?.isActive()),
 });
 let walk = true;
 let eyeY = EYE_HEIGHT;
@@ -130,6 +131,7 @@ let bim = null;
 let route = null;
 let plan = null;
 let objectList = null;
+let alerts = null;
 let selected = null;
 let boxesOn = true;
 let range = Number(params.get("range") ?? 3);
@@ -1055,7 +1057,9 @@ function animate(now) {
   if (plan?.state.open) {
     plan.draw(now); // The room is covered, so there's no need to draw it as well.
   } else {
+    alerts?.update(now);
     renderer.render(scene, camera);
+    alerts?.placeBadges();
     tracking.update();
     if (now - lastChosen > CHOOSE_EVERY) {
       lastChosen = now;
@@ -1400,6 +1404,16 @@ async function load() {
     onSelect: (object) => showInfo(object),
   });
   $("open-list").onclick = () => objectList.toggle();
+  alerts = setupAlerts({
+    root,
+    camera,
+    objects,
+    layer: $("alert-badges"),
+    nameOf: (object) => name(object.asset),
+    onEnter: (object, state, distance) => {
+      $("status").textContent = `Nearby: ${name(object.asset)}, ${state.toLowerCase()}, ${distance.toFixed(1)} m away`;
+    },
+  });
   $("object-list-close").onclick = () => objectList.close();
   $("plan-close").onclick = () => plan.close();
   // These work in the 3D view, so the Plan screen makes way for them.

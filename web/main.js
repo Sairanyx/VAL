@@ -381,6 +381,7 @@ function animate(now) {
   highlight.update();
   if (following) route.update(dt);
   else phone.update(dt);
+  route?.animate(dt);
   if (!following && !adder.state.active) {
     const moving = objectLayer?.state.moving;
     route?.updateLive(

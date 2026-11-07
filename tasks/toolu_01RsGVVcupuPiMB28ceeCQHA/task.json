@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01RsGVVcupuPiMB28ceeCQHA",
+  "agent_id": "a062e74b933b9f970",
+  "subagent_type": "fork",
+  "task_description": "Triage viewer regression failures",
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 34109,
+    "cache_read_tokens": 4056729,
+    "output_tokens": 13371,
+    "api_call_count": 12
+  },
+  "started_at": "2026-11-07T22:26:22.266014011+02:00",
+  "completed_at": "2026-11-07T22:36:56.542286636+02:00"
+}

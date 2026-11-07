@@ -172,10 +172,11 @@ Add these to the URL: `?lod=0&res=2` for the sharpest image, or `?res=0.5` if it
 | Route jumps or disappears as you look around | You're in Walk mode, so it starts from where you are | Press **Walk** to switch to **Fly**, then **Go to P-005** again |
 | Only an outline moves | The backend couldn't cut it | Check `make api` is running and `Equipment Room.ply` is in place |
 | Object moves, but no route change | No route showing, or it isn't in the way | **Go to P-005** first, then drag onto the line |
-| "Couldn't save the move" | The backend refused it or is down | The message says why. Restart `make api` if needed |
+| "Couldn't save the move, so it went back" | The backend refused it, so the object returned to where the backend has it | The message says why. Try another spot |
+| "Couldn't save the change, trying again" | The backend can't be reached. Routes ignore the change until it's saved | Start `make api`. The viewer sends it once it's back |
 | "Couldn't add an object: Selecting needs the scene" | `Equipment Room.ply` is missing | Put it in `data/scene/equipment_room/` |
 | "No route to..." | Something blocks the way | That can be correct. **Undo changes** if you caused it |
-| Everything is back after reloading the backend | No database | Run `make db` before `make api` |
+| "The backend lost saved moves" | `make api` restarted with no database, which it does whenever a `.py` file in the repo changes. Or someone pressed **Undo changes** on another screen | Run `make db` before `make api` to keep moves across restarts |
 | Blurry or slow | Heavy scene on a weak GPU | Try a lighter scene, or `?res=0.5` |
 | Viewer shows a small test scene | `make web` had no `SCENE=` | Use the full line above |
 | Old object IDs, such as `obj-0046` for P-005 | Old data | Run `make scene mapping pieces highlights` again |

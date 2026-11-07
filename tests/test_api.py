@@ -306,3 +306,23 @@ def test_route_preview_blocks_without_saving_the_move(tmp_path):
     assert client.get("/api/assets/cart").json()["center"] == [0.6, -0.5, 1.0]
     assert client.get("/api/changes").json()["changes"] == []
     assert client.post("/api/route", json=request).json()["length"] == clear
+
+
+def test_route_says_how_many_changes_the_backend_holds(tmp_path):
+    """The viewer compares this with what it sent, to notice a backend that has lost its moves."""
+    assets = [box("target", [5.5, -0.5, 1.0], "fixed"), box("cart", [0.6, -0.5, 1.0], "movable")]
+    path = tmp_path / "assets.json"
+    path.write_text(json.dumps({"scene_id": "t", "assets": assets}))
+    client = TestClient(create_app(path, open_floor(tmp_path), database=FakeDatabase()))
+    request = {"start": [2.0, 0.0, 1.0], "object_id": "target"}
+    assert client.post("/api/route", json=request).json()["changes"] == 0
+    move = {"op": "move", "object_id": "cart", "position": [0.6, -0.5, 1.5]}
+    assert client.post("/api/changes", json=move).json()["change_id"] == 1
+    assert client.post("/api/route", json=request).json()["changes"] == 1
+    client.post("/api/changes/reset")
+    assert client.post("/api/route", json=request).json()["changes"] == 0
+
+
+def test_placeholder_route_says_how_many_changes_the_backend_holds(client):
+    request = {"start": [0, 0, 0], "object_id": "near"}
+    assert client.post("/api/route", json=request).json()["changes"] == 0

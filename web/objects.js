@@ -222,10 +222,10 @@ export async function setupObjects({
     for (const object of [...marked]) mark(object, false);
   }
 
-  function showCheck(moving, result) {
+  function showCheck(moving, result, spot) {
     clearMarks();
     if (result.ok) {
-      moving.valid = moving.object.center.clone();
+      moving.valid = spot;
       onMessage?.("Release to place it here");
       return;
     }
@@ -246,9 +246,11 @@ export async function setupObjects({
     moving.checking = true;
     do {
       moving.checkAgain = false;
-      const result = await checkMove(moving.object, moving.object.center.toArray());
+      // The pointer keeps moving during a check, so remember which spot the answer is about.
+      const spot = moving.object.center.clone();
+      const result = await checkMove(moving.object, spot.toArray());
       if (state.moving !== moving) break;
-      showCheck(moving, result);
+      showCheck(moving, result, spot);
     } while (moving.checkAgain);
     moving.checking = false;
   }
@@ -310,10 +312,11 @@ export async function setupObjects({
         return;
       }
     }
+    // Not rounded: this must be the spot that was checked, or the backend could refuse it.
     state.changes.push({
       op: "move",
       object_id: object.asset.object_id,
-      position: object.center.toArray().map((value) => Number(value.toFixed(3))),
+      position: object.center.toArray(),
     });
     onChange?.(state.changes);
   }

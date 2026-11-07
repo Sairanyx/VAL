@@ -211,6 +211,7 @@ def create_app(
                 "profile": request.profile,
                 "width": BODIES[request.profile][0],
                 "placeholder": False,
+                "changes": len(store.changes),
             }
         floor_y = store.scene.get("floor_y", request.start[1])
         path, length = placeholder_route(tuple(request.start), tuple(asset["center"]), floor_y)
@@ -220,6 +221,7 @@ def create_app(
             "profile": request.profile,
             "width": BODIES[request.profile][0],
             "placeholder": True,
+            "changes": len(store.changes),
         }
 
     @app.post("/api/copilot/query")

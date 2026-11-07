@@ -2,10 +2,12 @@
 // meshes.bin (scan surface meshes) and bim/splats/ (each object's own scanned splats).
 // Three looks: "real" shows the objects' true-colour splats in the estimated room, "mesh" shows
 // meshes built from those splats, and "box" the simple shapes: fitted boxes and cylinders, or
-// bounding boxes. All but "real" are coloured by IFC class. Taps hit the mesh, or the box in "box".
+// bounding boxes. All but "real" are coloured by IFC class. Taps and hovering always use the simple shape.
 // Everything is in scene coordinates inside `root`, like the scan, so moves and routes line up.
 import * as THREE from "three";
 import { SplatEdit, SplatEditSdf, SplatEditSdfType, SplatMesh } from "@sparkjsdev/spark";
+import { createHoverShell } from "./hover.js";
+import { THIN_LABELS, pickFront } from "./pick.js";
 
 const UP = new THREE.Vector3(0, 1, 0);
 const CLASS_COLORS = {
@@ -165,6 +167,7 @@ export async function setupBim({
     isolated: false,
     hidden: new Set(),
     cut: null,
+    hovered: null,
   };
   ready = true;
   // Objects that can't move share one splat file per IFC class; movable ones get their own.
@@ -264,7 +267,10 @@ export async function setupBim({
     if (on) {
       setLook(state.look);
       chooseDownload();
-    } else hideSplats();
+    } else {
+      hideSplats();
+      hover(null);
+    }
   }
 
   function hideSplats() {
@@ -359,6 +365,18 @@ export async function setupBim({
   const spin = new THREE.Quaternion();
   const shift = new THREE.Vector3();
   const floorWorld = new THREE.Vector3();
+  // Shapes follow their object's moves and turns.
+  function placeShapes(item) {
+    const owner = ownerOf(item);
+    offset.set(...(item.origin ?? owner.asset.center));
+    spin.setFromAxisAngle(UP, owner.yaw || 0);
+    for (const mesh of [item.scan, item.box].filter(Boolean)) {
+      shift.copy(mesh.userData.home).sub(offset).applyQuaternion(spin);
+      mesh.position.copy(owner.center).add(shift);
+      mesh.quaternion.copy(mesh.userData.turn).premultiply(spin);
+    }
+  }
+
   // Objects made after the model was built, by adding, splitting, or combining, get a plain box.
   function update() {
     if (!state.active) return;
@@ -370,13 +388,7 @@ export async function setupBim({
       if (item.object) cutFromGroup(item, Boolean(item.object.gone));
       if (item.object && !owner && item.splats) item.splats.visible = false;
       if (owner) {
-        offset.set(...(item.origin ?? owner.asset.center));
-        spin.setFromAxisAngle(UP, owner.yaw || 0);
-        for (const mesh of [item.scan, item.box].filter(Boolean)) {
-          shift.copy(mesh.userData.home).sub(offset).applyQuaternion(spin);
-          mesh.position.copy(owner.center).add(shift);
-          mesh.quaternion.copy(mesh.userData.turn).premultiply(spin);
-        }
+        placeShapes(item);
         if (item.splats) {
           shift.copy(offset).negate().applyQuaternion(spin);
           item.splats.position.copy(owner.center).add(shift);
@@ -396,26 +408,81 @@ export async function setupBim({
       root.localToWorld(floorWorld.set(0, floorY, 0));
       section.constant = floorWorld.y + state.cut;
     }
+    if (state.hovered && visible(state.hovered)) {
+      shell.show(state.hovered.box.geometry, state.hovered.box.position, state.hovered.box.quaternion);
+    } else if (state.hovered) shell.hide();
   }
 
-  // Equipment is preferred over walls and floor. See-through bounding boxes can overlap, so the
-  // smallest one under the pointer wins, but nothing behind the first solid shape is picked.
+  // Taps and hovering use each element's simple shape in every look, even when it isn't drawn:
+  // scan meshes and splats have gaps, so a tap in the middle of a bucket could miss it.
+  // Equipment comes before walls and floor; among it, the front shape wins (see pick.js).
+  function candidate(raycaster) {
+    const shown = items.filter((item) => visible(item));
+    const inCut = (hit) => state.cut === null || section.distanceToPoint(hit.point) >= 0;
+    const front = (list) =>
+      pickFront(
+        raycaster,
+        list.map((item) => ({
+          mesh: item.box,
+          volume: item.volume,
+          thin: THIN_LABELS.has(item.element.psets.Valmet_Identification?.DetectedLabel),
+          surface: (rc) => surfaceAt(item, rc, inCut),
+          item,
+        })),
+        inCut,
+      )?.item ?? null;
+    const equipment = shown.filter((item) => !ROOM.has(item.element.ifc_class));
+    const room = shown.filter((item) => ROOM.has(item.element.ifc_class));
+    return front(equipment) ?? front(room);
+  }
+
+  // Distance to an element's real surface along a ray: its fitted shape, or its scan mesh.
+  function surfaceAt(item, raycaster, keep = () => true) {
+    const fitted = !item.box.userData.base.transparent;
+    const real = fitted ? item.box : item.scan;
+    if (!real) return null;
+    const hit = raycaster.intersectObject(real, false).find(keep);
+    return hit ? hit.distance : null;
+  }
+
+  // The same, for the scan view, where shapes are only placed when needed.
+  function surfaceDistance(object, raycaster) {
+    const item = items.find((candidate) => candidate.object === object);
+    if (!item || object.gone) return null;
+    placeShapes(item);
+    return surfaceAt(item, raycaster);
+  }
+
   function pick(raycaster) {
-    const meshes = items.filter((item) => item.mesh.visible).map((item) => item.mesh);
-    const hits = raycaster
-      .intersectObjects(meshes, false)
-      .filter((hit) => state.cut === null || section.distanceToPoint(hit.point) >= 0)
-      .map((hit) => hit.object.userData.item);
-    const equipment = [];
-    for (const item of hits) {
-      if (ROOM.has(item.element.ifc_class)) continue;
-      equipment.push(item);
-      if (!item.mesh.userData.base.transparent) break;
-    }
-    const pool = equipment.length ? equipment : hits.slice(0, 1);
-    const item = pool.length ? pool.reduce((a, b) => (b.volume < a.volume ? b : a)) : null;
+    const item = candidate(raycaster);
     select(item);
     return item;
+  }
+
+  const shell = createHoverShell(root, [section]);
+
+  // Pass a raycaster to hover what is under it, or null to clear. Returns the hovered item.
+  function hover(raycaster) {
+    let item = raycaster && state.active ? candidate(raycaster) : null;
+    if (item && ROOM.has(item.element.ifc_class)) item = null;
+    state.hovered = item;
+    if (item && visible(item)) shell.show(item.box.geometry, item.box.position, item.box.quaternion);
+    else shell.hide();
+    return item;
+  }
+
+  // Outside BIM mode: outline an object's simple shape where the object stands now.
+  function hoverObject(object) {
+    if (state.active) return false;
+    if (object && !object.gone) addMissing();
+    const item = object && !object.gone ? items.find((c) => c.object === object) : null;
+    if (!item) {
+      shell.hide();
+      return false;
+    }
+    placeShapes(item);
+    shell.show(item.box.geometry, item.box.position, item.box.quaternion);
+    return true;
   }
 
   document.getElementById("bim-look").hidden = looks.length < 2;
@@ -426,6 +493,9 @@ export async function setupBim({
     setLook,
     update,
     pick,
+    hover,
+    hoverObject,
+    surfaceDistance,
     selectObject,
     rename(object) {
       const item = items.find((candidate) => candidate.object === object);

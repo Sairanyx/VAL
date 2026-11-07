@@ -8,6 +8,8 @@ import { setupBim } from "./bim.js";
 import { setupCommands } from "./commands.js";
 import { setupCopilot } from "./copilot.js";
 import { setupHighlight } from "./highlight.js";
+import { createHoverShell } from "./hover.js";
+import { THIN_LABELS, pickFront } from "./pick.js";
 import { setupObjects } from "./objects.js";
 import { setupPacing } from "./pacing.js";
 import { setupPhone } from "./phone.js";
@@ -182,7 +184,8 @@ function addAsset(asset) {
   root.add(box);
 
   // Invisible solid box, so taps and the crosshair can hit the object.
-  const pick = new THREE.Mesh(geom, new THREE.MeshBasicMaterial({ visible: false }));
+  // Two-sided, so a pick ray also finds where it leaves the box (see pick.js).
+  const pick = new THREE.Mesh(geom, new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide }));
   pick.position.copy(mid);
   pick.userData.index = objects.length;
   root.add(pick);
@@ -725,10 +728,61 @@ $("manip-done").onclick = () => {
 
 function hit(ndc) {
   raycaster.setFromCamera(ndc, camera);
-  const hits = raycaster.intersectObjects(objects.map((o) => o.pick));
-  // A pipe's box can span the room, so the smallest box under the pointer is the likely target.
-  const found = hits.map((h) => objects[h.object.userData.index]);
-  return found.length ? found.reduce((a, b) => (b.volume < a.volume ? b : a)) : null;
+  const candidates = objects
+    .filter((o) => !o.gone && o.pick.layers.isEnabled(0))
+    .map((o) => ({
+      mesh: o.pick,
+      volume: o.volume,
+      thin: THIN_LABELS.has(o.asset.label),
+      surface: (rc) => bim?.surfaceDistance(o, rc) ?? null,
+      object: o,
+    }));
+  return pickFront(raycaster, candidates)?.object ?? null;
+}
+
+// A mouse shows what a tap would pick, in BIM mode and in the scan. Checked once a frame, so it
+// also follows the view when the camera moves under a still mouse.
+let hoverAt = null;
+let hoverChanged = false;
+canvas.addEventListener("pointermove", (e) => {
+  const free = e.pointerType === "mouse" && e.buttons === 0;
+  hoverAt = free ? { x: e.clientX, y: e.clientY } : null;
+  hoverChanged = true;
+});
+canvas.addEventListener("pointerleave", () => {
+  hoverAt = null;
+  hoverChanged = true;
+});
+let hovering = false;
+let lastHovered = null;
+let lastHoverCheck = 0;
+const HOVER_EVERY = 66; // milliseconds: checking every object under the mouse takes a while
+// Without BIM data, or while objects are pulled apart, the scan view outlines the pick box.
+const sceneHover = createHoverShell(root);
+function updateHover() {
+  const busy = adder.state.active || objectLayer?.state.moving;
+  const inBim = Boolean(bim?.state.active);
+  let found = null;
+  if (hoverAt && !busy) {
+    const ndc = new THREE.Vector2(
+      (hoverAt.x / window.innerWidth) * 2 - 1,
+      -(hoverAt.y / window.innerHeight) * 2 + 1,
+    );
+    if (inBim) {
+      raycaster.setFromCamera(ndc, camera);
+      found = bim.hover(raycaster);
+    } else found = hit(ndc);
+  } else if (hovering && inBim) bim.hover(null);
+  const apart = objectLayer?.state.amount > 0;
+  const shaped = !inBim && found && !apart && bim?.hoverObject(found);
+  if (!inBim && !shaped) bim?.hoverObject(null);
+  if (!inBim && found && !shaped) sceneHover.show(found.pick.geometry, found.pick.position, found.pick.quaternion);
+  else sceneHover.hide();
+  hovering = Boolean(found);
+  canvas.style.cursor = found ? "pointer" : "";
+  // The outline needs drawing, even while nothing else is being redrawn.
+  if (found !== lastHovered) pacing.drawOnce();
+  lastHovered = found;
 }
 
 // A short tap without dragging selects an object. Drags are camera movement.
@@ -891,6 +945,12 @@ function animate(now) {
   if (following && !tracked) route.update(stepTime);
   else if (!tracked) phone.update(stepTime);
   if (walk && !tracked) camera.position.y = eyeY;
+  const hoverDue = now - lastHoverCheck > HOVER_EVERY;
+  if (hoverDue && (hoverChanged || (hoverAt && pacing.isMoving()))) {
+    hoverChanged = false;
+    lastHoverCheck = now;
+    if (!plan?.state.open) updateHover();
+  }
   if (!pacing.shouldDraw(now)) return;
 
   const dt = lastTime ? (now - lastTime) / 1000 : 0;

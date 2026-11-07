@@ -79,7 +79,7 @@ run continues. `DRY=1` shows the steps. Mapping, pieces, highlights and BIM are 
 flowchart LR
   T["Tablet or browser<br/>web/"] <--> API["Backend API<br/>app/api"]
   API --> N["Routes and nearby<br/>app/nav"]
-  API --> CP["Copilot<br/>app/copilot"]
+  API --> CP["Val, the copilot<br/>app/copilot"]
   CP --> LLM["Local language model"]
   API --> DB[("TimescaleDB<br/>changes and telemetry")]
   API --> FILES["Scene files<br/>objects, floor, Excel"]
@@ -87,7 +87,7 @@ flowchart LR
   CMD --> T
 ```
 
-Start it with `./start browser` or `./start tablet`. The model runs on the server, never the tablet.
+Start it with `./start laptop`, `./start browser` or `./start tablet`. The model runs on the server, never the tablet.
 
 ## 6. Updating the space
 

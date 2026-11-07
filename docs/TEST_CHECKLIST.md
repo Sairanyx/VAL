@@ -3,7 +3,8 @@
 Test on the real scene, not a test scene. Tick a box only when you've seen it work. If it fails, leave it
 unticked and add a line under **Bugs** at the end. Start with an empty scene: press **Undo changes**.
 
-**Run it:** `./start browser`, then open http://localhost:8000/?tablet=0
+**Run it:** `./start laptop` on a ThinkPad, or `./start browser` on a PC with a graphics card, then open
+http://localhost:8000/?tablet=0. Most controls are under **More**.
 
 ## 1. Setup
 - [ ] `make setup` installs with no errors
@@ -14,11 +15,13 @@ unticked and add a line under **Bugs** at the end. Start with an empty scene: pr
 - [ ] `make highlights` finishes
 - [ ] `make bim` writes the model and `model.ifc`
 - [ ] `make db` starts the database and loads 4,320 telemetry rows
-- [ ] `make model` downloads the language model
+- [ ] `make laptop-model` gets Val's small model (needs Ollama)
+- [ ] `make model` downloads the larger language model, for a GPU
 - [ ] `make check` passes
 - [ ] `make nav-check` passes every check
 
 ## 2. Starting
+- [ ] `./start laptop` starts everything with the light scene, and prints the address
 - [ ] `./start browser` starts everything, and prints the address
 - [ ] `./start tablet` starts everything, and prints the tablet's address
 - [ ] Ctrl+C stops everything, and ports 8000 and 8001 are free
@@ -66,7 +69,7 @@ unticked and add a line under **Bugs** at the end. Start with an empty scene: pr
 - [ ] Nearby objects highlight and show status during the walk
 
 ## 6. Moving objects
-- [ ] **Move on floor** only shows on movable objects
+- [ ] **Move** only shows on movable objects
 - [ ] Fixed objects explain why they can't move
 - [ ] Dragging moves the real scan, with no outline left behind
 - [ ] The floor where it stood looks acceptable
@@ -83,7 +86,7 @@ unticked and add a line under **Bugs** at the end. Start with an empty scene: pr
 - [ ] A moved object's old spot stops blocking routes
 
 ## 7. Rotating objects
-- [ ] **Rotate on floor** only shows on movable objects
+- [ ] **Rotate** only shows on movable objects
 - [ ] Dragging turns it
 - [ ] The **↶ 45°** and **↷ 45°** buttons turn it
 - [ ] Two-finger twist turns it on a touch screen
@@ -138,8 +141,27 @@ unticked and add a line under **Bugs** at the end. Start with an empty scene: pr
 - [ ] Moved objects appear at their new spot
 - [ ] **Download DXF** gives a file a real CAD tool can open
 
-## 12. Copilot
-- [ ] **Copilot** and **Ask copilot** open the window
+## Duplicate, delete, name and go back
+- [ ] **Duplicate** puts a copy on a free spot, with its real look, in the scan and in BIM mode
+- [ ] The copy has its own ID and a name like `P-005 copy 1`, and the original keeps its link
+- [ ] **Name it** names an object with no record link, and a name like `P-005` is refused
+- [ ] **Delete** asks first, **Keep it** keeps it, and **Delete** removes it from scan, routes and BIM mode
+- [ ] **Undo changes** brings deleted objects back and removes copies
+- [ ] Combining two objects, the result stays on screen before it's moved
+- [ ] After moving a combined object, and after entering and leaving BIM mode, there's no ghost
+- [ ] BIM's Box look shows a combined object as one box, with no real splats
+- [ ] Esc goes back one step, and finally deselects
+- [ ] The phone's back button does the same, and doesn't leave the page while something's open
+- [ ] With a mouse, a faint outline shows what a click would pick
+
+## 12. Val
+- [ ] **Ask Val**, on the main buttons and in an object's panel, opens Val
+- [ ] The suggestions fit what's selected, and × beside "About ..." clears the selection
+- [ ] "What needs attention?" names the most urgent devices
+- [ ] "Take me to P-005" draws the route
+- [ ] "Take me there" on an object with no record routes to that object, not P-005
+- [ ] An answer comes at once, and "In plain words" follows with a model running
+- [ ] "hi", "thanks" and "which spare parts?" don't repeat a device's diagnosis
 - [ ] The **Ask** button sends a question
 - [ ] "What's wrong with it?" gives the right fault
 - [ ] "When was it last serviced?" cites a work order
@@ -150,8 +172,8 @@ unticked and add a line under **Bugs** at the end. Start with an empty scene: pr
 - [ ] An unknown question says it found nothing, and doesn't make things up
 - [ ] An object with no record doesn't get another machine's answer
 - [ ] "Shut down pump P-005" is refused
-- [ ] The local model loads, and answers say **Worded by the local model**
-- [ ] If the model fails, it falls back to **Fixed template**
+- [ ] The local model loads, and "In plain words" appears under answers
+- [ ] If the model fails, the answer from the records simply stays
 - [ ] An answer takes an acceptable time (write it down)
 
 ## 13. Voice
@@ -159,13 +181,13 @@ unticked and add a line under **Bugs** at the end. Start with an empty scene: pr
 - [ ] **Voice on/off** works, and off stops speech at once
 - [ ] Closing the window stops speech
 - [ ] Refused requests are read aloud too
-- [ ] Speaking to the copilot (not built yet)
+- [ ] Speaking to Val (not built yet)
 
 ## 14. Viewer commands
 Check these at http://localhost:8001/docs, with the viewer open.
 - [ ] `GET /api/viewer/actions` lists the actions
 - [ ] Each action works: select, close, route, walk, stop, clear, profile, mode
-- [ ] Each action works: boxes, range, view, apart, BIM, reset, copilot
+- [ ] Each action works: boxes, range, view, apart, BIM, reset, Val, duplicate, delete, rename
 - [ ] Each action works: move, rotate, turn, start move, start rotate, finish, undo
 - [ ] Each action works: start add, start split, start combine
 - [ ] A bad object or a blocked spot reports a clear error
@@ -184,14 +206,14 @@ Check these at http://localhost:8001/docs, with the viewer open.
 - [ ] Touch select, move, rotate and route all work
 - [ ] **Phone** mode works with HTTPS: turn to look, step to walk
 - [ ] **Track** follows the device with ARCore (check scale by walking a known distance)
-- [ ] Copilot answers and speaks on the tablet
+- [ ] Val answers and speaks on the tablet
 
 ## 16. Offline rehearsal on the 5090
 - [ ] `make db` and `make api` work on the 5090
 - [ ] The 9B model loads, alongside the viewer
 - [ ] The router is set up, and the tablet connects
 - [ ] Every file and model is on the 5090 first
-- [ ] **Internet off:** scene, routes, moves, copilot and voice all work
+- [ ] **Internet off:** scene, routes, moves, Val and voice all work
 - [ ] Nothing in the browser tries to reach the internet
 - [ ] Restarting everything takes less than a few minutes (write it down)
 
@@ -206,7 +228,7 @@ Check these at http://localhost:8001/docs, with the viewer open.
 - [ ] Tap an object: details show
 - [ ] Navigate: route and walk work
 - [ ] Nearby objects show status on the way
-- [ ] Reach `P-005`: the copilot explains it, with sources and safe checks
+- [ ] Reach `P-005`: Val explains it, with sources and safe checks
 - [ ] Move an object: it stays real, and the route changes
 - [ ] Undo: everything goes back
 - [ ] It runs all the way through 3 times with no problems

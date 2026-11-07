@@ -24,6 +24,12 @@ export function setupPacing({ renderer, camera, baseRes, adaptive, isBusy, isDra
   let frameTime = 0;
   let samples = 0;
   let moving = false;
+  let oneFrame = false;
+
+  // For a small change, such as an outline, that needs one frame and not a burst of them.
+  function drawOnce() {
+    oneFrame = true;
+  }
 
   function wake() {
     lastActive = performance.now();
@@ -57,6 +63,10 @@ export function setupPacing({ renderer, camera, baseRes, adaptive, isBusy, isDra
         samples = 0; // A sharp frame takes longer, and says nothing about the speed while moving.
       }
     }
+    if (oneFrame) {
+      oneFrame = false;
+      return true;
+    }
     if (now - lastActive < IDLE_AFTER) return true;
     const draw = now - lastDraw >= (isAnimated() ? ANIMATED_EVERY : IDLE_EVERY);
     if (!draw) stats.skipped += 1;
@@ -81,5 +91,5 @@ export function setupPacing({ renderer, camera, baseRes, adaptive, isBusy, isDra
     setScale(movingScale);
   }
 
-  return { stats, wake, shouldDraw, drew };
+  return { stats, wake, drawOnce, shouldDraw, drew, isMoving: () => moving };
 }

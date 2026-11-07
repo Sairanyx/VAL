@@ -31,6 +31,8 @@ function chevronGeometry() {
   geometry.rotateX(Math.PI / 2); // tip from +y to +z, so it lies flat on the floor
   return geometry;
 }
+const LIVE_STEP = 0.25; // metres moved before the route is re-planned or trimmed
+const LIVE_WAIT = 120; // milliseconds between live re-plans, so requests don't pile up
 
 async function callApi(path, body) {
   const response = await fetch(path, {
@@ -95,6 +97,9 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
     walking: null,
     posted: 0,
   };
+  // Live re-planning: one request at a time, always for the newest position. `plan` and `clear`
+  // bump `version`, so an older reply that arrives afterwards is dropped.
+  const live = { busy: false, version: 0, lastAt: 0, lastFrom: null, lastDrag: null };
 
   function clearLine() {
     for (const child of [...group.children]) {
@@ -128,33 +133,30 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
     track = { points, lengths, total: lengths.at(-1) };
   }
 
-  // How far along the drawn route the walk has got, so arrows behind the walker disappear.
-  function walkedDistance() {
-    const walking = state.walking;
-    if (!walking || !track) return 0;
-    const index = Math.min(walking.index, track.lengths.length - 1);
-    return track.lengths[index] + walking.along;
-  }
-
   // Place the arrows for this frame: evenly spaced, flowing towards the end, growing in and out.
+  // They're spaced by distance to the end, not from the start, so live re-plans and the trimming
+  // while walking (which both redraw the route from a new start) don't make them jump.
   function animate(dt) {
     if (!track) return;
     clock += dt;
     phase = (phase + ARROW_SPEED * dt) % ARROW_SPACING;
     if (ring) ring.scale.setScalar(1 + 0.15 * Math.sin(clock * 4));
-    const start = walkedDistance();
     const stop = track.total - END_GAP;
+    const nearest = END_GAP + ARROW_SPACING - phase; // distance to the end of the closest arrow
+    const n = Math.min(Math.floor((track.total - nearest) / ARROW_SPACING), MAX_ARROWS - 1);
     let segment = 0;
     let count = 0;
-    for (let d = phase; d < stop && count < MAX_ARROWS; d += ARROW_SPACING) {
-      if (d < start) continue;
+    // From the farthest arrow to the nearest, so the distance from the start only grows.
+    for (let k = n; k >= 0; k--) {
+      const d = track.total - (nearest + k * ARROW_SPACING);
+      if (d < 0) continue;
       while (segment < track.lengths.length - 2 && track.lengths[segment + 1] < d) segment++;
       const a = track.points[segment];
       const b = track.points[segment + 1];
       const span = track.lengths[segment + 1] - track.lengths[segment];
       dummy.position.lerpVectors(a, b, span > 0 ? (d - track.lengths[segment]) / span : 0);
       dummy.rotation.set(0, Math.atan2(b.x - a.x, b.z - a.z), 0);
-      const grow = Math.min(1, (d - start) / ARROW_GROW, (stop - d) / ARROW_GROW);
+      const grow = Math.min(1, d / ARROW_GROW, (stop - d) / ARROW_GROW);
       dummy.scale.setScalar(Math.max(grow, 0.01));
       dummy.updateMatrix();
       arrows.setMatrixAt(count++, dummy.matrix);
@@ -169,13 +171,15 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
     return `${name}: ${route.length.toFixed(1)} m for a ${route.width ?? ""} m ${route.profile}${reach}${fake}`;
   }
 
-  // Plan from where the viewer stands. Re-plans keep that start, so looking around from elsewhere
-  // can't change the route. A refusal clears the line and shows the reason.
+  // Plan from where the viewer stands. A refusal clears the line and shows the reason.
   async function plan(target, from = null) {
+    live.version += 1;
     state.walking = null;
     state.target = target;
     const start = from ?? root.worldToLocal(camera.position.clone());
     state.start = start;
+    live.lastFrom = start.clone();
+    live.lastDrag = null;
     try {
       state.route = await callApi("/api/route", {
         start: start.toArray(),
@@ -193,11 +197,63 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
     return state.route;
   }
 
+  // Called every frame when the route isn't being walked. Keeps the route up to date while the viewer
+  // moves, or while an object is dragged (`drag`: object_id and position, not saved yet).
+  function updateLive(drag = null) {
+    if (!state.target || state.walking || live.busy) return;
+    if (performance.now() - live.lastAt < LIVE_WAIT) return;
+    const here = root.worldToLocal(camera.position.clone());
+    here.y = state.start.y;
+    const walked = !live.lastFrom || here.distanceTo(live.lastFrom) >= LIVE_STEP;
+    const dragged =
+      drag &&
+      (!live.lastDrag ||
+        new THREE.Vector3(...drag.position).distanceTo(new THREE.Vector3(...live.lastDrag)) >=
+          LIVE_STEP);
+    if (!walked && !dragged) return;
+    if (walked) {
+      state.start = here;
+      live.lastFrom = here.clone();
+    }
+    if (dragged) live.lastDrag = drag.position;
+    sendLive(drag);
+  }
+
+  async function sendLive(drag) {
+    const { version } = live;
+    live.busy = true;
+    live.lastAt = performance.now();
+    const target = state.target;
+    try {
+      const route = await callApi("/api/route", {
+        start: state.start.toArray(),
+        object_id: target.asset.object_id,
+        profile: state.profile,
+        ...(drag ? { preview: drag } : {}),
+      });
+      if (version !== live.version || state.walking) return;
+      state.route = route;
+      draw(route.path);
+      onMessage(describe(route, target.name));
+    } catch (error) {
+      if (version !== live.version || state.walking) return;
+      // The viewer can stand off the floor, so keep the last line. A drag can really block the way.
+      if (drag) {
+        state.route = null;
+        clearLine();
+      }
+      onMessage(`No route to ${target.name} from here: ${error.message}`);
+    } finally {
+      live.busy = false;
+    }
+  }
+
   function startWalking() {
     if (!state.route) return false;
+    live.version += 1;
     const end = state.route.view_from ?? state.route.path.at(-1);
     const points = pathToViewPoint(state.route.path, end);
-    state.walking = { points, index: 0, along: 0 };
+    state.walking = { points, index: 0, along: 0, trimmed: 0 };
     return true;
   }
 
@@ -206,6 +262,7 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
   }
 
   function clear() {
+    live.version += 1;
     state.walking = null;
     state.route = null;
     state.target = null;
@@ -275,6 +332,12 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
       const b = walking.points[walking.index + 1];
       here.lerpVectors(a, b, walking.along / Math.max(a.distanceTo(b), 1e-6));
       next.copy(b);
+      // Only the part still ahead stays on the floor.
+      walking.trimmed += WALK_SPEED * dt;
+      if (walking.trimmed >= LIVE_STEP) {
+        walking.trimmed = 0;
+        draw([here, ...walking.points.slice(walking.index + 1)].map((p) => p.toArray()));
+      }
     } else {
       here.copy(walking.points[last]);
       next.copy(focus);
@@ -293,5 +356,16 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
     return state.target ? plan(state.target, state.start) : null;
   }
 
-  return { state, plan, startWalking, stopWalking, clear, syncChanges, setProfile, update, animate };
+  return {
+    state,
+    plan,
+    updateLive,
+    startWalking,
+    stopWalking,
+    clear,
+    syncChanges,
+    setProfile,
+    update,
+    animate,
+  };
 }

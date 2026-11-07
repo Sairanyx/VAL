@@ -58,6 +58,34 @@ class CopilotResponse:
         return asdict(self)
 
 
+def metric_observations(metrics: dict[str, dict[str, Any]]) -> list[str]:
+    """Describe each measured value and its trend, with changing values first."""
+    ordered = sorted(metrics.values(), key=lambda metric: metric["trend"] == "stable")
+    return [
+        f"{metric['metric'].replace('_', ' ')}: now {metric['latest']}, "
+        f"range {metric['min_val']} to {metric['max_val']}, {metric['trend']} "
+        f"over {metric['sample_count']} samples."
+        for metric in ordered
+    ]
+
+
+def fouling_hypothesis(metrics: dict[str, dict[str, Any]]) -> str:
+    """Explain fouling from the trends that the data actually shows."""
+    signs = []
+    for name, wanted, text in (
+        ("process_flow_pct", "decreasing", "falling flow"),
+        ("process_pressure_bar", "decreasing", "falling pressure"),
+        ("current_a", "increasing", "rising motor current"),
+        ("temperature_c", "increasing", "rising temperature"),
+        ("vibration_rms_mm_s", "increasing", "rising vibration"),
+    ):
+        if metrics.get(name, {}).get("trend") == wanted:
+            signs.append(text)
+    if not signs:
+        return "The fouling flag isn't clearly backed by the recent measured trends."
+    return f"{', '.join(signs).capitalize()} may point to fouling in the hydraulic path."
+
+
 class CopilotEngine:
     """Field service diagnostic copilot with enforced guardrails and citation checking."""
 
@@ -151,7 +179,9 @@ class CopilotEngine:
             return self._handle_maintenance(target_tag or self.focused_asset_tag)
 
         # Intent C: Recommended Checks / Next Steps ("What should I check?", "Next steps")
-        if self._is_next_steps_intent(q_lower):
+        # "Why" needs the evidence as well as the check, and the diagnosis gives both.
+        wants_reason = any(word in q_lower for word in ("why", "flagged", "what's wrong"))
+        if self._is_next_steps_intent(q_lower) and not wants_reason:
             return self._handle_next_steps(target_tag or self.focused_asset_tag)
 
         # Intent D: Status / Condition / Diagnosis ("What's wrong?", "Condition", "Health")
@@ -340,24 +370,13 @@ class CopilotEngine:
                 f"{top_event['description']}"
             )
 
-        if "vibration_rms_mm_s" in telemetry_sum.get("metrics", {}):
-            v_met = telemetry_sum["metrics"]["vibration_rms_mm_s"]
-            observations.append(
-                f"Vibration RMS at {v_met['latest']} mm/s "
-                f"({v_met['trend']} trend over {v_met['sample_count']} samples)."
-            )
-        if "process_pressure_bar" in telemetry_sum.get("metrics", {}):
-            p_met = telemetry_sum["metrics"]["process_pressure_bar"]
-            observations.append(
-                f"Process Pressure at {p_met['latest']} bar ({p_met['trend']} trend)."
-            )
+        metrics = telemetry_sum.get("metrics", {})
+        observations.extend(metric_observations(metrics))
 
         # 4. Compile Hypotheses (distinct from observations)
         hypotheses = []
         if status["issue_code"] == "FOULING":
-            hypotheses.append(
-                "Efficiency loss and vibration signature suggest internal impeller fouling."
-            )
+            hypotheses.append(fouling_hypothesis(metrics))
         else:
             issue_clean = status["issue_code"].lower().replace("_", " ")
             hypotheses.append(f"Deviations consistent with {issue_clean} pattern.")

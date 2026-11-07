@@ -1,4 +1,4 @@
-// Clean "objects" view: fitted shapes over or instead of the scan, pull-apart, and moving objects.
+// Clean "objects" view: fitted shapes over or instead of the scan, pull-apart, and moving/rotating objects.
 // Data: /shapes.json (from app/extract/primitives.py). Without it, the viewer just shows the scan.
 // Scene coordinates are used throughout, inside `root`, as in main.js.
 import * as THREE from "three";
@@ -8,6 +8,24 @@ const APART_SCALE = 0.45; // How far objects move away from the room's center in
 const MIN_LIFT = 0.05;
 
 const BLOCKED_COLOR = 0xff2d2d;
+
+function grabbed(object, item, mode) {
+  const start = object.center.clone();
+  const startYaw = object.yaw || 0;
+  return {
+    object,
+    item,
+    dragging: false,
+    last: null,
+    mode,
+    lastClientX: null,
+    lastTouchAngle: null,
+    start,
+    startYaw,
+    valid: start.clone(),
+    validYaw: startYaw,
+  };
+}
 
 export async function setupObjects({
   root,
@@ -34,7 +52,13 @@ export async function setupObjects({
     if (!object || !shape.use_shape) continue;
     const mesh = makeMesh(shape);
     group.add(mesh);
-    items.push({ object, mesh, home: mesh.position.clone(), moved: new THREE.Vector3() });
+    items.push({
+      object,
+      mesh,
+      home: mesh.position.clone(),
+      baseQuaternion: mesh.quaternion.clone(),
+      moved: new THREE.Vector3(),
+    });
     object.shape = mesh;
   }
 
@@ -55,6 +79,7 @@ export async function setupObjects({
   const state = { view: "scan", apart: false, amount: 0, moving: null, changes: [] };
   const raycaster = new THREE.Raycaster();
   const floorPlane = new THREE.Plane();
+  const yAxis = new THREE.Vector3(0, 1, 0);
 
   function applyView() {
     splat.visible = state.view !== "objects";
@@ -70,11 +95,15 @@ export async function setupObjects({
 
   function placeAll() {
     const offset = new THREE.Vector3();
+    const rotQuat = new THREE.Quaternion();
     for (const item of items) {
       offset.copy(item.home).sub(roomCenter).multiplyScalar(APART_SCALE * state.amount);
       offset.y = -Math.max(state.amount * MIN_LIFT, 0);
       item.mesh.position.copy(item.home).add(item.moved).add(offset);
+      rotQuat.setFromAxisAngle(yAxis, item.object.yaw || 0);
+      item.mesh.quaternion.copy(item.baseQuaternion).premultiply(rotQuat);
       item.object.pick.position.copy(item.mesh.position);
+      item.object.pick.rotation.y = item.object.yaw || 0;
     }
   }
 
@@ -108,14 +137,6 @@ export async function setupObjects({
     floorPlane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), worldPoint);
     const hit = raycaster.ray.intersectPlane(floorPlane, new THREE.Vector3());
     return hit ? root.worldToLocal(hit) : null;
-  }
-
-  function startMove(object) {
-    if (object.asset.mobility !== "movable") return false;
-    const item = items.find((candidate) => candidate.object === object);
-    const start = object.center.clone();
-    state.moving = { object, item, dragging: false, last: null, valid: start.clone(), start };
-    return true;
   }
 
   // Show a bad spot in red: the moving box, and whatever is in its way.
@@ -158,6 +179,7 @@ export async function setupObjects({
     clearMarks();
     if (result.ok) {
       moving.valid = moving.object.center.clone();
+      moving.validYaw = moving.object.yaw || 0;
       onMessage?.("Release to place it here");
       return;
     }
@@ -178,85 +200,214 @@ export async function setupObjects({
     moving.checking = true;
     do {
       moving.checkAgain = false;
-      const result = await checkMove(moving.object, moving.object.center.toArray());
+      const result = await checkMove(
+        moving.object,
+        moving.object.center.toArray(),
+        moving.object.yaw || 0,
+      );
       if (state.moving !== moving) break;
       showCheck(moving, result);
     } while (moving.checkAgain);
     moving.checking = false;
   }
 
-  function shiftObject(moving, delta) {
-    const { object, item } = moving;
-    object.box.position.add(delta);
-    object.pick.position.add(delta);
-    object.center.add(delta);
-    object.piece?.position.add(delta);
+  function updateObjectVisuals(object, item) {
+    object.box.position.copy(object.center);
+    object.pick.position.copy(object.center);
+    object.box.rotation.y = object.yaw || 0;
+    object.pick.rotation.y = object.yaw || 0;
+
+    if (object.piece) {
+      const home = new THREE.Vector3(...object.asset.center);
+      const yaw = object.yaw || 0;
+      object.piece.quaternion.setFromAxisAngle(yAxis, yaw);
+      const rotatedHome = home.clone().applyAxisAngle(yAxis, yaw);
+      object.piece.position.copy(object.center).sub(rotatedHome);
+    }
     if (item) {
-      item.moved.add(delta);
       placeAll();
     }
   }
 
-  // Dragging is captured before the camera controls, so moving an object doesn't turn the view.
+  function startMove(object) {
+    if (object.asset.mobility !== "movable") return false;
+    const item = items.find((candidate) => candidate.object === object);
+    state.moving = grabbed(object, item, "move");
+    return true;
+  }
+
+  function startRotate(object) {
+    if (object.asset.mobility !== "movable") return false;
+    const item = items.find((candidate) => candidate.object === object);
+    state.moving = grabbed(object, item, "rotate");
+    return true;
+  }
+
+  function setMode(mode) {
+    if (state.moving) {
+      state.moving.mode = mode;
+    }
+  }
+
+  function shiftObject(moving, delta) {
+    const { object, item } = moving;
+    object.center.add(delta);
+    if (item) {
+      item.moved.add(delta);
+    }
+    updateObjectVisuals(object, item);
+  }
+
+  function rotateObject(moving, deltaYaw) {
+    const { object, item } = moving;
+    object.yaw = (object.yaw || 0) + deltaYaw;
+    updateObjectVisuals(object, item);
+  }
+
+  function setObjectRotation(moving, yaw) {
+    const { object, item } = moving;
+    object.yaw = yaw;
+    updateObjectVisuals(object, item);
+  }
+
+  async function turnObject(deltaAngle) {
+    const moving = state.moving;
+    if (!moving) return;
+    rotateObject(moving, deltaAngle);
+    if (await settle(moving)) recordChange(moving.object);
+  }
+
+  function finishManipulation() {
+    clearMarks();
+    state.moving = null;
+  }
+
+  function recordChange(object) {
+    state.changes.push({
+      op: "move",
+      object_id: object.asset.object_id,
+      position: object.center.toArray().map((value) => Number(value.toFixed(3))),
+      yaw: Number((object.yaw || 0).toFixed(4)),
+    });
+    onChange?.(state.changes);
+  }
+
+  const activePointers = new Map();
+
   canvas.addEventListener(
     "pointerdown",
     (event) => {
       if (!state.moving) return;
       event.stopPropagation();
-      // Keeps the drag alive if the pointer leaves the canvas, such as over a panel.
       canvas.setPointerCapture(event.pointerId);
+      activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       state.moving.dragging = true;
       state.moving.last = floorPoint(event);
+      state.moving.lastClientX = event.clientX;
+      if (activePointers.size === 2) {
+        const pts = Array.from(activePointers.values());
+        state.moving.lastTouchAngle = Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x);
+      }
     },
     true,
   );
+
   canvas.addEventListener(
     "pointermove",
     (event) => {
       if (!state.moving?.dragging) return;
       event.stopPropagation();
+      activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+      // Multi-touch 2-finger twist on tablet
+      if (activePointers.size >= 2) {
+        const pts = Array.from(activePointers.values());
+        const currentAngle = Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x);
+        if (state.moving.lastTouchAngle !== null) {
+          const deltaAngle = currentAngle - state.moving.lastTouchAngle;
+          rotateObject(state.moving, -deltaAngle);
+        }
+        state.moving.lastTouchAngle = currentAngle;
+        return;
+      }
+
       const point = floorPoint(event);
-      if (!point || !state.moving.last) return;
-      const delta = point.clone().sub(state.moving.last);
-      delta.y = 0;
-      shiftObject(state.moving, delta);
+      const isRotating = state.moving.mode === "rotate" || event.shiftKey;
+
+      if (isRotating) {
+        let deltaYaw = 0;
+        if (point && state.moving.last) {
+          const center = state.moving.object.center;
+          const v1 = state.moving.last.clone().sub(center);
+          const v2 = point.clone().sub(center);
+          v1.y = 0;
+          v2.y = 0;
+          if (v1.length() > 0.08 && v2.length() > 0.08) {
+            const a1 = Math.atan2(v1.z, v1.x);
+            const a2 = Math.atan2(v2.z, v2.x);
+            let d = a2 - a1;
+            while (d > Math.PI) d -= 2 * Math.PI;
+            while (d < -Math.PI) d += 2 * Math.PI;
+            deltaYaw = d;
+          }
+        }
+        if (deltaYaw === 0 && state.moving.lastClientX !== null) {
+          deltaYaw = -(event.clientX - state.moving.lastClientX) * 0.015;
+        }
+        if (deltaYaw !== 0) {
+          rotateObject(state.moving, deltaYaw);
+        }
+      } else {
+        if (point && state.moving.last) {
+          const delta = point.clone().sub(state.moving.last);
+          delta.y = 0;
+          shiftObject(state.moving, delta);
+        }
+      }
+
       state.moving.last = point;
+      state.moving.lastClientX = event.clientX;
       checkWhileDragging(state.moving);
     },
     true,
   );
-  async function finishMove(event) {
-    const moving = state.moving;
-    if (!moving?.dragging) return;
-    event.stopPropagation();
-    state.moving = null;
+
+  // Back to the last good spot and angle if this one is taken. Returns false if nothing changed.
+  async function settle(moving) {
     const { object } = moving;
-    // The spot under the pointer now is what counts, not the last one checked.
-    const result = await checkMove(object, object.center.toArray());
+    // Where it is now is what counts, not the last one checked.
+    const result = await checkMove(object, object.center.toArray(), object.yaw || 0);
     clearMarks();
-    if (!result.ok) {
-      placeAt(object, moving.valid.toArray());
-      onMessage?.(`Moved back to the last good spot. ${result.reason}`);
-      if (moving.valid.distanceTo(moving.start) < 0.001) {
-        onMoveCancelled?.(); // Nothing to save, but a live route may show where it was dragged.
-        return;
-      }
+    if (result.ok) {
+      moving.valid = object.center.clone();
+      moving.validYaw = object.yaw || 0;
+      return true;
     }
-    state.changes.push({
-      op: "move",
-      object_id: object.asset.object_id,
-      position: object.center.toArray().map((value) => Number(value.toFixed(3))),
-    });
-    onChange?.(state.changes);
+    placeAt(object, moving.valid.toArray(), moving.validYaw);
+    onMessage?.(`Moved back to the last good spot. ${result.reason}`);
+    return moving.valid.distanceTo(moving.start) >= 0.001 || moving.validYaw !== moving.startYaw;
   }
-  canvas.addEventListener("pointerup", finishMove, true);
-  canvas.addEventListener("pointercancel", finishMove, true);
+
+  async function finishDrag(event) {
+    activePointers.delete(event.pointerId);
+    const moving = state.moving;
+    if (activePointers.size < 2 && moving) moving.lastTouchAngle = null;
+    if (activePointers.size === 0 && moving?.dragging) {
+      event.stopPropagation();
+      moving.dragging = false;
+      if (await settle(moving)) recordChange(moving.object);
+      else onMoveCancelled?.(); // Nothing to save, but a live route may show where it was dragged.
+    }
+  }
+  canvas.addEventListener("pointerup", finishDrag, true);
+  canvas.addEventListener("pointercancel", finishDrag, true);
 
   // Put an object where the backend says it is, such as after reloading the page.
-  function placeAt(object, center) {
+  function placeAt(object, center, yaw = 0) {
     const item = items.find((candidate) => candidate.object === object);
     const delta = new THREE.Vector3(...center).sub(object.center);
     shiftObject({ object, item }, delta);
+    setObjectRotation({ object, item }, yaw);
   }
 
   function resetMoves() {
@@ -264,13 +415,10 @@ export async function setupObjects({
       const item = items.find((candidate) => candidate.object === object);
       const home = new THREE.Vector3(...object.asset.center);
       const delta = home.clone().sub(object.center);
-      object.box.position.add(delta);
-      object.pick.position.add(delta);
-      object.center.copy(home);
-      object.piece?.position.set(0, 0, 0);
+      shiftObject({ object, item }, delta);
+      setObjectRotation({ object, item }, 0);
       if (item) {
         item.moved.set(0, 0, 0);
-        object.pick.position.copy(item.home);
       }
     }
     placeAll();
@@ -285,6 +433,10 @@ export async function setupObjects({
     setApart,
     update,
     startMove,
+    startRotate,
+    setMode,
+    turnObject,
+    finishManipulation,
     resetMoves,
     placeAt,
     shapeCount: items.length,

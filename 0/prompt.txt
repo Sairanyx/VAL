@@ -1,0 +1,13 @@
+merge it into main
+
+---
+
+lets work on collision rn an object can be moved on top of other boxes - lets make it so thats not possible and make the bounding turn red or give an error or something
+
+---
+
+The engineer shared a lot of resources of 3D to BIM what is it and would it make our project better?
+
+---
+
+Also check on CSC

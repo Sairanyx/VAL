@@ -325,6 +325,9 @@ def create_app(
     def propose_split(object_id: str, request: SelectionRequest) -> dict:
         """Measure the selected part of an object and the rest. Nothing is saved until confirmed."""
         parent = require(object_id)
+        if store.has_moved(parent):
+            message = f"{object_id} has been moved. Undo that, then split it"
+            raise HTTPException(409, message)
         splats = splats_for_selection()
         floor_y = store.scene.get("floor_y", 0.0)
         try:

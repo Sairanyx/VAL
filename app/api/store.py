@@ -177,8 +177,18 @@ class SceneStore:
     def _remember_home(asset: dict) -> None:
         asset["home"] = {key: list(asset[key]) for key in ("bbox_min", "bbox_max", "center")}
 
+    def has_moved(self, asset: dict) -> bool:
+        home = self.home_box(asset["object_id"])
+        return any(abs(a - b) > 1e-6 for a, b in zip(asset["center"], home["center"], strict=True))
+
+    def _refuse_if_moved(self, asset: dict, action: str) -> None:
+        # Its box no longer matches where its splats are in the scan.
+        if self.has_moved(asset):
+            raise ChangeError(f"{asset['object_id']} has been moved. Undo that, then {action} it")
+
     def _split(self, parent: dict, details: dict | None) -> list[str]:
         """Replace an object with its parts. Its record link isn't guessed onto either of them."""
+        self._refuse_if_moved(parent, "split")
         parts = (details or {}).get("parts") or []
         if len(parts) != 2:
             raise ChangeError("split needs two parts")
@@ -217,6 +227,8 @@ class SceneStore:
             raise KeyError(other_id)
         if other is first:
             raise ChangeError("Choose a different object to combine with")
+        self._refuse_if_moved(first, "combine")
+        self._refuse_if_moved(other, "combine")
         for asset in (first, other):
             if asset.get("mapping"):
                 raise ChangeError(

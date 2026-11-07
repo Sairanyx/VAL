@@ -94,6 +94,8 @@ screens only pick up changes when reloaded.
 2. Drag a box around one part. Orange is what you selected, and blue is the rest.
 3. Check the type and whether each can move, then press **Save**. Both are marked "new, unconfirmed".
 
+Split or combine before moving: a moved object has to be put back first, with **Undo changes**.
+
 Set a part to movable to move it, and its real splats go with it. **Undo changes** brings the original back.
 
 ## Combine objects that are really one thing

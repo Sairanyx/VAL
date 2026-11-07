@@ -325,3 +325,14 @@ def test_any_object_can_be_cut_from_its_home_even_after_moving(tmp_path, monkeyp
     saved = tmp_path / "piece.ply"
     saved.write_bytes(reply.content)
     assert len(read_splats(saved)) == 500  # Where it was scanned, not where it stands now.
+
+
+def test_moved_objects_must_be_put_back_before_splitting_or_combining(tmp_path):
+    client = two_objects(tmp_path)
+    move = {"op": "move", "object_id": "b", "position": [6, 1, 0.5]}
+    assert client.post("/api/changes", json=move).status_code == 200
+    combine = {"op": "combine", "object_id": "a", "details": {"other": "b"}}
+    reply = client.post("/api/changes", json=combine)
+    assert reply.status_code == 409 and "has been moved" in reply.json()["detail"]
+    split = {"op": "split", "object_id": "b", "details": {"parts": parts_of("chair", "box")}}
+    assert "has been moved" in client.post("/api/changes", json=split).json()["detail"]

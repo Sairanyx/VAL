@@ -1,7 +1,7 @@
-# eduard-rednic: eduard
+# eduard-rednic: eduard-height
 **Goal:** floor, routing, nearby search and backend API (`app/nav/`, `app/api/`), per docs/PLAN.md.
-**Done:** `make api` on port 8001. PR #1 merged. PR #2 adds real A* with body sizes in `/api/route`, used when `NAV_GRID` or the default `nav_grid.npz` exists; otherwise the marked placeholder.
-**Verified:** `make check` passes. A* takes under 20 ms on the real map. Not yet run against real objects; floor not checked against views.
-**Next:** load `assets_final.json`, pick a reachable `P-005`; object footprints for moves; TimescaleDB.
-**Decided:** no cloud: TimescaleDB runs on the local 5090, and tablets talk only to it.
-**Blockers:** `assets_final.json` and the `P-005` choice from Viktor; Hannu's code isn't on main and his fixture format differs.
+**Done:** merged Viktor's PR #3 work and Hannu's copilot with main. `app/api/copilot_link.py` connects `/api/copilot/query` and asset details to the Excel store. Routes use `robot` or `person`. `/` redirects to `/docs`.
+**Verified:** `make check` passes. Live on `splat_v2` with the Excel pack: `P-005` diagnosis, service history, route, nearby. Excel pack goes in `data/`.
+**Next:** only `obj-0048` has an Excel record, so map more objects (Hannu, 30% score); Benjamin draws routes; TimescaleDB on the 5090; changes are still in memory.
+**Decided:** `fixtures/sample_assets.json` uses the real `assets.json` format. Hannu's old fixture is `fixtures/copilot_assets.json`, for his tests only.
+**Blockers:** none. Open: whether scene units are truly metres; a person confirming `P-005`.

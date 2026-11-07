@@ -1,0 +1,130 @@
+:root {
+  --panel: rgba(16, 20, 26, 0.82);
+  --text: #e8edf2;
+  --muted: #9aa7b4;
+  --fault: #ff4d4f;
+  --mapped: #38bdf8;
+  --plain: #d1d5db;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  color: var(--text);
+  font: 14px/1.4 system-ui, sans-serif;
+  touch-action: none;
+}
+
+#view { display: block; width: 100vw; height: 100vh; }
+
+#labels { position: fixed; inset: 0; pointer-events: none; }
+
+.label {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  padding: 2px 8px;
+  border-radius: 4px;
+  border-left: 3px solid var(--plain);
+  background: var(--panel);
+  white-space: nowrap;
+  font-size: 13px;
+}
+.label.mapped { border-color: var(--mapped); }
+.label.fault { border-color: var(--fault); }
+.label small { color: var(--muted); }
+
+#crosshair {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+#hud {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  max-width: min(320px, calc(100vw - 24px));
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--panel);
+  pointer-events: none;
+}
+#stats, #in-view { color: var(--muted); font-size: 12px; }
+
+/* Joystick: only on touch screens. */
+#joystick {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  width: 120px;
+  height: 120px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  background: rgba(16, 20, 26, 0.35);
+  touch-action: none;
+}
+#joystick > div {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 48px;
+  height: 48px;
+  margin: -24px 0 0 -24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+}
+@media (pointer: fine) {
+  #joystick { display: none; }
+}
+
+#buttons {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  gap: 8px;
+}
+button {
+  min-width: 64px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid #3a4652;
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+}
+
+#info {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  width: min(300px, calc(100vw - 24px));
+  padding: 12px 14px;
+  border-radius: 6px;
+  background: var(--panel);
+}
+#info-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 36px;
+  min-height: 36px;
+  border: 0;
+  background: none;
+  font-size: 20px;
+}
+#info h2 { margin: 0 0 6px; font-size: 16px; }
+#info dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; }
+#info dt { color: var(--muted); }
+#info dd { margin: 0; }

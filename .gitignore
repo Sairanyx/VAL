@@ -17,3 +17,7 @@ runs/
 Valmet_SinceAI2026*/
 *.ply
 cert*.pub
+
+# web viewer self-signed certificate
+web/.cert/
+.idea/

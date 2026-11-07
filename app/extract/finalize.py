@@ -167,6 +167,7 @@ def finalize(
                 "visible_text": reply.get("visible_text", ""),
                 "mobility": mobility,
                 "mobility_reason": mobility_reason,
+                **({"mapping": override["mapping"]} if "mapping" in override else {}),
             }
         )
     return {**document, "assets": result}

@@ -538,3 +538,31 @@ def test_walkable_floor_follows_a_moved_object(tmp_path):
 
 def test_walkable_floor_needs_a_floor_map(client):
     assert client.get("/api/plan/walkable").status_code == 404
+
+
+def corridor(tmp_path, assets):
+    path = tmp_path / "assets.json"
+    path.write_text(json.dumps({"scene_id": "t", "assets": assets}))
+    return TestClient(create_app(path, open_floor(tmp_path), database=FakeDatabase()))
+
+
+def test_a_copy_blocks_routes_even_when_its_source_is_fixed(tmp_path):
+    # Fixed objects block through the permanent map, which a copy isn't part of.
+    client = corridor(
+        tmp_path, [box("target", [5.5, -0.5, 1.0], "fixed"), box("pump", [0.7, -0.5, 1.0], "fixed")]
+    )
+    request = {"start": [1.5, 0.0, 1.0], "object_id": "target"}
+    assert client.post("/api/route", json=request).status_code == 200
+    copy = {"op": "duplicate", "object_id": "pump", "position": [3.0, -0.5, 1.0]}
+    assert client.post("/api/changes", json=copy).status_code == 200
+    assert client.post("/api/route", json=request).status_code == 409  # the copy fills the corridor
+
+
+def test_routes_stay_inside_the_floor_map(tmp_path):
+    client = corridor(tmp_path, [box("target", [5.5, -0.5, 1.0], "fixed")])
+    path = client.post("/api/route", json={"start": [1.0, 0.0, 1.0], "object_id": "target"}).json()
+    for x, _, z in path["path"]:
+        assert 0.0 <= x <= 6.0 and 0.0 <= z <= 2.0
+    # Starting far outside the room is refused, not routed through walls.
+    outside = {"start": [-5.0, 0.0, 1.0], "object_id": "target"}
+    assert client.post("/api/route", json=outside).status_code == 409

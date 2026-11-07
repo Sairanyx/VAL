@@ -5,6 +5,8 @@
 Tanks, buckets, and barrels become cylinders. Boxes, cabinets, and appliances become boxes aligned
 to the floor. Each fit gets a score: the share of the object's splats near the shape's surface.
 Objects with a poor fit, or of any other class, get no shape, so the viewer uses their splats.
+A cylinder from a nearly flat arc counts as a poor fit, however well it scores, because any large
+circle fits one.
 """
 
 import argparse
@@ -16,6 +18,7 @@ import numpy as np
 CYLINDER_LABELS = {"tank", "bucket", "barrel"}
 BOX_LABELS = {"box", "electrical cabinet", "control panel", "appliance"}
 MIN_SCORE = 0.5
+MAX_RADIUS_TO_WIDTH = 0.9  # above this, the scan covers under about 67 degrees of the circle
 
 
 def basis_from_up(up: np.ndarray) -> np.ndarray:
@@ -58,6 +61,14 @@ def fit_circle(points: np.ndarray, tries: int = 300, seed: int = 0) -> tuple[np.
     return circle_through(best_inliers)
 
 
+def width_along_main_direction(points: np.ndarray) -> float:
+    """Return how wide 2D points are along their main direction, ignoring strays."""
+    centered = points - points.mean(axis=0)
+    main = np.linalg.svd(centered, full_matrices=False)[2][0]
+    low, high = np.percentile(centered @ main, [1, 99])
+    return float(high - low)
+
+
 def fit_cylinder(points: np.ndarray, up: np.ndarray, tolerance: float = 0.03) -> dict:
     """Return an upright cylinder fitted to the points, in scene coordinates."""
     basis = basis_from_up(up)
@@ -77,6 +88,7 @@ def fit_cylinder(points: np.ndarray, up: np.ndarray, tolerance: float = 0.03) ->
         "radius": round(radius, 4),
         "height": round(float(top - bottom), 4),
         "score": round(float((near_side | near_caps).mean()), 3),
+        "flat_arc": bool(radius > MAX_RADIUS_TO_WIDTH * width_along_main_direction(local[:, :2])),
     }
 
 
@@ -118,6 +130,11 @@ def fit_object(points: np.ndarray, label: str, up: np.ndarray) -> dict | None:
     return None
 
 
+def good_fit(shape: dict) -> bool:
+    """Return whether a fitted shape is good enough to show instead of the object's splats."""
+    return shape["score"] >= MIN_SCORE and not shape.get("flat_arc", False)
+
+
 def main() -> None:
     from app.scene.load import read_splats
 
@@ -140,7 +157,7 @@ def main() -> None:
         if shape is None:
             continue
         shape["color"] = np.median(colors[members], axis=0).round(3).tolist()
-        shape["use_shape"] = shape["score"] >= MIN_SCORE
+        shape["use_shape"] = good_fit(shape)
         shape["label"] = asset["label"]
         shapes[asset["object_id"]] = shape
     args.out.write_text(json.dumps(shapes, indent=1))

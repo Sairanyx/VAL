@@ -56,8 +56,11 @@ export async function setupBim({
   root.add(group);
 
   const byId = new Map(objects.map((o) => [o.asset.object_id, o]));
-  const items = model.elements.map((element) => {
-    const object = element.object_id ? byId.get(element.object_id) : null;
+  const items = [];
+  const known = new Set();
+  let ready = false; // Objects found later are styled for the current look once it exists.
+
+  function addItem(element, object) {
     const fault = element.psets.Valmet_Mapping?.Tag === faultTag;
     const scan = element.mesh && meshData ? makeMesh(element, fault, section, meshData) : null;
     const box = makeMesh(element, fault, section, null);
@@ -71,8 +74,20 @@ export async function setupBim({
       group.add(mesh);
     }
     item.volume = volume(element.geometry);
-    return item;
-  });
+    items.push(item);
+    known.add(object);
+    if (ready) styleItem(item);
+  }
+  for (const element of model.elements) {
+    addItem(element, element.object_id ? byId.get(element.object_id) : null);
+  }
+
+  // Objects added, split or combined in the viewer aren't in the file, so they get a plain box.
+  function addMissing() {
+    for (const object of objects) {
+      if (!object.gone && !known.has(object)) addItem(plainElement(object), object);
+    }
+  }
 
   const hasSplats = items.some((item) => item.element.splats);
   const hasScan = items.some((item) => item.scan);
@@ -86,6 +101,7 @@ export async function setupBim({
     hidden: new Set(),
     cut: null,
   };
+  ready = true;
   // Objects that can't move share one splat file per IFC class; movable ones get their own.
   const splatGroups = new Map();
   let splatsLoaded = false;
@@ -179,8 +195,10 @@ export async function setupBim({
     state.active = on;
     group.visible = on;
     panel.hidden = !on;
-    if (on) setLook(state.look);
-    else hideSplats();
+    if (on) {
+      setLook(state.look);
+      chooseDownload();
+    } else hideSplats();
   }
 
   function hideSplats() {
@@ -212,8 +230,15 @@ export async function setupBim({
     material.needsUpdate = true;
   }
 
+  // The backend's copy shows the model as it stands now. Without one, there's still the built file.
+  async function chooseDownload() {
+    const reply = await fetch("/api/plan").catch(() => null);
+    document.getElementById("bim-download").href = reply?.ok ? "/api/plan/model.ifc" : "model.ifc";
+  }
+
   // Selecting from the scan side (panel, route, copilot) keeps the BIM selection in step.
   function selectObject(object) {
+    addMissing();
     const item = object ? items.find((candidate) => candidate.object === object) : null;
     select(item, false);
   }
@@ -265,6 +290,7 @@ export async function setupBim({
   const floorWorld = new THREE.Vector3();
   function update() {
     if (!state.active) return;
+    addMissing();
     const real = state.look === "real";
     for (const item of items) {
       item.mesh.visible = visible(item);
@@ -345,6 +371,33 @@ function scanGeometry(ref, data) {
   geometry.setIndex(new THREE.BufferAttribute(data.faces.slice(f0 * 3, (f0 + fn) * 3), 1));
   geometry.computeVertexNormals();
   return geometry;
+}
+
+function plainElement(object) {
+  const { label, object_id: id, bbox_min: first, bbox_max: second } = object.asset;
+  const low = first.map((value, axis) => Math.min(value, second[axis]));
+  const high = first.map((value, axis) => Math.max(value, second[axis]));
+  return {
+    guid: "assigned on export",
+    object_id: id,
+    ifc_class: "IfcBuildingElementProxy",
+    predefined_type: "NOTDEFINED",
+    name: `${label} (${id})`,
+    geometry: {
+      type: "box",
+      center: low.map((value, axis) => (value + high[axis]) / 2),
+      axes: [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ],
+      size: low.map((value, axis) => Math.max(high[axis] - value, 0.01)),
+    },
+    psets: {
+      Valmet_Identification: { ObjectId: id, DetectedLabel: label, IdentityConfirmed: false },
+      Valmet_Geometry: { Source: "made in the viewer, bounding box" },
+    },
+  };
 }
 
 function makeMesh(element, fault, section, meshData) {

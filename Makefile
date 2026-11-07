@@ -17,7 +17,7 @@ BIM ?= $(if $(filter $(SCENE_DIR)/%,$(SCENE)),$(if $(wildcard $(BIM_DIR)/bim.jso
 MODEL ?= Qwen3.5-9B
 MODEL_DIR ?= data/models/$(MODEL)
 
-.PHONY: setup entire views scene scene-full model pieces highlights bim pipeline gpu train tb web fmt lint test check up api floor mapping db nav-check
+.PHONY: setup entire views scene scene-full model pieces highlights shapes bim pipeline gpu train tb web fmt lint test check up api floor mapping db nav-check
 
 setup:   ## install everything
 	uv sync
@@ -49,7 +49,9 @@ pieces:  ## cut movable objects out of a scene, so dragging moves the real thing
 	uv run python -m app.scene.split_movable "$(PIECES_FROM)" $(SCENE_DIR)/assets_viewer.json $(PIECES_DIR) --objects $(PIECES_OBJECTS) --members $(SCENE_DIR)/members.npz --box $(PIECES_BOX)
 highlights: ## export segmented object surfaces for cyan selection highlighting
 	uv run python -m app.scene.highlights "$(SCENE_DIR)/Equipment Room.ply" $(SCENE_DIR)/assets_final.json $(SCENE_DIR)/splat_labels.npy $(HIGHLIGHTS_DIR) $(if $(wildcard $(PIECES_DIR)/pieces.json),--pieces $(PIECES_DIR))
-bim:     ## simulated BIM model of the room for the viewer's BIM mode, plus model.ifc (IFC4)
+shapes:  ## fit object shapes again, which applies newer fit rules to the Release's copy
+	uv run python -m app.extract.primitives $(SCENE_DIR)/assets_final.json "$(SCENE_DIR)/Equipment Room.ply" $(SCENE_DIR)/splat_labels.npy $(SCENE_DIR)/shapes.json
+bim: shapes ## simulated BIM model of the room for the viewer's BIM mode, plus model.ifc (IFC4)
 	uv run python -m app.bim "$(SCENE_DIR)/Equipment Room.ply" $(SCENE_DIR)/assets_mapped.json $(SCENE_DIR)/shapes.json $(BIM_DIR) --labels $(SCENE_DIR)/splat_labels.npy --label-assets $(SCENE_DIR)/assets_final.json $(if $(wildcard $(PIECES_DIR)/pieces.json),--pieces $(PIECES_DIR))
 pipeline: ## run a scene through everything: make pipeline CONFIG=scenes/equipment_room.toml, DRY=1 to preview
 	uv run python scripts/pipeline.py $(or $(CONFIG),scenes/equipment_room.toml) $(if $(DRY),--dry-run)

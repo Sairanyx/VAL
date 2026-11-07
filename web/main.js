@@ -9,6 +9,7 @@ import { setupCopilot } from "./copilot.js";
 import { setupHighlight } from "./highlight.js";
 import { setupObjects } from "./objects.js";
 import { setupPhone } from "./phone.js";
+import { setupPlan } from "./plan.js";
 import { setupRoute } from "./route.js";
 
 let faultTag = "P-005"; // the pre-chosen faulty device, unless the scene's file names another
@@ -58,6 +59,7 @@ let startPos = new THREE.Vector3(0, EYE_HEIGHT, 0);
 let objectLayer = null;
 let bim = null;
 let route = null;
+let plan = null;
 let selected = null;
 let boxesOn = true;
 let range = Number(params.get("range") ?? 3);
@@ -93,10 +95,13 @@ function kind(asset) {
 const COLORS = { fault: 0xff4d4f, mapped: 0x38bdf8, plain: 0xd1d5db };
 
 // Links made by rule aren't real identities, so they're shown as a question.
+// A link made by rule or by eye is a guess, so it reads as a question.
 function name(asset) {
   const link = asset.mapping;
   if (!link) return asset.label;
-  return link.method?.startsWith("procedural") ? `${link.tag}?` : link.tag;
+  const method = link.method ?? "";
+  const guess = method.startsWith("procedural") || method.includes("unconfirmed");
+  return guess ? `${link.tag}?` : link.tag;
 }
 
 function addAsset(asset) {
@@ -301,6 +306,7 @@ $("split-object").onclick = () => {
 };
 
 function hideObject(object) {
+  objectLayer?.dropPiece(object);
   object.gone = true;
   object.box.visible = false;
   object.pick.layers.disable(0);
@@ -318,6 +324,7 @@ function removeAdded() {
       object.splitAway = false;
       object.gone = false;
       object.pick.layers.enable(0);
+      objectLayer?.restorePiece(object);
     }
   }
 }
@@ -461,7 +468,8 @@ function animate(now) {
   // In phone mode the phone's rotation steers, so mouse/touch dragging must not fight it.
   const following = Boolean(route?.state.walking);
   const busy = objectLayer?.state.moving || adder.state.active || following;
-  if (!phone.enabled && !busy) controls.update(camera);
+  // Typing in the Plan screen's search box shouldn't walk the viewer around.
+  if (!phone.enabled && !busy && !plan?.state.open) controls.update(camera);
   objectLayer?.update(dt);
   highlight.update();
   bim?.update();
@@ -479,8 +487,12 @@ function animate(now) {
   }
   $("follow").textContent = following ? "Stop" : "Walk route";
   if (walk) camera.position.y = eyeY;
-  renderer.render(scene, camera);
-  updateLabels();
+  if (plan?.state.open) {
+    plan.draw(); // The room is covered, so there's no need to draw it as well.
+  } else {
+    renderer.render(scene, camera);
+    updateLabels();
+  }
   frames++;
   if (now - lastFps > 1000) {
     const fps = Math.round((frames * 1000) / (now - lastFps));
@@ -524,6 +536,7 @@ async function syncWithBackend() {
       objects.at(-1).addedByOperator = true;
       changed += 1;
     } else if (object.center.distanceTo(new THREE.Vector3(...asset.center)) > 0.001) {
+      await objectLayer.ensurePiece(object);
       objectLayer.placeAt(object, asset.center);
       changed += 1;
     }
@@ -607,6 +620,31 @@ async function load() {
     },
   });
   $("go-fault").hidden = !objects.some((o) => kind(o.asset) === "fault");
+  plan = setupPlan({
+    ui: {
+      panel: $("plan"),
+      canvas: $("plan-canvas"),
+      search: $("plan-search"),
+      pipes: $("plan-pipes"),
+      legend: $("plan-legend"),
+      note: $("plan-note"),
+      dxf: $("plan-dxf"),
+    },
+    objects,
+    root,
+    camera,
+    route,
+    getFaultTag: () => faultTag,
+    getSelected: () => selected,
+    nameOf: (object) => name(object.asset),
+    onSelect: showInfo,
+  });
+  $("open-plan").onclick = () => plan.open();
+  $("plan-close").onclick = () => plan.close();
+  // These work in the 3D view, so the Plan screen makes way for them.
+  for (const id of ["move", "split-object", "combine-object"]) {
+    $(id).addEventListener("click", () => plan.close());
+  }
   $("profile").hidden = false;
   const views = ["scan", "both", "objects"];
   $("view-mode").onclick = () => {
@@ -656,7 +694,7 @@ async function load() {
     $("apart").textContent = "Together";
   }
   await syncWithBackend();
-  window.plantViewer = { objects, objectLayer, camera, route, copilot, showInfo, adder, bim }; // For browser tests and debugging.
+  window.plantViewer = { objects, objectLayer, camera, route, copilot, showInfo, adder, bim, plan }; // For browser tests and debugging.
   if (params.has("camera")) {
     const [x, y, z, yaw, pitch] = params.get("camera").split(",").map(Number);
     camera.position.set(x, y, z);

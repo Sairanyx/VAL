@@ -51,7 +51,7 @@ README, then improve numbers if time remains.
 **Cut first if short of time:** voice mode, written directions. Second-pass framing and pipe runs need Roihu's data or a SAM setup on the 5090, so they're off unless someone sets that up. Don't cut
 the rehearsal, video, precision number, or copilot test.
 
-**Say this accurately:** three objects move as real splats, and the others as outlines. `P-005` on
+**Say this accurately:** three objects are cut cleanly in advance, and other movable objects are cut by their box on demand, which can take neighbours along and leave dark floor. `P-005` on
 `obj-0049` is an unconfirmed pick. 29 of 30 Excel links are procedural. `P-005`'s record only has
 pressure and flow data. The floor under moved objects is copied, not scanned. Position is simulated.
 

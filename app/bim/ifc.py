@@ -108,10 +108,16 @@ def tessellation(w: Writer, mesh: dict, rotation: np.ndarray, floor: float) -> t
     return w.placement(centre), body
 
 
-def write_ifc(
-    model: dict, path: Path, timestamp: str | None = None, meshes: dict | None = None
-) -> None:
-    """Meshes, keyed by object ID, are written as triangulated bodies instead of simple solids."""
+def ifc_text(
+    model: dict,
+    file_name: str = "model.ifc",
+    timestamp: str | None = None,
+    meshes: dict | None = None,
+) -> str:
+    """Return a BIM model as the text of an IFC4 STEP file.
+
+    Meshes, keyed by object ID, are written as triangulated bodies instead of simple solids.
+    """
     meshes = meshes or {}
     rotation, floor = ifc_frame(model["room"])
     scene_id = model["scene_id"]
@@ -195,10 +201,16 @@ def write_ifc(
         "ISO-10303-21;",
         "HEADER;",
         "FILE_DESCRIPTION(('ViewDefinition [ReferenceView_V1.2]'),'2;1');",
-        f"FILE_NAME({string(path.name)},'{stamp}',(''),(''),'','app.bim','');",
+        f"FILE_NAME({string(file_name)},'{stamp}',(''),(''),'','app.bim','');",
         "FILE_SCHEMA(('IFC4'));",
         "ENDSEC;",
         "DATA;",
     ]
     body = [f"#{index}={line};" for index, line in enumerate(w.lines, start=1)]
-    path.write_text("\n".join(header + body + ["ENDSEC;", "END-ISO-10303-21;", ""]))
+    return "\n".join(header + body + ["ENDSEC;", "END-ISO-10303-21;", ""])
+
+
+def write_ifc(
+    model: dict, path: Path, timestamp: str | None = None, meshes: dict | None = None
+) -> None:
+    path.write_text(ifc_text(model, path.name, timestamp, meshes))

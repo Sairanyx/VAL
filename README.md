@@ -30,6 +30,7 @@ Should end by printing your GPU name.
 | `make scene` | Download objects, floor map, and light scenes |
 | `make mapping` | Link Excel records to objects, marking how each was linked |
 | `make pieces` | Cut movable objects out of the scene, so dragging moves the real thing |
+| `make bim` | Build the simulated BIM model for BIM mode, and its IFC file |
 | `make pipeline` | Run a scene through everything, from `scenes/*.toml` |
 | `make model` | Download the copilot's language model (about 20 GB), before going offline |
 | `make up` | Train inside Docker |

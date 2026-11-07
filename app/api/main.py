@@ -44,7 +44,7 @@ from app.bim.model import build_model
 from app.copilot.llm import can_reword, load_writer, warm_up
 from app.copilot.voice import MAX_AUDIO_BYTES, TRANSCRIBER
 from app.dashboard import render_dashboard
-from app.nav.grid import NavGrid, largest_region, load_grid, vacate
+from app.nav.grid import NavGrid, largest_region, load_grid, open_boxes, vacate
 from app.nav.route import (
     BODIES,
     NoRoute,
@@ -318,37 +318,50 @@ def create_app(
     def floor_map(also_left: str | None = None) -> NavGrid | None:
         """Return the floor map with the spots that objects have left open again.
 
-        Moved objects and deleted ones whose splats were hidden have left. `also_left` is one being
-        dragged, before it's saved. Needs the scene and splat labels, or the permanent map is used.
+        Route, best view, walkable floor and move checks all use this one, so they agree.
+        - Moved objects: their old box opens where only splats that went with them blocked it.
+          That needs the scene file, or their old spot stays blocked as before.
+        - Deleted objects whose splats were hidden: their whole box opens, as the scan never saw
+          the floor under them. "Remove info" keeps them in the scan, so they still block.
+        `also_left` is an object being dragged, before it's saved. Undo and Reset close it again.
         """
         if grid is None:
             return None
-        left = {
+        moved = {
             asset["object_id"]
             for asset in store.assets.values()
-            if (asset["status"] not in GONE and store.has_moved(asset))
-            or (asset["status"] == "removed" and not asset.get("splats_kept"))
+            if asset["status"] not in GONE and store.has_moved(asset)
         }
         if also_left:
-            left.add(also_left)
-        key = tuple(sorted(left))
-        if not key:
+            moved.add(also_left)
+        deleted = {
+            asset["object_id"]
+            for asset in store.assets.values()
+            if asset["status"] == "removed" and not asset.get("splats_kept")
+        }
+        key = (tuple(sorted(moved)), tuple(sorted(deleted - moved)))
+        if not key[0] and not key[1]:
             return grid
         if key not in opened_maps:
-            try:
-                splats = splats_for_selection()
-            except HTTPException:
-                return grid
-            own = left_splats(key, splats.positions)
-            if not own.any():
-                return grid
-            boxes = [
-                (store.home_box(object_id)["bbox_min"], store.home_box(object_id)["bbox_max"])
-                for object_id in key
-            ]
+            opened = grid
+            if key[0]:
+                try:
+                    splats = splats_for_selection()
+                except HTTPException:
+                    splats = None
+                if splats is not None:
+                    own = left_splats(key[0], splats.positions)
+                    boxes = [home_corners(object_id) for object_id in key[0]]
+                    opened = vacate(opened, splats.positions, splats.opacities, own, boxes)
+            if key[1]:
+                opened = open_boxes(opened, [home_corners(object_id) for object_id in key[1]])
             opened_maps.clear()  # One state at a time: changes come one after another.
-            opened_maps[key] = vacate(grid, splats.positions, splats.opacities, own, boxes)
+            opened_maps[key] = opened
         return opened_maps[key]
+
+    def home_corners(object_id: str) -> tuple[list[float], list[float]]:
+        home = store.home_box(object_id)
+        return home["bbox_min"], home["bbox_max"]
 
     @app.get("/api/objects/{object_id}/view")
     def object_view(object_id: str) -> dict:

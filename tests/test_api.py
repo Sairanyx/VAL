@@ -626,3 +626,69 @@ def test_routes_stay_inside_the_floor_map(tmp_path):
     # Starting far outside the room is refused, not routed through walls.
     outside = {"start": [-5.0, 0.0, 1.0], "object_id": "target"}
     assert client.post("/api/route", json=outside).status_code == 409
+
+
+def corridor_blocked_by_a_machine(tmp_path):
+    """A fixed machine across the corridor is part of the permanent map, not a footprint."""
+    np = pytest.importorskip("numpy")
+    floor = open_floor(tmp_path)
+    grid = dict(np.load(floor))
+    grid["free"][50:70, :] = False  # x from 2.5 to 3.5 m
+    np.savez(floor, **grid)
+    machine = box("machine", [3.0, -0.5, 1.0], "fixed")
+    machine["bbox_min"], machine["bbox_max"] = [2.5, -1.0, 0.0], [3.5, 0.0, 2.0]
+    cart = box("cart", [0.6, -0.4, 1.0], "movable")
+    cart["bbox_min"], cart["bbox_max"] = [0.4, -0.8, 0.8], [0.8, 0.0, 1.2]
+    assets = [box("target", [5.5, -0.5, 1.0], "fixed"), machine, cart]
+    path = tmp_path / "assets.json"
+    path.write_text(json.dumps({"scene_id": "t", "assets": assets}))
+    return TestClient(create_app(path, floor, database=FakeDatabase()))
+
+
+def test_deleting_a_fixed_object_opens_its_floor_for_routes(tmp_path):
+    client = corridor_blocked_by_a_machine(tmp_path)
+    request = {"start": [1.0, 0.0, 1.0], "object_id": "target"}
+    assert client.post("/api/route", json=request).status_code == 409
+
+    deleted = client.post("/api/changes", json={"op": "remove", "object_id": "machine"})
+    assert deleted.status_code == 200
+    assert client.post("/api/route", json=request).status_code == 200
+
+    client.post("/api/changes/reset")
+    assert client.post("/api/route", json=request).status_code == 409
+
+
+def test_a_deleted_objects_floor_opens_everywhere_and_undo_closes_it(tmp_path):
+    client = corridor_blocked_by_a_machine(tmp_path)
+
+    def walkable_cells():
+        return client.get("/api/plan/walkable").json()["mask"]
+
+    def onto_the_machine():
+        spot = {"position": [3.0, -0.4, 1.0], "yaw": 0}
+        return client.post("/api/objects/cart/check-move", json=spot).json()["ok"]
+
+    blocked = walkable_cells()
+    assert not onto_the_machine()
+    client.post("/api/changes", json={"op": "remove", "object_id": "machine"})
+    assert walkable_cells() != blocked
+    assert onto_the_machine()
+    assert client.get("/api/objects/target/view").json()["clear"]
+
+    undone = client.post("/api/changes/undo")
+    assert undone.status_code == 200
+    assert walkable_cells() == blocked
+    assert not onto_the_machine()
+    request = {"start": [1.0, 0.0, 1.0], "object_id": "target"}
+    assert client.post("/api/route", json=request).status_code == 409
+
+
+def test_remove_info_keeps_the_object_in_the_way(tmp_path):
+    client = corridor_blocked_by_a_machine(tmp_path)
+    removed = client.post(
+        "/api/changes",
+        json={"op": "remove", "object_id": "machine", "details": {"keep_splats": True}},
+    )
+    assert removed.status_code == 200
+    request = {"start": [1.0, 0.0, 1.0], "object_id": "target"}
+    assert client.post("/api/route", json=request).status_code == 409

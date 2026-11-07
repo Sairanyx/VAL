@@ -81,6 +81,45 @@ def _count(cols: np.ndarray, rows: np.ndarray, shape: tuple[int, int]) -> np.nda
     return counts
 
 
+def _window(grid: NavGrid, low, high) -> tuple[np.ndarray, np.ndarray]:
+    """Return the first and past-the-last cells under a box, clipped to the map."""
+    axes = list(grid.axes)
+    shape = np.asarray(grid.free.shape)
+    first = np.floor((np.asarray(low, float)[axes] - grid.origin) / grid.cell).astype(int)
+    last = np.floor((np.asarray(high, float)[axes] - grid.origin) / grid.cell).astype(int)
+    start = np.clip(np.minimum(first, last), 0, shape - 1)
+    stop = np.clip(np.maximum(first, last) + 1, 1, shape)
+    return start, stop
+
+
+def _with_free(grid: NavGrid, free: np.ndarray, low_free: np.ndarray) -> NavGrid:
+    return NavGrid(
+        origin=grid.origin,
+        cell=grid.cell,
+        floor_height=grid.floor_height,
+        up=grid.up,
+        axes=grid.axes,
+        free=free,
+        clearance=ndimage.distance_transform_edt(free) * grid.cell,
+        clearance_low=ndimage.distance_transform_edt(low_free) * grid.cell,
+    )
+
+
+def open_boxes(grid: NavGrid, boxes: list[tuple[list[float], list[float]]]) -> NavGrid:
+    """Return the map with the floor under these boxes open: objects taken out of the room. The
+    scan never saw the floor under them, so it's assumed to be there."""
+    if not boxes:
+        return grid
+    free = grid.free.copy()
+    low_free = grid.clearance_low > 0
+    for low, high in boxes:
+        start, stop = _window(grid, low, high)
+        window = (slice(start[0], stop[0]), slice(start[1], stop[1]))
+        free[window] = True
+        low_free[window] = True
+    return _with_free(grid, free, low_free)
+
+
 def vacate(
     grid: NavGrid,
     positions: np.ndarray,
@@ -97,16 +136,12 @@ def vacate(
     if not boxes:
         return grid
     axes = list(grid.axes)
-    shape = grid.free.shape
     free = grid.free.copy()
     low_free = grid.clearance_low > 0
     cells = np.floor((positions[:, axes] - grid.origin) / grid.cell).astype(np.int64)
     heights = positions @ grid.up - grid.floor_height
     for low, high in boxes:
-        first = np.floor((np.asarray(low, float)[axes] - grid.origin) / grid.cell).astype(int)
-        last = np.floor((np.asarray(high, float)[axes] - grid.origin) / grid.cell).astype(int)
-        start = np.clip(np.minimum(first, last), 0, np.asarray(shape) - 1)
-        stop = np.clip(np.maximum(first, last) + 1, 1, np.asarray(shape))
+        start, stop = _window(grid, low, high)
         inside = ((cells >= start) & (cells < stop)).all(axis=1)
         if not inside.any():
             continue
@@ -122,16 +157,7 @@ def vacate(
             blocked = _count(*local[solid & in_band].T, size) >= SOLID_HITS
             stood = _count(*local[mine & in_band].T, size) > 0
             target[window] |= ~blocked & (seen | stood)
-    return NavGrid(
-        origin=grid.origin,
-        cell=grid.cell,
-        floor_height=grid.floor_height,
-        up=grid.up,
-        axes=grid.axes,
-        free=free,
-        clearance=ndimage.distance_transform_edt(free) * grid.cell,
-        clearance_low=ndimage.distance_transform_edt(low_free) * grid.cell,
-    )
+    return _with_free(grid, free, low_free)
 
 
 def largest_region(mask: np.ndarray) -> np.ndarray:

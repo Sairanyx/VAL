@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
+from app.api.collisions import MoveCheck, check_move
 from app.api.copilot_link import ask, condition, details, load_engine
 from app.api.db import open_database
 from app.api.select_object import (
@@ -52,6 +53,10 @@ class ChangeRequest(BaseModel):
     object_id: str | None = None
     position: Position | None = None
     details: dict[str, Any] | None = None
+
+
+class MoveCheckRequest(BaseModel):
+    position: Position
 
 
 class SelectionRequest(BaseModel):
@@ -222,8 +227,27 @@ def create_app(
     def list_changes() -> dict:
         return {"changes": store.changes}
 
+    def move_check(object_id: str, position: list[float]) -> MoveCheck:
+        return check_move(
+            require(object_id), position, store.visible(), grid, store.original(object_id)
+        )
+
+    @app.post("/api/objects/{object_id}/check-move")
+    def check_a_move(object_id: str, request: MoveCheckRequest) -> dict:
+        """Say whether an object can stand here, for the viewer to show while dragging."""
+        result = move_check(object_id, request.position)
+        return {"ok": result.ok, "reason": result.reason, "blockers": result.blockers}
+
     @app.post("/api/changes")
     def change(request: ChangeRequest) -> dict:
+        # Checked here too, so that nothing can save a bad spot. Saved changes aren't rechecked on
+        # restart, because the room they were made in may have changed since.
+        if request.op == "move" and request.object_id and request.position:
+            asset = store.get(request.object_id)
+            if asset and asset.get("mobility") == "movable" and asset["status"] != "removed":
+                result = move_check(request.object_id, request.position)
+                if not result.ok:
+                    raise HTTPException(409, result.reason)
         try:
             return store.apply(request.op, request.object_id, request.position, request.details)
         except KeyError:

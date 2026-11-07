@@ -61,6 +61,10 @@ class SceneStore:
             asset.setdefault("status", "detected")
         self.changes: list[dict] = []
 
+    def original(self, object_id: str) -> dict | None:
+        """Return an object's record from the scan, before any moves. New objects have none."""
+        return next((a for a in self.scene["assets"] if a["object_id"] == object_id), None)
+
     def visible(self) -> list[dict]:
         return [a for a in self.assets.values() if a["status"] != "removed"]
 

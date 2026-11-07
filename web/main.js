@@ -298,6 +298,7 @@ $("split-object").onclick = () => {
 };
 
 function hideObject(object) {
+  objectLayer?.dropPiece(object);
   object.gone = true;
   object.box.visible = false;
   object.pick.layers.disable(0);
@@ -315,6 +316,7 @@ function removeAdded() {
       object.splitAway = false;
       object.gone = false;
       object.pick.layers.enable(0);
+      objectLayer?.restorePiece(object);
     }
   }
 }
@@ -515,6 +517,7 @@ async function syncWithBackend() {
       objects.at(-1).addedByOperator = true;
       changed += 1;
     } else if (object.center.distanceTo(new THREE.Vector3(...asset.center)) > 0.001) {
+      await objectLayer.ensurePiece(object);
       objectLayer.placeAt(object, asset.center);
       changed += 1;
     }

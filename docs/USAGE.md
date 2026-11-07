@@ -34,7 +34,7 @@ Run `make highlights`, then restart your viewer. Clicking an object tints its se
 splats cyan and hides its selected box; selecting another object replaces the highlight.
 The highlight follows dragging and undo and is independent of the **Boxes** toggle.
 
-The four cut-out movable objects highlight their whole cut piece, the same splats that move when
+The three cut-out movable objects highlight their whole cut piece, the same splats that move when
 dragged, so run `make pieces` before `make highlights`. Other objects show detected surfaces only:
 missed parts remain missing. Operator-added objects have no segmentation yet; a message explains this.
 **Objects** mode still shows fitted shapes instead of scanned surfaces.
@@ -54,11 +54,14 @@ For a different scene, pass its own `HIGHLIGHTS=path/to/highlights`, or disable 
 5. **Undo changes** puts everything back.
 
 **Try this first:** the roll cage `obj-0067`. Plan a route with **Go to P-005** from the middle of the room,
-then drag the cage onto the route. The route bends around it.
+then drag the cage onto the route. The route bends around it. To drag from a better view without changing
+the route, press **Walk** to switch to **Fly** first.
 
-Three objects move as the real scan: `obj-0067`, `obj-0021`, and `obj-0112`. Other movable objects
-only move as an outline, so they stay put in Scan view. Press **Scan** to switch to **Both** or **Objects** to
-see fitted shapes move.
+Every movable object moves as the real scan, including split and combined ones. `obj-0067`, `obj-0021`, and
+`obj-0112` are cut in advance by `make pieces`, with the floor behind them patched, so they look cleanest.
+Others are cut by their box when you press **Move on floor**, which takes a moment. Anything else in the box
+moves too, and the floor they leave may look dark. If it can't be cut, the outline moves instead, and the
+panel says so. This needs `Equipment Room.ply` in `data/scene/equipment_room/`.
 
 ### What happens when you move something
 ```text
@@ -71,7 +74,8 @@ Release               web/objects.js: records the move
 Backend               app/api/main.py: refuses a bad spot, even if the viewer's check was skipped
                       app/api/store.py: refuses unless movable, moves the box, logs the change
                       app/api/db.py: saves it, if the database is running
-Route showing?        web/route.js: POST /api/route from the route's same start
+Route showing?        web/route.js: POST /api/route. While dragging it previews the route with the object there.
+                      A refused drop plans again, so the route never bends around a spot it didn't reach
                       app/nav/route.py: the moved box now blocks the map, so it plans around it
 Reload the page       web/main.js: GET /api/assets, and restores saved moves on screen
 Undo changes          web/route.js: POST /api/changes/reset
@@ -90,7 +94,9 @@ screens only pick up changes when reloaded.
 2. Drag a box around one part. Orange is what you selected, and blue is the rest.
 3. Check the type and whether each can move, then press **Save**. Both are marked "new, unconfirmed".
 
-The parts move as outlines, not as the real scan. **Undo changes** brings the original back.
+Split or combine before moving: a moved object has to be put back first, with **Undo changes**.
+
+Set a part to movable to move it, and its real splats go with it. **Undo changes** brings the original back.
 
 ## Combine objects that are really one thing
 1. Tap the first object, and press **Combine with...**. Objects linked to a record can't be combined.
@@ -104,7 +110,8 @@ model worded it or it's a fixed template. Unsafe requests are refused.
 ## Other controls
 | Control | What it does |
 |---|---|
-| **Go to P-005** | Plans a route to the faulty device from where you stand |
+| **Go to P-005** | Plans a route to the faulty device from where you stand. Arrows show the way |
+| **Walk / Fly** | In **Walk** the route starts from wherever you move to. In **Fly** you can look around from anywhere, and the route keeps its start |
 | **Walk route** | Walks the route, and stops looking at the device |
 | **Person / Robot** | Changes the body size and height for routes |
 | **Range** | How far away frames and labels show |
@@ -123,7 +130,8 @@ Add these to the URL: `?lod=0&res=2` for the sharpest image, or `?res=0.5` if it
 | `make api` fails on a missing file | `make mapping` hasn't run | Run `make scene mapping` |
 | No **Move on floor** button | The object is fixed or unsure | The panel says which. Try `obj-0067` |
 | Box goes red and panel says "Can't place it here" | That spot is taken | Drop it somewhere else. Tiny overlaps are allowed, because boxes are loose |
-| Only an outline moves | Not one of the three objects, or no `PIECES=` | Use the full `make web` line above |
+| Route jumps or disappears as you look around | You're in Walk mode, so it starts from where you are | Press **Walk** to switch to **Fly**, then **Go to P-005** again |
+| Only an outline moves | The backend couldn't cut it | Check `make api` is running and `Equipment Room.ply` is in place |
 | Object moves, but no route change | No route showing, or it isn't in the way | **Go to P-005** first, then drag onto the line |
 | "Couldn't save the move" | The backend refused it or is down | The message says why. Restart `make api` if needed |
 | "Couldn't add an object: Selecting needs the scene" | `Equipment Room.ply` is missing | Put it in `data/scene/equipment_room/` |
@@ -131,6 +139,7 @@ Add these to the URL: `?lod=0&res=2` for the sharpest image, or `?res=0.5` if it
 | Everything is back after reloading the backend | No database | Run `make db` before `make api` |
 | Blurry or slow | Heavy scene on a weak GPU | Try a lighter scene, or `?res=0.5` |
 | Viewer shows a small test scene | `make web` had no `SCENE=` | Use the full line above |
-| Old object IDs, such as `obj-0046` for P-005 | Old data | Run `make scene mapping pieces` again |
+| Old object IDs, such as `obj-0046` for P-005 | Old data | Run `make scene mapping pieces highlights` again |
+| `obj-0008`'s seat has no star base | An old `cut` folder from before it left the moving list | Run `make pieces highlights` again |
 
 Open the browser's developer console (F12) for more detail, and include any red errors when asking for help.

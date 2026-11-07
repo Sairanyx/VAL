@@ -298,3 +298,41 @@ def test_combine_refuses_linked_objects_and_itself(tmp_path):
     assert client.post("/api/changes", json=itself).status_code == 409
     missing = {"op": "combine", "object_id": "b", "details": {"other": "nope"}}
     assert client.post("/api/changes", json=missing).status_code == 404
+
+
+def test_any_object_can_be_cut_from_its_home_even_after_moving(tmp_path, monkeypatch):
+    from app.scene.load import read_splats, write_splats
+
+    near = cloud([0, 0.5, 0], 0.2, 500)
+    far = cloud([3, 0.5, 0], 0.2, 700, seed=1)
+    scene_file = tmp_path / "scene.ply"
+    write_splats(scene(near, far), scene_file)
+    monkeypatch.setenv("SCENE_PLY", str(scene_file))
+    asset = {
+        **box_asset("cart"),
+        "center": [0, 0.5, 0],
+        "bbox_min": [-0.25, 0.25, -0.25],
+        "bbox_max": [0.25, 0.75, 0.25],
+    }
+    path = tmp_path / "assets.json"
+    path.write_text(json.dumps({"scene_id": "t", "floor_y": FLOOR_Y, "assets": [asset]}))
+    client = TestClient(create_app(path, engine=False, database=False))
+    move = {"op": "move", "object_id": "cart", "position": [2, 0.5, 0]}
+    assert client.post("/api/changes", json=move).status_code == 200
+    assert client.get("/api/objects/cart/home").json()["center"] == [0, 0.5, 0]
+    reply = client.get("/api/objects/cart/splats.ply")
+    assert reply.status_code == 200
+    saved = tmp_path / "piece.ply"
+    saved.write_bytes(reply.content)
+    assert len(read_splats(saved)) == 500  # Where it was scanned, not where it stands now.
+
+
+def test_moved_objects_must_be_put_back_before_splitting_or_combining(tmp_path):
+    client = two_objects(tmp_path)
+    move = {"op": "move", "object_id": "b", "position": [6, 1, 0.5]}
+    assert client.post("/api/changes", json=move).status_code == 200
+    combine = {"op": "combine", "object_id": "a", "details": {"other": "b"}}
+    reply = client.post("/api/changes", json=combine)
+    assert reply.status_code == 409 and "has been moved" in reply.json()["detail"]
+    split = {"op": "split", "object_id": "b", "details": {"parts": parts_of("chair", "box")}}
+    assert "has been moved" in client.post("/api/changes", json=split).json()["detail"]

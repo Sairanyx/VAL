@@ -2,7 +2,7 @@
 // Data: /shapes.json (from app/extract/primitives.py). Without it, the viewer just shows the scan.
 // Scene coordinates are used throughout, inside `root`, as in main.js.
 import * as THREE from "three";
-import { SplatMesh } from "@sparkjsdev/spark";
+import { SplatEdit, SplatEditSdf, SplatEditSdfType, SplatMesh } from "@sparkjsdev/spark";
 
 const APART_SCALE = 0.45; // How far objects move away from the room's center in the pulled-apart view.
 const MIN_LIFT = 0.05;
@@ -44,8 +44,74 @@ export async function setupObjects({
     const object = byId.get(id);
     if (!object) continue;
     object.piece = new SplatMesh({ url: `pieces/${id}.ply` });
+    object.piece.edits = [];
     root.add(object.piece);
     pieces.push(object.piece);
+  }
+
+  // Any other movable object is cut out when first moved: the backend sends its splats, and the same
+  // space is hidden in the scan, so that it isn't left behind as a ghost.
+  const hidden = new SplatEdit({ sdfs: [] });
+  splat.edits = [hidden];
+
+  async function loadPiece(object) {
+    const id = encodeURIComponent(object.asset.object_id);
+    const response = await fetch(`/api/objects/${id}/home`);
+    if (!response.ok) throw new Error(`Backend error ${response.status}`);
+    const home = await response.json();
+    const piece = new SplatMesh({ url: `/api/objects/${id}/splats.ply`, lod: false });
+    piece.edits = [];
+    await piece.initialized;
+    if (object.gone) {
+      piece.dispose();
+      return;
+    }
+    const low = new THREE.Vector3(...home.bbox_min);
+    const high = new THREE.Vector3(...home.bbox_max);
+    // Stop just above the floor, which stays. A box's bottom often sits above an object's base.
+    high.y = floorY - home.floor_margin;
+    const space = new SplatEditSdf({ type: SplatEditSdfType.BOX, opacity: 0 });
+    space.position.copy(low).add(high).multiplyScalar(0.5);
+    space.scale.copy(high).sub(low);
+    root.add(space);
+    hidden.addSdf(space);
+    piece.position.copy(object.center).sub(new THREE.Vector3(...home.center));
+    piece.visible = splat.visible;
+    root.add(piece);
+    pieces.push(piece);
+    object.piece = piece;
+    object.hiddenSpace = space;
+  }
+
+  // Waits for an object's real splats. If they can't be loaded, it moves as an outline instead.
+  function ensurePiece(object) {
+    if (object.piece) return Promise.resolve();
+    object.pieceLoading ??= loadPiece(object).catch((error) => {
+      console.warn("Moving as an outline:", error.message);
+      onMessage?.("Moving the outline only: the backend couldn't cut this object out of the scan");
+    });
+    return object.pieceLoading;
+  }
+
+  // For an object that's gone, split, or combined: show the scan as it was there again.
+  function dropPiece(object) {
+    if (!object.piece) return;
+    if (!object.hiddenSpace) {
+      object.piece.visible = false; // Cut in advance: the scan has no splats to bring back.
+      return;
+    }
+    hidden.removeSdf(object.hiddenSpace);
+    root.remove(object.hiddenSpace);
+    root.remove(object.piece);
+    pieces.splice(pieces.indexOf(object.piece), 1);
+    object.piece.dispose();
+    object.piece = null;
+    object.hiddenSpace = null;
+    object.pieceLoading = null;
+  }
+
+  function restorePiece(object) {
+    if (object.piece && !object.hiddenSpace) object.piece.visible = splat.visible;
   }
 
   const roomCenter = new THREE.Vector3();
@@ -113,6 +179,7 @@ export async function setupObjects({
   function startMove(object) {
     if (object.asset.mobility !== "movable") return false;
     const item = items.find((candidate) => candidate.object === object);
+    ensurePiece(object);
     const start = object.center.clone();
     state.moving = { object, item, dragging: false, last: null, valid: start.clone(), start };
     return true;
@@ -287,6 +354,9 @@ export async function setupObjects({
     startMove,
     resetMoves,
     placeAt,
+    ensurePiece,
+    dropPiece,
+    restorePiece,
     shapeCount: items.length,
   };
 }

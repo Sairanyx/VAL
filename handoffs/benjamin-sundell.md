@@ -1,6 +1,6 @@
-# benjamin-sundell: benjamin/fixes
+# benjamin-sundell: benjamin/info-buttons
 **Goal:** the team's bug and fix list for the viewer, on top of main (PR #35)
-**Done:** flicker fixed (adaptive resolution resized the canvas; now opt-in `?adaptive=1`); typing in Val no longer moves the camera; Rotate is a mode of Move; View button hidden (BIM replaces it); Undo (latest change, new `POST /api/changes/undo`) next to Reset all, and the viewer brings back undone deletes; hotkeys (Delete, Ctrl+Z, M, R, PgUp/PgDn, C, N, F, G, Esc); "Remove info" keeps a junk object's splats (`op: remove` + `keep_splats`, still blocks routes if movable); raise/lower objects and copies; Walk keeps to the walkable floor (new `GET /api/plan/walkable`, `web/walkable.js`), Fly free; start just inside the door (`obj-0268`, `?start=centre` for the old start); Plan rebuilt as a light blueprint from bim.json (`web/plan.js`), BIM no longer builds the layout at startup. Tests in `tests/test_api.py`
-**Verified:** `make check` passes (275 passed, 4 skipped). Not yet clicked through in a browser
+**Done:** info panel buttons no longer squeeze their labels: `flex: 1 1 auto` + `white-space: nowrap`, rows wrap instead (`web/style.css`). Earlier: the fix list, merged as PR #36
+**Verified:** `make check` passes. Not yet seen in a browser
 **Next:** click through every fix; push and PR; tell Eduard (store.py, main.py endpoints), Viktor (plan.js, pacing default), Sasha (bim.js). Val stress test skipped (no model here). Database dummy data and demo deployment: decisions for the team
 **Blockers:** none

@@ -37,7 +37,7 @@ Sunday 09:00, deadline 10:00, per an earlier doc: Viktor is confirming this. Cur
 **Roihu is closed until at least Monday,** after the deadline, because of a security issue (CSC notice, 2026-11-07). Its masks, full renders, and video frames can't be reached, and any work needing them is off. Everything the demo needs is in Release `objects-v2`. Don't try to get around the closure. The 5090 is now our only GPU, so agree who's using it.
 
 **In order:** rehearse on the demo laptop offline, try the zip on Windows and a Mac, record a safe demo
-video (the **Demo** button is built for this), slides, technical note, and README, then improve numbers if
+video (the tutorial's **Watch** mode is built for this), slides, technical note, and README, then improve numbers if
 time remains. The 5090 isn't part of the demo any more: it runs on a laptop.
 
 | Person | Task now |

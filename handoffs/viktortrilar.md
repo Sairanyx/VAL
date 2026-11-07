@@ -1,6 +1,6 @@
 # viktortrilar: viktor/polish
-**Goal:** the next fix list: refused moves, Delete, floor and walls, BIM isolate labels, frame colours, and a more human Val
-**Done:** a refused move or turn says why and records nothing (web/objects.js). Delete hides small boxes around the object's own splats (app/scene/cover.py, `/api/objects/{id}/cover`). Walls and floor can't be picked or hovered. Isolate shows only that object's label. Frames coloured by type (web/colors.js), with a legend in More. Val talks like a person, gives specific answers, asks which device when unclear, and refuses more control requests. Voice starts off
-**Verified:** 290+ tests with the Excel pack, lint clean. Real GPU: 12 of 12 viewer checks, 28 of 28 combine and delete checks. 66 of 66 route checks. About 90 Val prompts read by eye. Not tested: Gemma's plain words on the new answers, tablet, 5090
-**Next:** merge this. Rehearse on the 5090. Decide on adaptive resolution: 16 frames a second turning by default, 32 with `?adaptive=1`, which Benjamin turned off for flicker
-**Blockers:** Valmet still has to confirm which pump is P-005. Objects made in the viewer still delete by whole box. Val only knows the phrases it's been given. Roihu closed until at least Monday
+**Goal:** combine the fix list with Eduard's speech work, so the team can build the presentation from main
+**Done:** refused moves explain themselves, Delete hides the object's own splats, walls and floor can't be picked, Isolate hides other labels, frames coloured by type, Val talks like a person. Merged Eduard's Whisper mic, viewer actions by voice and safety rules. Added "Val" to the speech hints
+**Verified:** 367 tests with the Excel pack, lint clean. Real GPU: 66 of 66 route checks, 28 of 28 combine and delete checks. 6 of 6 voice phrases through a fake mic, with generated speech. Not verified: a real voice, a noisy room, the tablet mic, the viewer checks after the last merge, which timed out, probably on a removed button
+**Next:** optimization and bug fixes. Decide on adaptive resolution. Try the mic with a real voice. ElevenLabs test voices need a key from Viktor
+**Blockers:** Valmet still has to confirm which pump is P-005. Deadline Sunday 10:00. Roihu closed until at least Monday

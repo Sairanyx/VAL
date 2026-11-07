@@ -17,7 +17,8 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import numpy as np
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
@@ -38,6 +39,7 @@ from app.api.store import GONE, ChangeError, SceneStore
 from app.bim.ifc import ifc_text
 from app.bim.model import build_model
 from app.copilot.llm import can_reword, load_writer, warm_up
+from app.copilot.voice import MAX_AUDIO_BYTES, TRANSCRIBER
 from app.nav.grid import NavGrid, largest_region, load_grid
 from app.nav.route import (
     BODIES,
@@ -180,6 +182,7 @@ def create_app(
 ) -> FastAPI:
     engine = engine or load_engine()
     writer = load_writer() if engine else None
+    TRANSCRIBER.warm_up()
     if engine:
         warm_up(engine, writer)
     database = database or open_database()
@@ -315,6 +318,22 @@ def create_app(
             "placeholder": True,
             "changes": len(store.changes),
         }
+
+    @app.post("/api/copilot/transcribe")
+    async def transcribe(request: Request) -> dict:
+        """Turn recorded speech into text on this machine. The audio isn't kept."""
+        if not TRANSCRIBER.installed:
+            raise HTTPException(503, "Speech isn't installed. Run this once: make voice-model")
+        audio = await request.body()
+        if not audio:
+            raise HTTPException(400, "No audio was received.")
+        if len(audio) > MAX_AUDIO_BYTES:
+            raise HTTPException(413, "That recording is too long.")
+        tags = {asset.tag for asset in engine.store.list_assets()} if engine else set()
+        try:
+            return await run_in_threadpool(TRANSCRIBER.transcribe, audio, tags)
+        except Exception as error:
+            raise HTTPException(422, f"Couldn't read that recording: {error}") from error
 
     @app.post("/api/copilot/query")
     def copilot(request: CopilotRequest) -> dict:

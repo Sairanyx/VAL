@@ -326,10 +326,6 @@ details summary {
   margin: 0;
   font-size: 18px;
 }
-#val-head button {
-  min-height: 32px;
-  font-size: 12px;
-}
 #val-context {
   display: flex;
   align-items: center;
@@ -415,8 +411,28 @@ details summary {
   gap: 6px;
   margin: 8px 0;
 }
+#val-mic {
+  flex: none;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+#val-mic[data-state="listening"] {
+  background: #b91c1c;
+  border-color: #fca5a5;
+  color: #fff;
+  box-shadow: 0 0 0 calc(2px + 10px * var(--level, 0)) rgba(248, 113, 113, 0.45);
+}
+#val-mic[data-state="working"] {
+  opacity: 0.6;
+  cursor: progress;
+}
 #copilot-input {
   flex: 1;
+  min-width: 0;
   min-height: 44px;
   padding: 0 10px;
   border: 1px solid #3a4652;

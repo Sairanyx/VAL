@@ -4,6 +4,7 @@
 import * as THREE from "three";
 import { SparkControls, SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
 import { setupAddObject } from "./addobject.js";
+import { setupCommands } from "./commands.js";
 import { setupCopilot } from "./copilot.js";
 import { setupHighlight } from "./highlight.js";
 import { setupObjects } from "./objects.js";
@@ -13,24 +14,35 @@ import { setupRoute } from "./route.js";
 let faultTag = "P-005"; // the pre-chosen faulty device, unless the scene's file names another
 const EYE_HEIGHT = 1.6; // metres above the floor in walk mode (scene units look close to metres)
 const RANGES = [2, 3, 5, 10]; // metres the Range button cycles through, for frames and labels
-const MAX_LABELS = 8;
 const MAX_BOXES = 15;
 const BACKGROUND_LABELS = new Set(["pipe", "pipe fitting", "cable", "hose", "object"]);
+
+// Lighter defaults for tablets, until they're measured on the real Lenovo.
+const TABLET_RES = 0.75;
+const TABLET_SPLATS = 500000;
 
 // Speed settings, changeable in the URL without editing code, e.g. ?res=0.5&splats=300000
 //   res     render resolution relative to the screen (default 1; 0.5 is about 4x fewer pixels)
 //   lod     1 = level of detail on: far-away areas use fewer, bigger splats (default 1)
 //   splats  how many splats LOD aims to draw per frame (default: Spark's choice for the device)
 const params = new URLSearchParams(location.search);
-const RES = Number(params.get("res") ?? 1);
+//   tablet  1 or 0 forces the touch layout and lighter defaults. Default: on for touch screens
+const TABLET = params.has("tablet")
+  ? params.get("tablet") === "1"
+  : window.matchMedia("(pointer: coarse)").matches;
+document.body.classList.toggle("tablet", TABLET);
+const MAX_LABELS = TABLET ? 5 : 8;
+const RES = Number(params.get("res") ?? (TABLET ? TABLET_RES : 1));
 const LOD = params.get("lod") !== "0";
-const LOD_SPLATS = params.has("splats") ? Number(params.get("splats")) : undefined;
-// Phones and tablets load the light scene (every splat, base colour only, about 4x smaller) when
+const LOD_SPLATS = params.has("splats")
+  ? Number(params.get("splats"))
+  : TABLET
+    ? TABLET_SPLATS
+    : undefined;
+// Tablet mode also loads the light scene (every splat, base colour only, about 4x smaller) when
 // the server offers one. ?scene=full or ?scene=light overrides the choice on any device.
-const TOUCH = window.matchMedia("(pointer: coarse)").matches;
-
 async function pickScene() {
-  const wanted = params.get("scene") ?? (TOUCH ? "light" : "full");
+  const wanted = params.get("scene") ?? (TABLET ? "light" : "full");
   if (wanted === "light") {
     const head = await fetch("scene-light.ply", { method: "HEAD" }).catch(() => null);
     if (head?.ok) return { url: "scene-light.ply", label: "light" };
@@ -38,6 +50,7 @@ async function pickScene() {
   return { url: "scene.ply", label: "full" };
 }
 
+const PANEL_CONTROLS = "button, a, input, select, textarea, label, summary, form";
 const $ = (id) => document.getElementById(id);
 const canvas = $("view");
 
@@ -62,7 +75,7 @@ const phone = setupPhone({
   onMessage: (msg) => ($("status").textContent = msg),
 });
 const raycaster = new THREE.Raycaster();
-const objects = []; // { asset, box, pick, label, center }
+const objects = []; // { asset, box, pick, label, center, yaw, baseSize }
 let walk = true;
 let eyeY = EYE_HEIGHT;
 let startPos = new THREE.Vector3(0, EYE_HEIGHT, 0);
@@ -140,7 +153,16 @@ function addAsset(asset) {
   $("labels").append(label);
 
   const volume = Math.max(size.x * size.y * size.z, 1e-6);
-  objects.push({ asset, box, pick, label, volume, center: new THREE.Vector3(...asset.center) });
+  objects.push({
+    asset,
+    box,
+    pick,
+    label,
+    volume,
+    center: new THREE.Vector3(...asset.center),
+    yaw: asset.yaw ?? 0,
+    baseSize: size.clone(),
+  });
 }
 
 // Live condition from the backend, for objects linked to an Excel record.
@@ -186,7 +208,7 @@ function showInfo(obj) {
     "</dl>";
   selected = obj;
   highlight.select(obj);
-  $("move").hidden = a.mobility !== "movable" || !objectLayer;
+  $("move-actions").hidden = a.mobility !== "movable" || !objectLayer;
   $("cant-move").hidden = a.mobility === "movable";
   $("cant-move").textContent =
     a.mobility === "fixed"
@@ -199,10 +221,24 @@ function showInfo(obj) {
   showCondition(obj);
   $("info").hidden = false;
 }
-$("info-close").onclick = () => ($("info").hidden = true);
+// On a tablet there's no close button: tapping a window anywhere except its controls closes it.
+function closeOnTap(panel, close) {
+  panel.addEventListener("click", (event) => {
+    if (document.body.classList.contains("tablet") && !event.target.closest(PANEL_CONTROLS)) {
+      close.click();
+    }
+  });
+}
+closeOnTap($("info"), $("info-close"));
+closeOnTap($("copilot"), $("copilot-close"));
+$("info-close").onclick = () => {
+  $("info").hidden = true;
+  hideManipBar();
+};
 
 async function routeTo(obj) {
   $("info").hidden = true;
+  hideManipBar();
   $("status").textContent = `Planning a route to ${name(obj.asset)}...`;
   const found = await route.plan({ asset: obj.asset, center: obj.center, name: name(obj.asset) });
   $("follow").hidden = !found;
@@ -213,19 +249,16 @@ async function routeTo(obj) {
 }
 $("route-here").onclick = () => selected && routeTo(selected);
 const copilot = setupCopilot({
+  button: $("open-copilot"),
+  askButton: $("ask"),
   panel: $("copilot"),
   form: $("copilot-form"),
   input: $("copilot-input"),
   answer: $("copilot-answer"),
   close: $("copilot-close"),
-  getObject: () => selected,
+  getSelected: () => selected,
+  name,
 });
-$("ask").onclick = () => {
-  $("info").hidden = true;
-  const about = selected ? name(selected.asset) : "this";
-  copilot.open(`Why is ${about} flagged, and what should I check first?`);
-};
-$("open-copilot").onclick = () => copilot.open();
 
 const adder = setupAddObject({
   canvas,
@@ -233,6 +266,7 @@ const adder = setupAddObject({
   camera,
   render: () => renderer.render(scene, camera),
   ui: {
+    button: $("add-object"),
     frame: $("select-frame"),
     title: $("add-title"),
     restRow: $("add-rest"),
@@ -353,11 +387,59 @@ $("clear-route").onclick = () => {
   $("follow").hidden = true;
   $("clear-route").hidden = true;
 };
+
+// Manipulation controls (Move / Rotate on floor)
+function showManipBar(mode) {
+  $("manip-bar").hidden = false;
+  $("manip-mode-move").classList.toggle("active", mode === "move");
+  $("manip-mode-rotate").classList.toggle("active", mode === "rotate");
+  $("manip-title").textContent = name(selected.asset);
+  updateStatusForMode(mode);
+}
+
+function hideManipBar() {
+  $("manip-bar").hidden = true;
+}
+
+function updateStatusForMode(mode) {
+  if (!selected) return;
+  if (mode === "rotate") {
+    $("status").textContent = `Rotate ${name(selected.asset)}: Drag across screen, tap 45°, or twist with 2 fingers`;
+  } else {
+    $("status").textContent = `Move ${name(selected.asset)}: Drag along floor · Hold Shift to rotate`;
+  }
+}
+
 $("move").onclick = () => {
   if (objectLayer?.startMove(selected)) {
     $("info").hidden = true;
-    $("status").textContent = `Drag ${name(selected.asset)} along the floor`;
+    showManipBar("move");
   }
+};
+$("rotate").onclick = () => {
+  if (objectLayer?.startRotate(selected)) {
+    $("info").hidden = true;
+    showManipBar("rotate");
+  }
+};
+$("manip-mode-move").onclick = () => {
+  objectLayer?.setMode("move");
+  showManipBar("move");
+};
+$("manip-mode-rotate").onclick = () => {
+  objectLayer?.setMode("rotate");
+  showManipBar("rotate");
+};
+$("manip-turn-left").onclick = () => {
+  objectLayer?.turnObject(-Math.PI / 4);
+};
+$("manip-turn-right").onclick = () => {
+  objectLayer?.turnObject(Math.PI / 4);
+};
+$("manip-done").onclick = () => {
+  objectLayer?.finishManipulation();
+  hideManipBar();
+  if (selected) $("status").textContent = `Saved ${name(selected.asset)}`;
 };
 
 function hit(ndc) {
@@ -383,7 +465,10 @@ canvas.addEventListener("pointerup", (e) => {
   );
   const obj = hit(ndc);
   if (obj && adder.state.combining && !adder.state.other) adder.combineWith(obj);
-  else if (obj) showInfo(obj);
+  else if (obj) {
+    if (selected !== obj && !objectLayer?.state.moving) hideManipBar();
+    showInfo(obj);
+  }
 });
 
 $("mode").onclick = () => {
@@ -401,32 +486,43 @@ $("range").onclick = () => {
 };
 $("reset").onclick = () => {
   camera.position.copy(startPos);
-  camera.quaternion.identity();
-  phone.recenter();
+  camera.rotation.set(0, 0, 0);
+  camera.quaternion.set(0, 0, 0, 1);
 };
 
-// Draw a label over every object in front of the camera, like detections on a camera feed.
-// Occlusion is ignored for now: an object behind a wall still gets a label.
-const tmp = new THREE.Vector3();
+const pos = new THREE.Vector3();
 function updateLabels() {
-  // Everything within range competes for a few places, so the view stays readable: the fault and
-  // the selection always show, then linked equipment, then other things, with pipes last.
-  const visible = [];
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const apart = objectLayer?.state.apart;
+  for (const o of objects) {
+    o.box.visible = false;
+    o.label.style.display = "none";
+  }
+
   const nearby = [];
-  const apart = objectLayer?.state.amount > 0;
   for (const o of objects) {
     if (o.gone) continue;
-    const world = root.localToWorld(tmp.copy(o.center));
-    const dist = world.distanceTo(camera.position);
-    const ndc = world.project(camera);
-    const onScreen = ndc.z < 1 && Math.abs(ndc.x) <= 1 && Math.abs(ndc.y) <= 1;
-    o.label.style.display = "none";
-    o.box.visible = false;
-    const pinned = kind(o.asset) === "fault" || o === selected;
-    if (!pinned && (dist > range || (apart && !o.shape))) continue;
-    const rank = pinned ? 0 : o.asset.mapping ? 1 : BACKGROUND_LABELS.has(o.asset.label) ? 3 : 2;
-    nearby.push({ o, dist, rank, pinned, onScreen, ndc: ndc.clone() });
+    pos.copy(o.center);
+    root.localToWorld(pos);
+    const dist = camera.position.distanceTo(pos);
+    if (dist > range) continue;
+    pos.project(camera);
+    const onScreen = pos.z > 0 && pos.z < 1 && Math.abs(pos.x) <= 1 && Math.abs(pos.y) <= 1;
+    // Fault and mapped objects show first, background labels last.
+    const rank =
+      kind(o.asset) === "fault" ? 0 : kind(o.asset) === "mapped" ? 1 : BACKGROUND_LABELS.has(o.asset.label) ? 3 : 2;
+    nearby.push({
+      o,
+      dist,
+      rank,
+      onScreen,
+      x: ((pos.x + 1) / 2) * w,
+      y: ((-pos.y + 1) / 2) * h,
+      pinned: kind(o.asset) === "fault",
+    });
   }
+
   nearby.sort((a, b) => a.rank - b.rank || a.dist - b.dist);
   const inView = nearby.filter((item) => item.onScreen);
   if (boxesOn && !apart) {
@@ -441,28 +537,22 @@ function updateLabels() {
   for (const o of objects) if (o.warning && !o.gone) o.box.visible = true;
   for (const item of inView) {
     // Unconfirmed objects keep their frame, but don't crowd the view with a generic tag.
-    if (item.o.asset.label !== "object" || item.o.asset.mapping) visible.push(item);
+    if (item.o.asset.status === "new, unconfirmed") continue;
+    if (inView.indexOf(item) >= MAX_LABELS && !item.pinned) continue;
+    const label = item.o.label;
+    label.textContent = name(item.o.asset);
+    label.style.left = `${item.x}px`;
+    label.style.top = `${item.y}px`;
+    label.style.display = "block";
   }
-  for (const { o, dist, ndc } of visible.slice(0, MAX_LABELS)) {
-    o.label.style.display = "block";
-    o.label.style.left = `${((ndc.x + 1) / 2) * window.innerWidth}px`;
-    o.label.style.top = `${((1 - ndc.y) / 2) * window.innerHeight}px`;
-    const type = name(o.asset) === o.asset.label ? "" : `${o.asset.label} · `;
-    o.label.innerHTML = `${name(o.asset)} <small>${type}${dist.toFixed(1)} m</small>`;
-  }
-  const looking = hit(new THREE.Vector2(0, 0));
-  $("in-view").textContent =
-    `${inView.length} object(s) within ${range} m` +
-    (looking ? ` · looking at ${name(looking.asset)}` : "");
 }
 
+let lastTime = 0;
 let frames = 0;
 let lastFps = performance.now();
-let lastFrame = performance.now();
 function animate(now) {
-  const dt = Math.min((now - lastFrame) / 1000, 0.1);
-  lastFrame = now;
-  // In phone mode the phone's rotation steers, so mouse/touch dragging must not fight it.
+  const dt = lastTime ? (now - lastTime) / 1000 : 0;
+  lastTime = now;
   const following = Boolean(route?.state.walking);
   const busy = objectLayer?.state.moving || adder.state.active || following;
   if (!phone.enabled && !busy) controls.update(camera);
@@ -475,7 +565,11 @@ function animate(now) {
     const moving = objectLayer?.state.moving;
     route?.updateLive(
       moving?.dragging
-        ? { object_id: moving.object.asset.object_id, position: moving.object.center.toArray() }
+        ? {
+            object_id: moving.object.asset.object_id,
+            position: moving.object.center.toArray(),
+            yaw: moving.object.yaw || 0,
+          }
         : null,
       walk,
     );
@@ -526,28 +620,105 @@ async function syncWithBackend() {
       addAsset(asset);
       objects.at(-1).addedByOperator = true;
       changed += 1;
-    } else if (object.center.distanceTo(new THREE.Vector3(...asset.center)) > 0.001) {
-      objectLayer.placeAt(object, asset.center);
-      changed += 1;
+    } else {
+      const posDiff = object.center.distanceTo(new THREE.Vector3(...asset.center)) > 0.001;
+      const yawDiff = Math.abs((object.yaw || 0) - (asset.yaw || 0)) > 0.001;
+      if (posDiff || yawDiff) {
+        objectLayer.placeAt(object, asset.center, asset.yaw ?? 0);
+        changed += 1;
+      }
     }
   }
   if (changed) $("status").textContent = `Restored ${changed} saved change(s) from the backend`;
 }
 
 // Ask the backend whether an object can stand here. Without a backend, nothing can be saved anyway.
-async function checkMove(object, position) {
+async function checkMove(object, position, yaw = 0) {
   try {
     const id = encodeURIComponent(object.asset.object_id);
     const response = await fetch(`/api/objects/${id}/check-move`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ position }),
+      body: JSON.stringify({ position, yaw }),
     });
     if (response.ok) return await response.json();
   } catch {
     // Handled below, the same as an error reply.
   }
   return { ok: true, reason: "", blockers: [] };
+}
+
+// What the voice copilot can do, through the same code as the buttons. See app/api/commands.py.
+function commandHandlers() {
+  const find = (id) => {
+    const object = objects.find((o) => o.asset.object_id === id && !o.gone);
+    if (!object) throw new Error(`No object ${id}`);
+    return object;
+  };
+  const press = (id) => () => $(id).click();
+  // Buttons toggle, so only press one if it isn't in the state asked for.
+  const pressIf = (needed, id) => {
+    if (needed) $(id).click();
+  };
+  const open = (id, button) => {
+    showInfo(find(id));
+    $(button).click();
+  };
+  const views = ["scan", "both", "objects"];
+  return {
+    select: ({ object_id }) => showInfo(find(object_id)),
+    close_panels: () => {
+      $("info-close").click();
+      $("copilot-close").click();
+    },
+    route_to: ({ object_id }) => routeTo(find(object_id)),
+    go_to_fault: press("go-fault"),
+    clear_route: press("clear-route"),
+    walk_route: () => pressIf(!route.state.walking, "follow"),
+    stop_walking: () => pressIf(route.state.walking, "follow"),
+    set_profile: ({ profile }) => {
+      if (!["person", "robot"].includes(profile)) throw new Error("Use person or robot");
+      pressIf(route.state.profile !== profile, "profile");
+    },
+    set_mode: ({ mode }) => {
+      if (!["walk", "fly"].includes(mode)) throw new Error("Use walk or fly");
+      pressIf(walk !== (mode === "walk"), "mode");
+    },
+    set_boxes: ({ on }) => pressIf(boxesOn !== on, "boxes"),
+    set_range: ({ metres }) => {
+      if (!RANGES.includes(metres)) throw new Error(`Use one of ${RANGES.join(", ")} m`);
+      range = metres;
+      $("range").textContent = `Range ${range} m`;
+    },
+    set_view: ({ view }) => {
+      if (!views.includes(view)) throw new Error(`Use one of ${views.join(", ")}`);
+      objectLayer.setView(view);
+      $("view-mode").textContent = view[0].toUpperCase() + view.slice(1);
+    },
+    set_apart: ({ on }) => pressIf(objectLayer.state.apart !== on, "apart"),
+    reset_view: press("reset"),
+    open_copilot: press("open-copilot"),
+    ask_copilot: ({ question }) => copilot.open(question),
+    move_object: ({ object_id, position }) => {
+      const object = find(object_id);
+      return objectLayer.moveTo(object, position);
+    },
+    rotate_object: ({ object_id, degrees }) => {
+      const object = find(object_id);
+      return objectLayer.moveTo(object, undefined, (degrees * Math.PI) / 180);
+    },
+    turn_object: ({ object_id, degrees }) => {
+      const object = find(object_id);
+      return objectLayer.moveTo(object, undefined, (object.yaw || 0) + (degrees * Math.PI) / 180);
+    },
+    start_move: ({ object_id }) => open(object_id, "move"),
+    start_rotate: ({ object_id }) => open(object_id, "rotate"),
+    finish_moving: press("manip-done"),
+    undo_changes: press("reset-moves"),
+    start_add: press("add-object"),
+    start_split: ({ object_id }) => open(object_id, "split-object"),
+    start_combine: ({ object_id }) => open(object_id, "combine-object"),
+  };
 }
 
 async function load() {
@@ -623,7 +794,10 @@ async function load() {
     objectLayer.setApart(!objectLayer.state.apart);
     $("apart").textContent = objectLayer.state.apart ? "Together" : "Apart";
   };
-  $("reset-moves").onclick = () => objectLayer.resetMoves();
+  $("reset-moves").onclick = () => {
+    hideManipBar();
+    objectLayer.resetMoves();
+  };
   // Starting states from the URL, for screenshots and rehearsals.
   if (params.has("view")) {
     objectLayer.setView(params.get("view"));
@@ -634,6 +808,7 @@ async function load() {
     $("apart").textContent = "Together";
   }
   await syncWithBackend();
+  setupCommands(commandHandlers());
   window.plantViewer = { objects, objectLayer, camera, route, copilot, showInfo, adder }; // For browser tests and debugging.
   if (params.has("camera")) {
     const [x, y, z, yaw, pitch] = params.get("camera").split(",").map(Number);

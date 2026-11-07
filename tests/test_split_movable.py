@@ -3,7 +3,7 @@ import pytest
 np = pytest.importorskip("numpy")
 
 from app.scene.load import Splats  # noqa: E402
-from app.scene.split_movable import split_movable  # noqa: E402
+from app.scene.split_movable import find_clear_floor, patch_floor, split_movable  # noqa: E402
 
 UP = np.array([0.0, -1.0, 0.0])  # The scene's +y points down, with the floor at y = 1.
 
@@ -23,15 +23,16 @@ def box(object_id, low, high):
 def test_object_takes_what_is_in_its_box_but_leaves_the_floor():
     points = [
         [0.0, 0.5, 0.0],  # In the box.
+        [0.0, 0.9, 0.0],  # Under the box's stated bottom, like a chair's base.
         [0.0, 1.0, 0.0],  # On the floor, under the box.
         [0.0, 0.2, 0.0],  # Above the box.
         [3.0, 0.5, 0.0],  # Elsewhere.
     ]
     # Height along up is -y, so the floor at y = 1 is at -1.
     base, pieces = split_movable(
-        scene(points), [box("cart", [-0.5, 0.3, -0.5], [0.5, 1.0, 0.5])], -1.0, UP
+        scene(points), [box("cart", [-0.5, 0.3, -0.5], [0.5, 0.7, 0.5])], -1.0, UP
     )
-    assert pieces["cart"].positions[:, 1].tolist() == [0.5]
+    assert sorted(pieces["cart"].positions[:, 1].tolist()) == pytest.approx([0.5, 0.9])
     assert sorted(base.positions[:, 1].tolist()) == pytest.approx([0.2, 0.5, 1.0])
     assert len(base) == 3
 
@@ -48,3 +49,51 @@ def test_overlapping_boxes_never_share_a_splat():
         UP,
     )
     assert len(pieces["a"]) == 1 and len(pieces["b"]) == 1 and len(base) == 0
+
+
+def floor_cloud(x_low, x_high, z_low, z_high, color, count=4000):
+    random = np.random.default_rng(0)
+    points = np.stack(
+        [
+            random.uniform(x_low, x_high, count),
+            np.full(count, 1.0),
+            random.uniform(z_low, z_high, count),
+        ],
+        axis=1,
+    )
+    splats = scene(points)
+    splats.data["f_dc_0"] = color
+    return splats
+
+
+def test_clear_floor_matches_the_color_around_the_patch_and_avoids_objects():
+    points = np.array(
+        [[x, z] for x in np.arange(-3, 3, 0.05) for z in np.arange(-3, 3, 0.05)], dtype=float
+    )
+    colors = np.zeros((len(points), 3))
+    colors[points[:, 0] > 1.5, 0] = 1.0  # A differently colored area shouldn't be chosen.
+    blockers = np.array([[-2.0, -3.0, -0.8, 3.0]])  # An object fills this strip.
+    spot = find_clear_floor(points, colors, np.zeros(2), np.array([0.5, 0.5]), blockers)
+    assert spot is not None
+    assert spot[0] < 1.25 and not (-2.25 < spot[0] < -0.55)
+    assert max(abs(spot[0]), abs(spot[1])) >= 0.5  # It doesn't copy the patch onto itself.
+
+
+def test_patch_replaces_dark_floor_under_a_moved_object_and_records_it():
+    light = floor_cloud(-3, 3, -3, 3, 1.0, count=20000)
+    in_patch = (np.abs(light.positions[:, [0, 2]]) < 0.4).all(axis=1)
+    light.data["f_dc_0"][in_patch] = -1.0  # The floor under the object is dark.
+    asset = box("cart", [-0.3, 0.5, -0.3], [0.3, 0.9, 0.3])
+    patched, record = patch_floor(light, [asset], [asset], -1.0, UP)
+    assert record[0]["patched"] is True and record[0]["copied_from"]
+    under = (np.abs(patched.positions[:, [0, 2]]) < 0.3).all(axis=1)
+    assert under.sum() > 0
+    assert patched.data["f_dc_0"][under].min() == 1.0
+
+
+def test_no_clear_floor_leaves_the_scene_as_it_was_and_says_so():
+    tiny = floor_cloud(-0.5, 0.5, -0.5, 0.5, 1.0, count=500)
+    asset = box("cart", [-0.45, 0.5, -0.45], [0.45, 0.9, 0.45])
+    patched, record = patch_floor(tiny, [asset], [asset], -1.0, UP)
+    assert record[0]["patched"] is False
+    assert len(patched) == len(tiny)

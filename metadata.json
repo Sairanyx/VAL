@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.13.1",
+  "checkpoint_id": "01M6T62APWYSBB91JBA8WYE891",
+  "strategy": "manual-commit",
+  "branch": "viktor/copilot-llm",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "handoffs/viktortrilar.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2,
+    "cache_creation_tokens": 3434,
+    "cache_read_tokens": 497078,
+    "output_tokens": 447,
+    "api_call_count": 1
+  },
+  "redaction": {
+    "replacements": 155,
+    "layers": {
+      "betterleaks": 21,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 18,
+      "credentialed_uri": 4,
+      "entropy": 18,
+      "key_context": 112,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

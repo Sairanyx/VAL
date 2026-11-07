@@ -1,0 +1,1102 @@
+read the plan.md and all the things that viktor has said.
+
+---
+
+yeah dleete the architecture one.
+
+---
+
+tell me in 2 sentences what are splats in this project
+
+---
+
+oki so show me an image of some splats in space. just find it online no need to make one
+
+---
+
+oki what are assets same thing
+
+---
+
+so each asset has its splats
+
+---
+
+tehn whats object same as asset
+
+---
+
+whats ampping
+
+---
+
+https://vlsplat.github.io/   https://arxiv.org/abs/2611.01939    take a look fro now.   also what is SAM and how it works find something for me to see
+
+---
+
+oki so we have covered a bit biktors part and then shashas.   right?  what do I get now from Theyre part what is their output so I start understaning my part the floor routing nearby searchg backend PAI.
+
+---
+
+so im thinking we break the environment into 1 by 1 meter. like lets say we have a 100m^2 envronment, then we plan every possible route before hand as the envirnoment doesnt chnage for now lets say, so we get instant routes, like a* will run once for all 1 by 1 meter swyares to all the other 1by 1 meter square and same for others, squares someone cannot walk by or past as there is no space lets say 1 by 1 meter safe its a taken square so has to be avvoided. so when user asks route to this obkect it just redoes all the pipeline , video, makes the splat ply etc, remakes boxes for the object that moved, sjudtst the object tat moved in sim, then fills in the gap from the floor where object was moved and recalutates all routes that are affected. we could have some dynamic size of person to say if they can go or not, like small robot can be 30cm 30cm and big person 1.5m 1.5 m, or if some dangerous pipe, then has to be 1.5m for sure for safety., What do you think?  and then we need to think what we need to serve to hannu and benjmain, do we make a db that we store all on cloud and then the lenovo tablet can have some light db to store it. we use tiger db or posgre or whats best? we need to store info somwhere rather than just json passing it aeround right thats heavy and also not smart to put all egs in a basket like one folder rigth?
+
+---
+
+small here but if we have a factory thats huge with millions of assets........     also tiger db on the cloudor the local machine computing I mean and sotring. Like the lenonovo runs locally on web broswer  and then the computation is run on no internet local server or servers placed in smart spots in the factory lets say, Also we make swares 5cm by 5cm? we need to think of the scaling this too not only this room. Would be hard to precompute all routes per 1 m to 1m and then by request narrow down to 5cm 5cm?
+
+---
+
+we look for the objects to dynamically show and be percieved on a specific radius, like 3 meters radious?   cause we can have even if the obejct is detected and is 10 meters far, no point its impossible to show the words on top of object so small so hard to visualise far obejcts,. or we load the whole room but might heavey and only diposklay the 3 m radious ones dynamically as user walks. how do we know the user is on a location when we are moving?
+
+---
+
+no qr codes. AR trackjing and also location from tablet and video stamps if any and postions according to other objects in the room i guess a mix aproximation?  we will have the real camera and then fainly like a double layer the animated virtual world or just virual world or just real. defualt both.
+
+---
+
+we will scan qr code at entarnce in the room that will open the app on broswer so that is our starting point
+
+---
+
+we do it with https then on no internet. it all will be on local network. the tablet and the server, on the facility then we have the cloud someewhewre where all backup is stored and all updates are stored lets say worldwide facilities .   what else we need to decide can we start builind for now?  what is the order we will build and list features in bullet points and titles.
+
+---
+
+does leovno support AR core check and what is that ai core. lets go fo the fancy timnescale db and Tiger DAta. benjamin is using three.js core somthjing.  also anything that needs to be run on big rtx or csc lumi we need to push and viktor will runn it on lumi or rtx 5090. CXHeck what everyone has pushed for now. And read their context before we start.  and then we start after.
+
+---
+
+the docs architecture need to go no its the one we made its wrong. oki so we use timscaledb and tiger data form. we we will use thios one the cloud too. like we have the cloud maine system, then we have the local rtx5090 lets say that sometimes can synq to cloud, and then the tablet synicing and connecting locally to rtx 5090.  Also of course it counts, tuigerd data and timescale db can be run locally, makese sense no and also on cloud too. Makes sense? for the conversation to be shared its fine this is the whole point, we share contect with Viktors info no>? follow that please.    yes build the floor map using viktors output right?
+
+---
+
+we re not using the cloud actuallyu. only tablet and local. sorry
+
+---
+
+what have we done so far and does it work what else to finish what we have done?  and ehats next?
+
+---
+
+so we need to merge for now?    and sample data we get from sasha rigth? hes not done yet. then we ask viktor after we puish to make floor on csc?
+
+---
+
+oki do all.   viktor has those done yes the 441. #
+
+---
+
+oki pr done casn you dio  the a star for now?
+
+---
+
+check all viktor has done for now  and pull. he has recreated better splats ply so we use that for now. we also need to consider that A* is 2D and we need 3D beacause we need to think of thr height too, like if theres a little coin on the floor we can walk over it its fine, you get the idea, also if we have a pipe on the ceiling and its lets say 20cm from ceiling down, and the humna is 1.80 and the ceiling is at 3 m it can easily go under it. also same with a short mini roboot lets say we need to condisider thouse.  you should do make view or somthig looking it up what viktor said. we need to remake everything I think according to new viktors things. check.
+
+---
+
+i didnt mean step overs, I think we have it more simple in a way, one robot small and one human height 1.80 or so average idk. Its just about optimising to a coin just an examnple, doesnt mean that 1x1 m square is taken, it is not, cause we cros ovber it. also the pipe from ceiling is the sam just exmaple for now. lets keep viktors routing. P-005 is a faluty pipe dont worry about it.
+
+---
+
+make sure you read the context form the others and you upodate it as we go
+
+---
+
+are we using the A* like we said 1x1 meter compute when scence is made, then when sceen edited, only compute what 1x1 has chnaged and then when asking for path the uses again for 5x5cm. whats next?   or what do we need to do now to kinda have all we need for what we have now?   I havent done anything yet
+
+---
+
+hannu has merged his, now lets connect his REDACTED to the api.  what is a fixture fomrat. you pick the best way.   Do the things for viktor his claude tokens are out.  lets do it for him.    aloso the 8001 not wokring?
+
+---
+
+lets make the connection from excel assets to objects now.
+
+---
+
+i ahve done the merge
+
+---
+
+why only P-005 dude?
+
+---
+
+work only on our part
+
+---
+
+yes make the timescaleDb, but that is easy right>  how you do it beifre you do it> then for the 544objects we need to see what they are so we can kind of kniow beiofre you add excel rows for them like. then why chnage Hannus rules. Read thhe word and excel file from the screenshoit directiore you find it there. make sure hannu rules should how they should.
+
+---
+
+is this useful and necessary>?   also let hannus things be how he wanted. whats this telemetry . make the pr 5
+
+---
+
+oki we make the timescaleDb and Tiger, we will use it to simulate data later for some machines and make diagnostics.  check viktors chnages. then what else? viktor needs to run somthing on the limu or csc?  also pull context form others
+
+---
+
+fix pr 6 but i think thats done?   then i did por 7 then no need for the data simulator yet,. keep in mind and store it, then what else do WE need to do like my part. how to test thigns and the mapping and the a* and floorand everythign?  also lets make the db and make api no?
+
+---
+
+so what we need to give benjamin for the route to be made? fix the floor like you said if its needed. SCENE IS IN METERS. do all yes.
+
+---
+
+give me link for pr 8
+
+---
+
+theres new things from viktor check it out
+
+---
+
+make sure to push the context and pull it too from everyone all the time. also we are using the original ply now the one that was better, we can tuse looks like this, the oiroginal is better
+
+---
+
+do it properly
+
+---
+
+uv run --no-project --with numpy python -m app.scene.load "Equipment Room.ply" --out data/scene/equipment_room/clean.ply    bring the file where ti shoud be for this to run please
+
+---
+
+dont merge yet.
+
+---
+
+i think we re not gonna use the cleaned version cause its bad,
+
+---
+
+giv eme link for pr
+
+---
+
+oki check the changes that have been implemented so far and update the coxntext
+
+---
+
+try now
+
+---
+
+now we need yp updaet it so when the path is showed fine, when we move around in the sim, the path doesnt update until we stop moving. and then ti uodates, BUt we want to update the path while moving and not only when stop moving
+
+---
+
+why every 0.25, can we make it smaller.   just asking only. if not we merge
+
+---
+
+oki do 0.1
+
+---
+
+pull all changes. also if you need to get reed some of the branches with eduard we dont use anymore get rid of them
+
+---
+
+oki make me one eduard again
+
+---
+
+pull the conetxts from others and give our context too
+
+---
+
+check if theres any merge requests. Benjmain is stiglling
+
+---
+
+now we re gonna test in on the phone, for no we ll have a virtual world only like a remote moving around in the vim and interactoing, but then we will have the secon VR option, we will have the camera feed of the boiler room from lenovo, which is hypothetical cause we cant use the boiler room caause we re not there, so will have the video real and then the virtual kind of opacity transpart increased, but then on vr we canthave the object around usthat dyncamiclaly shows boxes as it is now real looking, cause thats confusing, are we seeing the real or the virtual, so on vr we remake the objects that around in radius boxed as animation in a way. What can we use for that?  omniverse or some bim modeling  fully automatics point cloud to ifc or somee BIM modelling   only bojects that are dunamiclaly showing with the box close by.
+
+---
+
+usrely theres ways to take pics from the sim env of every obkect, make some 3d model of it at the start oor once a day and then we just load it only on the vr use for the obekstcs in radius that appear no?
+
+---
+
+oki keep in mind for now, we will run the project now.
+
+---
+
+<pasted_content id="4466">
+sinceAI_hackathon main ❯ make api
+SCENE_PLY="data/scene/equipment_room/Equipment Room.ply" DATABASE_URL=REDACTED SCENE_ASSETS=data/scene/equipment_room/assets_mapped.json SCENE_GRID=data/scene/equipment_room/nav_grid.npz \
+uv run uvicorn app.api.main:app --host 0.0.0.0 --port 8001 --reload
+INFO:     Will watch for changes in these directories: ['/data/dev/sinceAI_hackathon']
+ERROR:    [Errno 98] Address already in use
+make: *** [Makefile:58: api] Error 3
+
+sinceAI_hackathon main ✗
+</pasted_content id="4466">
+
+     switch the port I guess
+
+---
+
+pull everything thats new
+
+---
+
+what else I need to to start to see the collision work
+
+---
+
+oki it works well. comoing along. now chech hannus brenahc and we pull the things on ours on the eduard branch. we woking on rotatin the object, then working on the puch screen lenovo app and then a differnt one for browse app and then options for boht to have VR optioins and then the virtual only. and the orating objects and storing the chnage to db live. Also what is timescale db used for? where do we store the chnages?
+
+---
+
+also read heis ocntect too
+
+---
+
+make it more optimised for geavyness and also real leneono android tablet usage.
+
+---
+
+like no x on the pop up windows  on lenovo app verisoin tablet, would lcikl on the window anywhere besides buttons on the indow and would close it.
+
+---
+
+also make sure theres endpoints for every action on the tablet app verison for every action cause we ll have the local ai REDACTED to do all those by voice later
+
+---
+
+oki on this branch dnot merge later yet
+
+---
+
+make cammnads like the make but start  instead   and can be start browser app  then tablet app   so theyre different
+
+---
+
+make sure the rotation impleemts the collision too yeah?
+
+---
+
+open it so i can see it
+
+---
+
+oki stop all and lets pull eveyrhting merge to ours then let see how it works for our brnahc
+
+---
+
+its fucked. nothing works well. Path planning and moving object and then form bim to normal its gtes messy, when moving things in bim then it still has the cubes , comginign desnt work that well we need quick db chnages and updates.  checkk all please.   also start the browser ome please not the tablet one beofre you make chnages
+
+---
+
+start the broswer based not the tbalet app now I want to see maybe that works
+
+---
+
+how to start my broswer version now to see. the tbalet one was messed up I want to see the browser
+
+---
+
+why have you called it tablet 1 and tbalet 0? is tablet 1 for tbalet and tablet 0 for pc browser?
+
+---
+
+stop all please for now
+
+---
+
+install all even the REDACTED all tell me the commands ill run them. I need to also test the REDACTED speaking too. also give me commands at same times you try to fix the issues.
+
+---
+
+how to run the parts now to downalod the llm
+
+---
+
+<pasted_content id="4466">
+COPILOT_MODEL=data/models/Qwen3.5-4B SCENE_PLY="data/scene/equipment_room/Equipment Room.ply" DATABASE_URL=REDACTED SCENE_ASSETS=data/scene/equipment_room/assets_mapped.json SCENE_GRID=data/scene/equipment_room/nav_grid.npz \
+uv run uvicorn app.api.main:app --host 0.0.0.0 --port 8001 --reload
+uv run python web/serve.py --scene "data/scene/equipment_room/cut/base.ply"  --assets "data/scene/equipment_room/assets_mapped.json" --shapes "data/scene/equipment_room/shapes.json" --pieces "data/scene/equipment_room/cut" --highlights "data/scene/equipment_room/highlights"  --bim "data/scene/equipment_room/bim"
+INFO:     Will watch for changes in these directories: ['/data/dev/sinceAI_hackathon']
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+INFO:     Started reloader process [447038] using WatchFiles
+Viewer on http://localhost:8000  (scene: data/scene/equipment_room/cut/base.ply, assets: data/scene/equipment_room/assets_mapped.json)
+Loading weights:  38%|█████████████████████████████▌                                               | 277/723 [00:02<00:03, 118.31it/s]
+Couldn't load the REDACTED model, so using template answers
+Traceback (most recent call last):
+  File "/data/dev/sinceAI_hackathon/app/REDACTED/llm.py", line 119, in load_writer
+    return QwenWriter(path)
+           ^^^^^^^^^^^^^^^^
+  File "/data/dev/sinceAI_hackathon/app/REDACTED/llm.py", line 82, in __init__
+    self.model = AutoModelForImageTextToText.from_pretrained(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/dev/sinceAI_hackathon/.venv/lib/python3.12/site-packages/transformers/models/auto/auto_factory.py", line 406, in from_pretrained
+    return model_class.from_pretrained(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/dev/sinceAI_hackathon/.venv/lib/python3.12/site-packages/transformers/modeling_utils.py", line 4353, in from_pretrained
+    loading_info, disk_offload_index = cls._load_pretrained_model(
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/dev/sinceAI_hackathon/.venv/lib/python3.12/site-packages/transformers/modeling_utils.py", line 4498, in _load_pretrained_model
+    loading_info, disk_offload_index = convert_and_load_state_dict_in_model(
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/dev/sinceAI_hackathon/.venv/lib/python3.12/site-packages/transformers/core_model_loading.py", line 1791, in convert_and_load_state_dict_in_model
+    realized_value = mapping.convert(
+                     ^^^^^^^^^^^^^^^^
+  File "/data/dev/sinceAI_hackathon/.venv/lib/python3.12/site-packages/transformers/core_model_loading.py", line 1055, in convert
+    collected_tensors = self.materialize_tensors()
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/dev/sinceAI_hackathon/.venv/lib/python3.12/site-packages/transformers/core_model_loading.py", line 1017, in materialize_tensors
+    tensors = [future.result() for future in tensors if future.result() is not None]
+                                                        ^^^^^^^^^^^^^^^
+  File "/home/sairanyx/.local/share/uv/python/cpython-3.12.14-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py", line 456, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/sairanyx/.local/share/uv/python/cpython-3.12.14-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/home/sairanyx/.local/share/uv/python/cpython-3.12.14-linux-x86_64-gnu/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/dev/sinceAI_hackathon/.venv/lib/python3.12/site-packages/transformers/core_model_loading.py", line 1309, in _job
+    return _materialize_copy(tensor, device, dtype)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/data/dev/sinceAI_hackathon/.venv/lib/python3.12/site-packages/transformers/core_model_loading.py", line 1287, in _materialize_copy
+    tensor = tensor.to(device=device, dtype=dtype)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 46.00 MiB. GPU 0 has a total capacity of 5.67 GiB of which 45.69 MiB is free. Including non-PyTorch memory, this process has 5.61 GiB memory in use. Of the allocated memory 5.52 GiB is allocated by PyTorch, and 13.27 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting REDACTED:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+INFO:     Started server process [447041]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+</pasted_content id="4466">
+
+---
+
+copiltot doesnt work   also when we messed with bejmain work we messed up. so maybe we have to give up on chnages or somewhting on local idk... what about hannus work....... its  amess
+
+---
+
+Continue from where you left off.
+
+---
+
+sorry try again.
+
+---
+
+oki pause
+
+---
+
+check new things and status of branches. i think we make a copy of main called eduard_main or somehting
+
+---
+
+update all accordingb to main and dont touch thr pr 31 is benjamins and we dont use it fdor now.     Make me aquick archjitectutre mermaid .md of all things. simple wording. How we need to make the pipelines work and clean them up. even from recording with lidar or vidoes to making scene to testing and also to updating the space. etc. to the point and that makes sense. clean please.  alos pull the context from others
+
+---
+
+make a bullet list for each part that we test everyhting every sinlge thing if it works well or not. and we take them off the list
+
+---
+
+git pull all from main. and then remake the checkbox for all features and buttons and how it works to check what we have and what we dont have implemented, what works and what doesnt, and what we keep and what we dont keep and what we add. add the deliverables too in the list: 
+
+<pasted_content id="4466">
+Submit Project | Since AI
+Since AI
+Since AI Platform
+
+Submission
+
+Submit Project
+Submitting as team
+
+Newbies
+
+Creator
+Team members
+
+Eduard Rednic
+
+Viktor Trilar
+
+Benjamin Sundell
+
+Hannu Kiviranta
+
+Oleksandr Yakovlev
+
+Challenge *
+
+
+Valmet
+
+Industrial Metaverse: Semantic 3D Scene Understanding & Autonomous Field-Service Copilot
+
+Your team selected this challenge. Ask the organisers if it needs to change.
+
+Submissions close Sunday 8 November, 10:00 (Helsinki time). You can edit your submission until then.
+
+Project
+Project name *
+My awesome project
+Tagline *
+One sentence that says what your project does. Voters see this first on every vote card.
+
+0/140
+
+About the project *
+Describe the problem, your solution, how you built it, the challenges you met and what comes next. Judges read the full text; voters see the first lines under your tagline.
+
+
+0/5000
+
+Built with *
+Technologies you used, separated by commas. The first five appear on your vote card.
+
+Next.js, Python, OpenAI API
+Links and media
+Repository *
+Public or private. If it is private, judges use the source-code zip below.
+
+https://github.com/you/project
+Demo URL (optional)
+A link where your project can be tried, if it is deployed.
+
+https://your-project.com
+Demo video *
+A public or unlisted YouTube video, ideally under two minutes. Voters watch it on your vote card.
+
+https://youtu.be/your-video
+Files
+Voters can watch your demo video and open your pitch deck from your vote card. Your other files stay with the judges and organisers.
+
+Source code
+
+Choose a file or drop it here
+A .zip of your code as it stands at the deadline. Judges use it if your repository or demo cannot be opened. Leave out dependencies (such as node_modules) and data files. Up to 250 MB.
+
+Demo video
+
+Choose a file or drop it here
+MP4 or WebM — or paste a YouTube link above instead · up to 512 MB
+
+Pitch deck
+
+Choose a file or drop it here
+PDF or PowerPoint · up to 100 MB
+
+Supporting document
+
+Choose a file or drop it here
+Pilot plan, continuation plan, PDF, PowerPoint or Word · up to 100 MB
+
+Partner technologies (optional)
+Select the partner technologies you used.
+
+Computing & infrastructure
+CSC / LUMI AI Factory
+Red Hat OpenShift AI
+AI models & inference
+Pruna AI
+Featherless AI
+ElevenLabs
+Application building & automation
+Lovable
+n8n
+Open standards & context data
+FIWARE
+MLH prize categories (optional)
+MLH prize categories (optional)
+Enter this same project in any Major League Hacking categories it uses — none, one or several. They are extra prizes: your company challenge entry stays exactly as it is.
+
+
+Best Use of ElevenLabs
+Prize: Wireless Earbuds
+
+ElevenLabs docs(opens in a new tab)
+
+Best Use of Gemini API
+Prize: MLH Swag Kits
+
+Gemini API docs(opens in a new tab)
+
+Best Use of Entire
+Prize: Mini Portable Projector
+
+Entire docs(opens in a new tab)
+
+Best Use of Solana
+Prize: Unruggable Hardware Wallets
+
+Solana docs(opens in a new tab)
+
+Best Use of Tiger Data
+Prize: Stream Deck Mini
+
+Tiger Data docs(opens in a new tab)
+
+Best Use of Vultr
+Prize: Assorted Prizes
+
+Vultr docs(opens in a new tab)
+
+Best Use of Snowflake API
+Prize: Arduino Student Kit
+
+Snowflake API docs(opens in a new tab)
+
+Best Use of MongoDB Atlas
+Prize: M5Stack IoT Kit
+
+MongoDB Atlas docs(opens in a new tab)
+MLH questions (required by Major League Hacking)
+Technology feedback *
+Name the technology and give one or two sentences of feedback.
+
+The OpenAI API was great for...
+
+GenAI tools used *
+
+Select all tools you used during this hackathon.
+
+OpenAI
+Anthropic
+Hugging Face
+Llama
+IBM Watson
+Gemini
+Gemma
+DeepSeek
+I did not use GenAI
+Other tool not listed…
+Add tool
+Did you implement a generative AI model or API in your hack this weekend? *
+If so, how and why did you use it? If not, mark your response as ‘N/A’.
+
+
+Did you register a domain name this weekend? (optional)
+If so, enter the domain.
+
+myproject.com
+Schools of team members (optional)
+Fill in if applicable — only if any team member is currently studying.
+
+Aalto University, University of Helsinki
+By submitting, you accept the Participant Terms and the Valmet challenge terms: Your team owns what you build. Valmet can use it in its business. Full terms
+
+
+Submit project
+Before you can submit, please complete:
+
+Source code: add a .zip of your code
+GenAI tools used: choose at least one
+Optional awards
+Your company challenge submission is your one entry. These awards are extra: enter them with the same project, without a second submission.
+
+Best Use of ElevenLabs
+Not selected
+Major League Hacking
+
+Prize
+Wireless Earbuds
+Eligibility
+Any submitted project of the event, made with the technology. Enter as many MLH categories as apply; entering never affects your company challenge.
+What to show
+Say in your project description where ElevenLabs audio is used, and show it in your demo.
+ElevenLabs(opens in a new tab)
+Tick it on your submission
+Best Use of Gemini API
+Not selected
+Major League Hacking
+
+Prize
+MLH Swag Kits
+Eligibility
+Any submitted project of the event, made with the technology. Enter as many MLH categories as apply; entering never affects your company challenge.
+What to show
+Say how you used the Gemini API, and give the Gemini API project number of the key you used (Google AI Studio → Get API Key → Project Number). Never the key itself.
+Gemini API(opens in a new tab)
+Tick it on your submission
+Best Use of Entire
+Not selected
+Major League Hacking
+
+Prize
+Mini Portable Projector
+Eligibility
+Any submitted project of the event, made with the technology. Enter as many MLH categories as apply; entering never affects your company challenge.
+What to show
+Describe how your project used Entire for agent-human collaboration, with relevant repository or session evidence.
+Entire(opens in a new tab)
+Tick it on your submission
+Best Use of Solana
+Not selected
+Major League Hacking
+
+Prize
+Unruggable Hardware Wallets
+Eligibility
+Any submitted project of the event, made with the technology. Enter as many MLH categories as apply; entering never affects your company challenge.
+What to show
+Say in your project description how your project uses Solana, and show it in your demo or repository.
+Solana(opens in a new tab)
+Tick it on your submission
+Best Use of Tiger Data
+Not selected
+Major League Hacking
+
+Prize
+Stream Deck Mini
+Eligibility
+Any submitted project of the event, made with the technology. Enter as many MLH categories as apply; entering never affects your company challenge.
+What to show
+Say in your project description how your project uses Tiger Data, and show it in your demo or repository.
+Tiger Data(opens in a new tab)
+Tick it on your submission
+Best Use of Vultr
+Not selected
+Major League Hacking
+
+Prize
+Assorted Prizes
+Eligibility
+Any submitted project of the event, made with the technology. Enter as many MLH categories as apply; entering never affects your company challenge.
+What to show
+Say in your project description what runs on Vultr, and show it in your demo or repository.
+Vultr(opens in a new tab)
+Tick it on your submission
+Best Use of Snowflake API
+Not selected
+Major League Hacking
+
+Prize
+Arduino Student Kit
+Eligibility
+Any submitted project of the event, made with the technology. Enter as many MLH categories as apply; entering never affects your company challenge.
+What to show
+Say in your project description how your project uses the Snowflake APIs, and show it in your demo or repository.
+Snowflake API(opens in a new tab)
+Tick it on your submission
+Best Use of MongoDB Atlas
+Not selected
+Major League Hacking
+
+Prize
+M5Stack IoT Kit
+Eligibility
+Any submitted project of the event, made with the technology. Enter as many MLH categories as apply; entering never affects your company challenge.
+What to show
+Say in your project description how your project uses MongoDB Atlas, and show it in your demo or repository.
+MongoDB Atlas(opens in a new tab)
+Tick it on your submission
+Red Hat OpenShift AI Technology Award
+Not entered
+Red Hat
+
+Prize
+Award details will be published once the partner has confirmed them.
+Eligibility
+Teams only. The project must be made for the team's official company challenge and meaningfully use Red Hat OpenShift AI; a standalone or unrelated application is not eligible. It is not a company challenge and uses no company place.
+What to show
+Show where and how OpenShift AI runs in your solution (for example workbenches, pipelines or model serving) with a short write-up, screenshots or repository links. Share only what you may: no confidential company data.
+Red Hat Developer Sandbox(opens in a new tab)
+Tick Red Hat OpenShift AI under Partner technologies on this submission.
+
+FIWARE Open Innovation Award
+Not entered
+FIWARE Foundation
+
+Prize
+Non-cash prize package: one year of FIWARE Foundation membership, an invitation to FIWARE Global Summit 2027, technical mentorship, recognition across FIWARE channels and an iHub partnership fast-track.
+Eligibility
+Either your company challenge solution using FIWARE technology, or an independent FIWARE prototype on a problem of your own (an extra award entry: it is not in the company prize rankings or the overall finalists). The prototype must be demonstrated live, and at least one FIWARE technology (NGSI-LD, Smart Data Models, a Context Broker or another Generic Enabler) meaningfully integrated, not just mentioned.
+What to show
+A working live demo and a short explanation of how NGSI-LD, Smart Data Models, a FIWARE Context Broker or other FIWARE technologies are used. Open-source code is encouraged. Share only what you may: no confidential company data.
+FIWARE step-by-step tutorials(opens in a new tab)
+Tick FIWARE under Partner technologies on this submission. A separate FIWARE prototype is entered on the open challenges page.
+
+Connect
+
+sinceai.ai
+Discord
+info@sinceai.fi
+Legal
+
+Privacy Policy
+Terms of Service
+Cookie Preferences
+© 2026 Since AI ry
+
+Business ID 3593920-2
+
+Safety
+
+Report an Incident
+Report a Bug
+</pasted_content id="4466">
+
+---
+
+<pasted_content id="4466">
+git pull all from main. and then remake the checkbox for all features and buttons and how it works to check what we have and what we dont have implemented, what works and what doesnt, and what we keep and what we dont keep and what we add. add the deliverables too in the list:
+Submit Project | Since AI
+Since AI
+Since AI Platform
+
+Submission
+
+Submit Project
+Submitting as team
+
+Newbies
+
+Creator
+Team members
+
+Eduard Rednic
+
+Viktor Trilar
+
+Benjamin Sundell
+
+Hannu Kiviranta
+
+Oleksandr Yakovlev
+
+Challenge *
+
+
+Valmet
+
+Industrial Metaverse: Semantic 3D Scene Understanding & Autonomous Field-Service Copilot
+
+Your team selected this challenge. Ask the organisers if it needs to change.
+
+Submissions close Sunday 8 November, 10:00 (Helsinki time). You can edit your submission until then.
+
+Project
+Project name *
+My awesome project
+Tagline *
+One sentence that says what your project does. Voters see this first on every vote card.
+
+0/140
+
+About the project *
+Describe the problem, your solution, how you built it, the challenges you met and what comes next. Judges read the full text; voters see the first lines under your tagline.
+
+
+0/5000
+
+Built with *
+Technologies you used, separated by commas. The first five appear on your vote card.
+
+Next.js, Python, OpenAI API
+Links and media
+Repository *
+Public or private. If it is private, judges use the source-code zip below.
+
+https://github.com/you/project
+Demo URL (optional)
+A link where your project can be tried, if it is deployed.
+
+https://your-project.com
+Demo video *
+A public or unlisted YouTube video, ideally under two minutes. Voters watch it on your vote card.
+
+https://youtu.be/your-video
+Files
+Voters can watch your demo video and open your pitch deck from your vote card. Your other files stay with the judges and organisers.
+
+Source code
+
+Choose a file or drop it here
+A .zip of your code as it stands at the deadline. Judges use it if your repository or demo cannot be opened. Leave out dependencies (such as node_modules) and data files. Up to 250 MB.
+
+Demo video
+
+Choose a file or drop it here
+MP4 or WebM — or paste a YouTube link above instead · up to 512 MB
+
+Pitch deck
+
+Choose a file or drop it here
+PDF or PowerPoint · up to 100 MB
+
+Supporting document
+
+Choose a file or drop it here
+Pilot plan, continuation plan, PDF, PowerPoint or Word · up to 100 MB
+
+Partner technologies (optional)
+Select the partner technologies you used.
+
+Computing & infrastructure
+CSC / LUMI AI Factory
+Red Hat OpenShift AI
+AI models & inference
+Pruna AI
+Featherless AI
+ElevenLabs
+Application building & automation
+Lovable
+n8n
+Open standards & context data
+FIWARE
+MLH prize categories (optional)
+MLH prize categories (optional)
+Enter this same project in any Major League Hacking categories it uses — none, one or several. They are extra prizes: your company challenge entry stays exactly as it is.
+
+
+Best Use of ElevenLabs
+Prize: Wireless Earbuds
+
+ElevenLabs docs(opens in a new tab)
+
+Best Use of Gemini API
+Prize: MLH Swag Kits
+
+Gemini API docs(opens in a new tab)
+
+Best Use of Entire
+Prize: Mini Portable Projector
+
+Entire docs(opens in a new tab)
+
+Best Use of Solana
+Prize: Unruggable Hardware Wallets
+
+Solana docs(opens in a new tab)
+
+Best Use of Tiger Data
+Prize: Stream Deck Mini
+
+Tiger Data docs(opens in a new tab)
+
+Best Use of Vultr
+Prize: Assorted Prizes
+
+Vultr docs(opens in a new tab)
+
+Best Use of Snowflake API
+Prize: Arduino Student Kit
+
+Snowflake API docs(opens in a new tab)
+
+Best Use of MongoDB Atlas
+Prize: M5Stack IoT Kit
+
+MongoDB Atlas docs(opens in a new tab)
+MLH questions (required by Major League Hacking)
+Technology feedback *
+Name the technology and give one or two sentences of feedback.
+
+The OpenAI API was great for...
+
+GenAI tools used *
+
+Select all tools you used during this hackathon.
+
+OpenAI
+Anthropic
+Hugging Face
+Llama
+IBM Watson
+Gemini
+Gemma
+DeepSeek
+I did not use GenAI
+Other tool not listed…
+Add tool
+Did you implement a generative AI model or API in your hack this weekend? *
+If so, how and why did you use it? If not, mark your response as ‘N/A’.
+
+
+Did you register a domain name this weekend? (optional)
+If so, enter the domain.
+
+myproject.com
+Schools of team members (optional)
+Fill in if applicable — only if any team member is currently studying.
+
+Aalto University, University of Helsinki
+By submitting, you accept the Participant Terms and the Valmet challenge terms: Your team owns what you build. Valmet can use it in its business. Full terms
+
+
+Submit project
+Before you can submit, please complete:
+
+Source code: add a .zip of your code
+GenAI tools used: choose at least one
+Optional awards
+Your company challenge submission is your one entry. These awards are extra: enter them with the same project, without a second submission.
+
+Best Use of ElevenLabs
+Not selected
+Major League Hacking
+
+Prize
+Wireless Earbuds
+Eligibility
+Any submitted project of the event, made with the technology. Enter as many MLH categories as apply; entering never affects your company challenge.
+What to show
+Say in your project description where ElevenLabs audio is used, and show it in your demo.
+ElevenLabs(opens in a new tab)
+Tick it on your submission
+Best Use of Gemini API
+Not selected
+Major League Hacking
+
+Prize
+MLH Swag Kits
+Eligibility
+Any submitted project of the event, made with the technology. Enter as many MLH categories as apply; entering never affects your company challenge.
+What to show
+Say how you used the Gemini API, and give the Gemini API project number of the key you used (Google AI Studio → Get API Key → Project Number). Never the key itself.
+Gemini API(opens in a new tab)
+Tick it on your submission
+Best Use of Entire
+Not selected
+Major League Hacking
+
+Prize
+Mini Portable Projector
+Eligibility
+Any submitted project of the event, made with the technology. Enter as many MLH categories as apply; entering never affects your company challenge.
+What to show
+Describe how your project used Entire for agent-human collaboration, with relevant repository or session evidence.
+Entire(opens in a new tab)
+Tick it on your submission
+Best Use of Solana
+Not selected
+Major League Hacking
+
+Prize
+Unruggable Hardware Wallets
+Eligibility
+Any submitted project of the event, made with the technology. Enter as many MLH categories as apply; entering never affects your company challenge.
+What to show
+Say in your project description how your project uses Solana, and show it in your demo or repository.
+Solana(opens in a new tab)
+Tick it on your submission
+Best Use of Tiger Data
+Not selected
+Major League Hacking
+
+Prize
+Stream Deck Mini
+Eligibility
+Any submitted project of the event, made with the technology. Enter as many MLH categories as apply; entering never affects your company challenge.
+What to show
+Say in your project description how your project uses Tiger Data, and show it in your demo or repository.
+Tiger Data(opens in a new tab)
+Tick it on your submission
+Best Use of Vultr
+Not selected
+Major League Hacking
+
+Prize
+Assorted Prizes
+Eligibility
+Any submitted project of the event, made with the technology. Enter as many MLH categories as apply; entering never affects your company challenge.
+What to show
+Say in your project description what runs on Vultr, and show it in your demo or repository.
+Vultr(opens in a new tab)
+Tick it on your submission
+Best Use of Snowflake API
+Not selected
+Major League Hacking
+
+Prize
+Arduino Student Kit
+Eligibility
+Any submitted project of the event, made with the technology. Enter as many MLH categories as apply; entering never affects your company challenge.
+What to show
+Say in your project description how your project uses the Snowflake APIs, and show it in your demo or repository.
+Snowflake API(opens in a new tab)
+Tick it on your submission
+Best Use of MongoDB Atlas
+Not selected
+Major League Hacking
+
+Prize
+M5Stack IoT Kit
+Eligibility
+Any submitted project of the event, made with the technology. Enter as many MLH categories as apply; entering never affects your company challenge.
+What to show
+Say in your project description how your project uses MongoDB Atlas, and show it in your demo or repository.
+MongoDB Atlas(opens in a new tab)
+Tick it on your submission
+Red Hat OpenShift AI Technology Award
+Not entered
+Red Hat
+
+Prize
+Award details will be published once the partner has confirmed them.
+Eligibility
+Teams only. The project must be made for the team's official company challenge and meaningfully use Red Hat OpenShift AI; a standalone or unrelated application is not eligible. It is not a company challenge and uses no company place.
+What to show
+Show where and how OpenShift AI runs in your solution (for example workbenches, pipelines or model serving) with a short write-up, screenshots or repository links. Share only what you may: no confidential company data.
+Red Hat Developer Sandbox(opens in a new tab)
+Tick Red Hat OpenShift AI under Partner technologies on this submission.
+
+FIWARE Open Innovation Award
+Not entered
+FIWARE Foundation
+
+Prize
+Non-cash prize package: one year of FIWARE Foundation membership, an invitation to FIWARE Global Summit 2027, technical mentorship, recognition across FIWARE channels and an iHub partnership fast-track.
+Eligibility
+Either your company challenge solution using FIWARE technology, or an independent FIWARE prototype on a problem of your own (an extra award entry: it is not in the company prize rankings or the overall finalists). The prototype must be demonstrated live, and at least one FIWARE technology (NGSI-LD, Smart Data Models, a Context Broker or another Generic Enabler) meaningfully integrated, not just mentioned.
+What to show
+A working live demo and a short explanation of how NGSI-LD, Smart Data Models, a FIWARE Context Broker or other FIWARE technologies are used. Open-source code is encouraged. Share only what you may: no confidential company data.
+FIWARE step-by-step tutorials(opens in a new tab)
+Tick FIWARE under Partner technologies on this submission. A separate FIWARE prototype is entered on the open challenges page.
+
+Connect
+
+sinceai.ai
+Discord
+info@sinceai.fi
+Legal
+
+Privacy Policy
+Terms of Service
+Cookie Preferences
+© 2026 Since AI ry
+
+Business ID 3593920-2
+
+Safety
+
+Report an Incident
+Report a Bug
+</pasted_content id="4466">
+
+---
+
+nononon
+
+---
+
+the checlist is for the test_checlist
+
+---
+
+oki my bad
+
+---
+
+push thr test checlist to main i think now
+
+---
+
+oki well we have same a smain so merge to main i guess and only checkilist will be adde deyah>?
+
+---
+
+oki up to the setup and pipileinw per part brewak it apart for all 5 people so we can do the checklist. then push to main

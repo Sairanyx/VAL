@@ -1,0 +1,61 @@
+{
+  "cli_version": "0.13.1",
+  "checkpoint_id": "01M6SN9PGQWGJ81ZSD4TFSEN93",
+  "strategy": "manual-commit",
+  "branch": "viktor/object-split",
+  "checkpoints_count": 34,
+  "files_touched": [
+    "app/extract/__init__.py",
+    "app/extract/finalize.py",
+    "app/extract/label_objects.py",
+    "app/extract/label_vlm.py",
+    "app/extract/lift.py",
+    "app/scene/cluster.py",
+    "app/scene/lighten.py",
+    "app/scene/split.py",
+    "docs/PLAN.md",
+    "docs/RESULTS.md",
+    "handoffs/viktortrilar.md",
+    "tests/test_finalize.py",
+    "tests/test_label_vlm.py",
+    "tests/test_lift.py",
+    "tests/test_scene_objects.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 298,
+    "cache_creation_tokens": 246544,
+    "cache_read_tokens": 67862772,
+    "output_tokens": 162520,
+    "api_call_count": 109,
+    "subagent_tokens": {
+      "input_tokens": 10,
+      "cache_creation_tokens": 24223,
+      "cache_read_tokens": 32651,
+      "output_tokens": 6782,
+      "api_call_count": 4
+    }
+  },
+  "redaction": {
+    "replacements": 112,
+    "layers": {
+      "betterleaks": 6,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 18,
+      "credentialed_uri": 0,
+      "entropy": 18,
+      "key_context": 76,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

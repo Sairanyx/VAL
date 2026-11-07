@@ -57,7 +57,11 @@ model: estimated walls and floor, plus one IFC element per detected object, colo
 It is a simulation, not a survey. Solid elements have a fitted shape; see-through ones only have
 a bounding box, so pipes often look too big. Walls are the scan's outermost dense bands, and doors
 or openings aren't modelled. Tags made by rule or by eye show as `P-005?` and
-`IdentityConfirmed: no`. Operator-added objects aren't in the model until `make bim` runs again.
+`IdentityConfirmed: no`.
+
+Objects you move follow in BIM mode. Objects added, split or combined in the viewer show as plain
+see-through boxes. **Download IFC** saves the model as `make bim` built it, without any of those
+changes: they stay in the backend, so running `make bim` again doesn't add them.
 
 ## Move an object
 1. Tap the object. The smallest box under your finger is selected.

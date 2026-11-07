@@ -35,12 +35,14 @@ export async function setupBim({ root, renderer, objects, faultTag, floorY, onSe
   root.add(group);
 
   const byId = new Map(objects.map((o) => [o.asset.object_id, o]));
-  const items = model.elements.map((element) => {
-    const object = element.object_id ? byId.get(element.object_id) : null;
+  const items = [];
+  const known = new Set();
+
+  function addItem(element, object) {
     const fault = element.psets.Valmet_Mapping?.Tag === faultTag;
     const mesh = makeMesh(element, fault, section);
     group.add(mesh);
-    return {
+    const item = {
       element,
       object,
       mesh,
@@ -48,7 +50,20 @@ export async function setupBim({ root, renderer, objects, faultTag, floorY, onSe
       volume: volume(element.geometry),
       solid: !mesh.material.transparent,
     };
-  });
+    mesh.userData.item = item;
+    items.push(item);
+    known.add(object);
+  }
+  for (const element of model.elements) {
+    addItem(element, element.object_id ? byId.get(element.object_id) : null);
+  }
+
+  // Objects added, split or combined in the viewer aren't in the file, so they get a plain box.
+  function addMissing() {
+    for (const object of objects) {
+      if (!object.gone && !known.has(object)) addItem(plainElement(object), object);
+    }
+  }
 
   const state = { active: false, selected: null, isolated: false, hidden: new Set(), cut: null };
   const panel = document.getElementById("bim-panel");
@@ -101,6 +116,7 @@ export async function setupBim({ root, renderer, objects, faultTag, floorY, onSe
 
   // Selecting from the scan side (panel, route, copilot) keeps the BIM selection in step.
   function selectObject(object) {
+    addMissing();
     const item = object ? items.find((candidate) => candidate.object === object) : null;
     select(item, false);
   }
@@ -144,6 +160,7 @@ export async function setupBim({ root, renderer, objects, faultTag, floorY, onSe
   const floorWorld = new THREE.Vector3();
   function update() {
     if (!state.active) return;
+    addMissing();
     for (const item of items) {
       item.mesh.visible = visible(item);
       if (item.object) {
@@ -179,7 +196,6 @@ export async function setupBim({ root, renderer, objects, faultTag, floorY, onSe
     return item;
   }
 
-  for (const item of items) item.mesh.userData.item = item;
   return {
     state,
     setActive,
@@ -187,6 +203,33 @@ export async function setupBim({ root, renderer, objects, faultTag, floorY, onSe
     pick,
     selectObject,
     elementCount: items.length,
+  };
+}
+
+function plainElement(object) {
+  const { label, object_id: id, bbox_min: first, bbox_max: second } = object.asset;
+  const low = first.map((value, axis) => Math.min(value, second[axis]));
+  const high = first.map((value, axis) => Math.max(value, second[axis]));
+  return {
+    guid: "none in the file",
+    object_id: id,
+    ifc_class: "IfcBuildingElementProxy",
+    predefined_type: "NOTDEFINED",
+    name: `${label} (${id})`,
+    geometry: {
+      type: "box",
+      center: low.map((value, axis) => (value + high[axis]) / 2),
+      axes: [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ],
+      size: low.map((value, axis) => Math.max(high[axis] - value, 0.01)),
+    },
+    psets: {
+      Valmet_Identification: { ObjectId: id, DetectedLabel: label, IdentityConfirmed: false },
+      Valmet_Geometry: { Source: "made in the viewer, bounding box" },
+    },
   };
 }
 

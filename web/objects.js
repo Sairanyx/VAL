@@ -21,6 +21,7 @@ export async function setupObjects({
   checkMove,
   onMessage,
   onBlocked,
+  onMoveCancelled,
 }) {
   const shapes = await fetchShapes();
   const lights = addLights(scene);
@@ -236,7 +237,10 @@ export async function setupObjects({
     if (!result.ok) {
       placeAt(object, moving.valid.toArray());
       onMessage?.(`Moved back to the last good spot. ${result.reason}`);
-      if (moving.valid.distanceTo(moving.start) < 0.001) return;
+      if (moving.valid.distanceTo(moving.start) < 0.001) {
+        onMoveCancelled?.(); // Nothing to save, but a live route may show where it was dragged.
+        return;
+      }
     }
     state.changes.push({
       op: "move",

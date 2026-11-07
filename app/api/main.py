@@ -23,9 +23,10 @@ from app.api.select_object import (
     already_known,
     crop_selection,
     pick_object,
+    split_object,
     suggest_config,
 )
-from app.api.store import ChangeError, SceneStore
+from app.api.store import GONE, ChangeError, SceneStore
 from app.copilot.llm import load_writer
 from app.nav.grid import NavGrid, load_grid
 from app.nav.route import BODIES, NoRoute, placeholder_route, plan_route
@@ -49,10 +50,15 @@ class RouteRequest(BaseModel):
 
 
 class ChangeRequest(BaseModel):
-    op: Literal["add", "move", "remove"]
+    op: Literal["add", "move", "remove", "split", "combine"]
     object_id: str | None = None
     position: Position | None = None
     details: dict[str, Any] | None = None
+
+
+class SuggestRequest(BaseModel):
+    image: str
+    rectangle: Annotated[list[float], Field(min_length=4, max_length=4)]
 
 
 class MoveCheckRequest(BaseModel):
@@ -119,7 +125,7 @@ def create_app(
 
     def require(object_id: str) -> dict:
         asset = store.get(object_id)
-        if asset is None or asset["status"] == "removed":
+        if asset is None or asset["status"] in GONE:
             raise HTTPException(404, f"No object {object_id}")
         return asset
 
@@ -244,7 +250,7 @@ def create_app(
         # restart, because the room they were made in may have changed since.
         if request.op == "move" and request.object_id and request.position:
             asset = store.get(request.object_id)
-            if asset and asset.get("mobility") == "movable" and asset["status"] != "removed":
+            if asset and asset.get("mobility") == "movable" and asset["status"] not in GONE:
                 result = move_check(request.object_id, request.position)
                 if not result.ok:
                     raise HTTPException(409, result.reason)
@@ -284,6 +290,34 @@ def create_app(
             **suggest_config(writer, crop, tags),
             "already_known": already_known(box, store.visible()),
         }
+
+    def linked_tags() -> list[str]:
+        return [a["mapping"]["tag"] for a in store.visible() if (a.get("mapping") or {}).get("tag")]
+
+    @app.post("/api/objects/{object_id}/split/propose")
+    def propose_split(object_id: str, request: SelectionRequest) -> dict:
+        """Measure the selected part of an object and the rest. Nothing is saved until confirmed."""
+        parent = require(object_id)
+        splats = splats_for_selection()
+        floor_y = store.scene.get("floor_y", 0.0)
+        try:
+            part, rest = split_object(splats, parent, request.origin, request.corners, floor_y)
+        except NothingSelected as reason:
+            raise HTTPException(422, str(reason)) from None
+        crop = None
+        if writer is not None and request.image:
+            crop = crop_selection(request.image, request.rectangle)
+        return {
+            "part": {**part, **suggest_config(writer, crop, linked_tags())},
+            "rest": {**rest, **suggest_config(None, None, [])},
+            "linked": (parent.get("mapping") or {}).get("tag"),
+        }
+
+    @app.post("/api/objects/suggest")
+    def suggest(request: SuggestRequest) -> dict:
+        """Suggest settings for part of a viewer screenshot."""
+        crop = crop_selection(request.image, request.rectangle) if writer is not None else None
+        return suggest_config(writer, crop, linked_tags())
 
     @app.post("/api/changes/reset")
     def reset() -> dict:

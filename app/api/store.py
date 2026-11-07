@@ -6,6 +6,8 @@ import math
 from pathlib import Path
 
 NEW_OBJECT_SIZE = 0.5
+GONE = {"removed", "split", "combined"}
+COMBINE_FIELDS = {"label", "label_source", "mobility", "mobility_reason"}
 OPERATOR_FIELDS = {
     "bbox_min",
     "bbox_max",
@@ -66,7 +68,7 @@ class SceneStore:
         return next((a for a in self.scene["assets"] if a["object_id"] == object_id), None)
 
     def visible(self) -> list[dict]:
-        return [a for a in self.assets.values() if a["status"] != "removed"]
+        return [a for a in self.assets.values() if a["status"] not in GONE]
 
     def get(self, object_id: str) -> dict | None:
         return self.assets.get(object_id)
@@ -101,11 +103,22 @@ class SceneStore:
         position: list[float] | None,
         details: dict | None = None,
     ) -> dict:
+        parts: list[str] = []
         if op == "add":
             asset = self._add(position, details)
+        elif op == "split":
+            asset = self.assets.get(object_id or "")
+            if asset is None or asset["status"] in GONE:
+                raise KeyError(object_id)
+            parts = self._split(asset, details)
+        elif op == "combine":
+            asset = self.assets.get(object_id or "")
+            if asset is None or asset["status"] in GONE:
+                raise KeyError(object_id)
+            parts = [self._combine(asset, details)]
         else:
             asset = self.assets.get(object_id or "")
-            if asset is None or asset["status"] == "removed":
+            if asset is None or asset["status"] in GONE:
                 raise KeyError(object_id)
             if asset["mobility"] != "movable":
                 raise ChangeError(f"{object_id} is {asset['mobility']}, so it can't change")
@@ -121,6 +134,8 @@ class SceneStore:
         }
         if details:
             change["details"] = details
+        if parts:
+            change["parts"] = parts
         self.changes.append(change)
         return change
 
@@ -148,6 +163,72 @@ class SceneStore:
             asset["label_grade"] = "operator_added"
         self.assets[object_id] = asset
         return asset
+
+    def _split(self, parent: dict, details: dict | None) -> list[str]:
+        """Replace an object with its parts. Its record link isn't guessed onto either of them."""
+        parts = (details or {}).get("parts") or []
+        if len(parts) != 2:
+            raise ChangeError("split needs two parts")
+        if parent.get("mapping"):
+            raise ChangeError(
+                f"{parent['object_id']} is linked to {parent['mapping'].get('tag')}, "
+                "so splitting it would lose that link"
+            )
+        ids = []
+        for number, part in enumerate(parts, start=1):
+            object_id = f"{parent['object_id']}.{number}"
+            low, high = part["bbox_min"], part["bbox_max"]
+            asset = {
+                "object_id": object_id,
+                "label": "other",
+                "label_confidence": 0.0,
+                "center": [(a + b) / 2 for a, b in zip(low, high, strict=True)],
+                "mapping": None,
+                "mobility": "unsure",
+                "status": "new, unconfirmed",
+                "split_from": parent["object_id"],
+            }
+            asset.update({k: v for k, v in part.items() if k in OPERATOR_FIELDS})
+            asset["label_grade"] = "operator_added"
+            self.assets[object_id] = asset
+            ids.append(object_id)
+        parent["status"] = "split"
+        return ids
+
+    def _combine(self, first: dict, details: dict | None) -> str:
+        """Replace two objects with one around both. Record links aren't merged or guessed."""
+        other_id = (details or {}).get("other")
+        other = self.assets.get(other_id or "")
+        if other is None or other["status"] in GONE:
+            raise KeyError(other_id)
+        if other is first:
+            raise ChangeError("Choose a different object to combine with")
+        for asset in (first, other):
+            if asset.get("mapping"):
+                raise ChangeError(
+                    f"{asset['object_id']} is linked to {asset['mapping'].get('tag')}, "
+                    "so combining it would lose that link"
+                )
+        low = [min(a, b) for a, b in zip(first["bbox_min"], other["bbox_min"], strict=True)]
+        high = [max(a, b) for a, b in zip(first["bbox_max"], other["bbox_max"], strict=True)]
+        object_id = f"{first['object_id']}+{other['object_id']}"
+        asset = {
+            "object_id": object_id,
+            "label": first.get("label", "other"),
+            "label_confidence": 0.0,
+            "center": [(a + b) / 2 for a, b in zip(low, high, strict=True)],
+            "bbox_min": low,
+            "bbox_max": high,
+            "mapping": None,
+            "mobility": "unsure",
+            "status": "new, unconfirmed",
+            "combined_from": [first["object_id"], other["object_id"]],
+        }
+        asset.update({k: v for k, v in (details or {}).items() if k in COMBINE_FIELDS})
+        asset["label_grade"] = "operator_added"
+        self.assets[object_id] = asset
+        first["status"] = other["status"] = "combined"
+        return object_id
 
     @staticmethod
     def _move(asset: dict, position: list[float] | None) -> None:

@@ -163,3 +163,138 @@ def test_proposal_without_a_scene_file_says_so(app_client):
     response = app_client.post("/api/objects/propose", json=body)
     assert response.status_code == 503
     assert "SCENE_PLY" in response.json()["detail"]
+
+
+def test_splitting_gives_the_selected_part_and_the_rest_their_own_boxes():
+    from app.api.select_object import split_object
+
+    table = cloud([-0.3, 0.5, 2], 0.15, 2000)
+    chair = cloud([0.3, 0.5, 2], 0.15, 2000, seed=1)
+    parent = {"bbox_min": [-0.5, 0.3, 1.8], "bbox_max": [0.5, 0.7, 2.2]}
+    # Corner rays around the left part only.
+    left = [[-0.25, -0.05, 1.0], [-0.05, -0.05, 1.0], [-0.05, 0.35, 1.0], [-0.25, 0.35, 1.0]]
+    part, rest = split_object(scene(table, chair), parent, ORIGIN, left, FLOOR_Y)
+    assert part["center"][0] == pytest.approx(-0.3, abs=0.06)
+    assert rest["center"][0] == pytest.approx(0.3, abs=0.06)
+    assert part["bbox_max"][0] < rest["bbox_min"][0]
+
+
+def test_selecting_all_of_an_object_is_not_a_split():
+    from app.api.select_object import split_object
+
+    only = cloud([0, 0.5, 2], 0.15, 2000)
+    parent = {"bbox_min": [-0.3, 0.2, 1.7], "bbox_max": [0.3, 0.8, 2.3]}
+    with pytest.raises(NothingSelected, match="nearly all"):
+        split_object(scene(only), parent, ORIGIN, rays(0.3), FLOOR_Y)
+
+
+def parts_of(first_label, second_label):
+    return [
+        {"bbox_min": [0, 0, 0], "bbox_max": [1, 1, 1], "label": first_label, "mobility": "movable"},
+        {"bbox_min": [2, 0, 0], "bbox_max": [3, 1, 1], "label": second_label, "mobility": "fixed"},
+    ]
+
+
+def box_asset(object_id, mapping=None):
+    return {
+        "object_id": object_id,
+        "label": "chair",
+        "label_confidence": 0.5,
+        "center": [1.5, 0.5, 0.5],
+        "bbox_min": [0, 0, 0],
+        "bbox_max": [3, 1, 1],
+        "mapping": mapping,
+        "mobility": "movable",
+    }
+
+
+def split_client(tmp_path, mapping=None):
+    path = tmp_path / "assets.json"
+    assets = [box_asset("obj-1", mapping)]
+    path.write_text(json.dumps({"scene_id": "t", "floor_y": FLOOR_Y, "assets": assets}))
+    return TestClient(create_app(path, engine=False, database=False))
+
+
+def test_split_replaces_an_object_with_two_and_undo_brings_it_back(tmp_path):
+    client = split_client(tmp_path)
+    change = {
+        "op": "split",
+        "object_id": "obj-1",
+        "details": {"parts": parts_of("chair", "box")},
+    }
+    reply = client.post("/api/changes", json=change)
+    assert reply.status_code == 200
+    assert reply.json()["parts"] == ["obj-1.1", "obj-1.2"]
+    assets = {a["object_id"]: a for a in client.get("/api/assets").json()["assets"]}
+    assert set(assets) == {"obj-1.1", "obj-1.2"}
+    assert assets["obj-1.1"]["label"] == "chair" and assets["obj-1.1"]["mapping"] is None
+    assert assets["obj-1.2"]["bbox_max"] == [3, 1, 1]
+    assert assets["obj-1.2"]["status"] == "new, unconfirmed"
+    assert client.get("/api/assets/obj-1").status_code == 404
+    client.post("/api/changes/reset")
+    assets = client.get("/api/assets").json()["assets"]
+    assert [a["object_id"] for a in assets] == ["obj-1"]
+
+
+def test_an_object_linked_to_a_record_cannot_be_split(tmp_path):
+    client = split_client(tmp_path, mapping={"tag": "P-005", "asset_id": "ASSET-017"})
+    change = {
+        "op": "split",
+        "object_id": "obj-1",
+        "details": {"parts": parts_of("chair", "box")},
+    }
+    reply = client.post("/api/changes", json=change)
+    assert reply.status_code == 409 and "P-005" in reply.json()["detail"]
+
+
+def test_rest_of_a_split_ignores_scraps_left_behind():
+    from app.api.select_object import split_object
+
+    table = cloud([-0.3, 0.5, 2], 0.15, 2000)
+    chair = cloud([0.4, 0.5, 2], 0.12, 2000, seed=1)
+    leg = cloud([-0.42, 0.65, 2], [0.02, 0.05, 0.02], 200, seed=2)  # Missed by the selection.
+    parent = {"bbox_min": [-0.5, 0.3, 1.8], "bbox_max": [0.6, 0.72, 2.2]}
+    near_table = [[-0.21, -0.05, 1.0], [-0.04, -0.05, 1.0], [-0.04, 0.3, 1.0], [-0.21, 0.3, 1.0]]
+    _, rest = split_object(scene(table, chair, leg), parent, ORIGIN, near_table, FLOOR_Y)
+    assert rest["bbox_min"][0] > 0.2  # The chair's box, not stretched back to the table's leg.
+
+
+def two_objects(tmp_path, mapping=None):
+    path = tmp_path / "assets.json"
+    first = box_asset("a", mapping)
+    second = {
+        **box_asset("b"),
+        "bbox_min": [4, 0, 0],
+        "bbox_max": [5, 2, 1],
+        "center": [4.5, 1, 0.5],
+    }
+    assets = [first, second]
+    path.write_text(json.dumps({"scene_id": "t", "floor_y": FLOOR_Y, "assets": assets}))
+    return TestClient(create_app(path, engine=False, database=False))
+
+
+def test_combine_replaces_two_objects_with_one_around_both(tmp_path):
+    client = two_objects(tmp_path)
+    change = {
+        "op": "combine",
+        "object_id": "a",
+        "details": {"other": "b", "label": "cart", "mobility": "movable", "mapping": {"tag": "X"}},
+    }
+    reply = client.post("/api/changes", json=change)
+    assert reply.status_code == 200 and reply.json()["parts"] == ["a+b"]
+    assets = client.get("/api/assets").json()["assets"]
+    assert [a["object_id"] for a in assets] == ["a+b"]
+    assert assets[0]["bbox_max"] == [5, 2, 1] and assets[0]["label"] == "cart"
+    assert assets[0]["mapping"] is None and assets[0]["status"] == "new, unconfirmed"
+    client.post("/api/changes/reset")
+    assert sorted(a["object_id"] for a in client.get("/api/assets").json()["assets"]) == ["a", "b"]
+
+
+def test_combine_refuses_linked_objects_and_itself(tmp_path):
+    client = two_objects(tmp_path, mapping={"tag": "P-005", "asset_id": "ASSET-017"})
+    linked = {"op": "combine", "object_id": "a", "details": {"other": "b"}}
+    assert "P-005" in client.post("/api/changes", json=linked).json()["detail"]
+    itself = {"op": "combine", "object_id": "b", "details": {"other": "b"}}
+    assert client.post("/api/changes", json=itself).status_code == 409
+    missing = {"op": "combine", "object_id": "b", "details": {"other": "nope"}}
+    assert client.post("/api/changes", json=missing).status_code == 404

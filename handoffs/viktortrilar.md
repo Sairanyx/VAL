@@ -1,6 +1,6 @@
-# viktortrilar: viktor/move-collisions
-**Goal:** demo on Valmet's uncleaned scene, then measure and improve the scored numbers
-**Done:** app/api/collisions.py refuses moves onto other objects, walls, or fixed equipment, in the backend and live in the viewer: red box, red panel, back to the last good spot. Boxes are loose, so only moves that make things worse than the start are refused
-**Verified:** lint; all tests. Browser: drag onto a cart goes red and returns to the last good spot, saved on both sides; demo move still gives 4.31 to 5.56 m; undo restores; direct API call gets 409. Not tested: 5090, tablet
-**Next:** rehearse on the 5090. Ask Valmet which pump is P-005. When CSC returns: 60-object precision sample, label review, grouping check, second pass, real pipeline run. Write the 60-question copilot test
-**Blockers:** SSH to Roihu, Puhti and Mahti times out from two networks, no maintenance announced. Use `ssh -4` on networks without IPv6. Cert valid to 2026-11-07 20:41. Local branch viktor/viewer-objects holds an unused merge: don't merge it
+# viktortrilar: main (split, combine, collisions merged)
+**Goal:** let operators correct objects: move safely, split, combine, and see frames clearly, working with the team's highlights and live routes
+**Done:** collision check, Split, Combine, frames that hide what's behind them. Fixed clashes with live routes and highlights: routes only follow the camera in walk mode, a refused drop re-plans, collision warnings aren't overwritten
+**Verified:** lint; 213 tests passed, 2 skipped. Full flow in a headless browser with pieces, highlights and live routes: refused drop, demo move 4.31 to 5.56 m, split, combine, reload, undo, no page errors. Slow software rendering, light scene. Not tested: 5090, tablet, real model in the browser panel
+**Next:** rehearse on the 5090. Build the precision sample from crops rendered on the 5090, as Roihu's masks are out of reach. A person confirms P-005 on obj-0049
+**Blockers:** Roihu closed until at least Monday (CSC security notice). A split or combined object's scan piece doesn't split with it. Local branch viktor/viewer-objects holds an unused merge: don't merge it

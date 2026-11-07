@@ -56,7 +56,7 @@ For a different scene, pass its own `HIGHLIGHTS=path/to/highlights`, or disable 
 **Try this first:** the roll cage `obj-0067`. Plan a route with **Go to P-005** from the middle of the room,
 then drag the cage onto the route. The route bends around it.
 
-Four objects move as the real scan: `obj-0067`, `obj-0021`, `obj-0008`, and `obj-0112`. Other movable objects
+Three objects move as the real scan: `obj-0067`, `obj-0021`, and `obj-0112`. Other movable objects
 only move as an outline, so they stay put in Scan view. Press **Scan** to switch to **Both** or **Objects** to
 see fitted shapes move.
 
@@ -85,6 +85,18 @@ screens only pick up changes when reloaded.
 3. Check the type and whether it can move. A model suggests these if `make model` has run.
 4. Press **Save**. It blocks routes straight away and is marked "new, unconfirmed".
 
+## Split an object that's really two things
+1. Tap the object, and press **Split into two**. Objects linked to a record can't be split.
+2. Drag a box around one part. Orange is what you selected, and blue is the rest.
+3. Check the type and whether each can move, then press **Save**. Both are marked "new, unconfirmed".
+
+The parts move as outlines, not as the real scan. **Undo changes** brings the original back.
+
+## Combine objects that are really one thing
+1. Tap the first object, and press **Combine with...**. Objects linked to a record can't be combined.
+2. Tap the second object. An orange box appears around both.
+3. Check the type and whether it can move, then press **Save**. **Undo changes** brings the originals back.
+
 ## Ask the copilot
 Select an object and press **Ask copilot**, or press **Copilot**. The note under each answer says whether the
 model worded it or it's a fixed template. Unsafe requests are refused.
@@ -111,7 +123,7 @@ Add these to the URL: `?lod=0&res=2` for the sharpest image, or `?res=0.5` if it
 | `make api` fails on a missing file | `make mapping` hasn't run | Run `make scene mapping` |
 | No **Move on floor** button | The object is fixed or unsure | The panel says which. Try `obj-0067` |
 | Box goes red and panel says "Can't place it here" | That spot is taken | Drop it somewhere else. Tiny overlaps are allowed, because boxes are loose |
-| Only an outline moves | Not one of the four objects, or no `PIECES=` | Use the full `make web` line above |
+| Only an outline moves | Not one of the three objects, or no `PIECES=` | Use the full `make web` line above |
 | Object moves, but no route change | No route showing, or it isn't in the way | **Go to P-005** first, then drag onto the line |
 | "Couldn't save the move" | The backend refused it or is down | The message says why. Restart `make api` if needed |
 | "Couldn't add an object: Selecting needs the scene" | `Equipment Room.ply` is missing | Put it in `data/scene/equipment_room/` |

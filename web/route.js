@@ -199,12 +199,13 @@ export function setupRoute({ root, camera, floorY, getEyeY, onMessage }) {
 
   // Called every frame when the route isn't being walked. Keeps the route up to date while the viewer
   // moves, or while an object is dragged (`drag`: object_id and position, not saved yet).
-  function updateLive(drag = null) {
+  function updateLive(drag = null, followViewer = true) {
     if (!state.target || state.walking || live.busy) return;
     if (performance.now() - live.lastAt < LIVE_WAIT) return;
     const here = root.worldToLocal(camera.position.clone());
     here.y = state.start.y;
-    const walked = !live.lastFrom || here.distanceTo(live.lastFrom) >= LIVE_STEP;
+    // In fly mode the camera is just looking around, so the route keeps its start.
+    const walked = followViewer && (!live.lastFrom || here.distanceTo(live.lastFrom) >= LIVE_STEP);
     const dragged =
       drag &&
       (!live.lastDrag ||

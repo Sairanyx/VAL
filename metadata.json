@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.13.1",
+  "checkpoint_id": "01M6T370JXHVJ9JYY1R7AZNBT9",
+  "strategy": "manual-commit",
+  "branch": "viktor/demo-fixes",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "app/extract/frame_crops.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2,
+    "cache_creation_tokens": 1983,
+    "cache_read_tokens": 380913,
+    "output_tokens": 565,
+    "api_call_count": 1
+  },
+  "redaction": {
+    "replacements": 150,
+    "layers": {
+      "betterleaks": 14,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 18,
+      "credentialed_uri": 2,
+      "entropy": 18,
+      "key_context": 110,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  }
+}

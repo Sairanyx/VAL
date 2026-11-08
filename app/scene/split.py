@@ -2,7 +2,7 @@
 
     uv run --no-project --with numpy python -m app.scene.split clean.ply labels.npy OUT_DIR
 
-Labels follow `splat_labels.npy` in docs/PLAN.md: an index into assets, or -1 for background. Writes
+Labels follow `splat_labels.npy`: an index into assets, or -1 for background. Writes
 objects/obj-NNNN.ply, background.ply, and tinted/obj-NNNN.ply, which has a flat color per object for
 the separated view. Numbers match `obj-NNNN` in assets.json, counting from label 0 as obj-0001.
 """

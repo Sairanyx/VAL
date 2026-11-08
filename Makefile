@@ -21,7 +21,7 @@ MODEL_DIR ?= data/models/$(MODEL)
 LAPTOP_MODEL ?= gemma4:e2b
 VOICE_MODEL ?= small.en
 
-.PHONY: setup demo data entire views scene scene-full model laptop-model voice-model pieces highlights shapes bim bundle pipeline web fmt lint test check api floor mapping db nav-check start-browser start-laptop start-tablet
+.PHONY: setup demo data views scene scene-full model laptop-model voice-model pieces highlights shapes bim bundle pipeline web fmt lint test check api floor mapping db nav-check start-browser start-laptop start-tablet
 
 data:    ## get Valmet's scan and Excel pack from the data-v1 release, unless they're already here
 	mkdir -p $(SCENE_DIR)
@@ -39,8 +39,6 @@ demo:    ## everything in one go: set up once, then start. Needs Valmet's scan i
 	test -f $(BIM_DIR)/bim.json || $(MAKE) bim
 	test -f data/models/whisper-$(VOICE_MODEL)/model.bin || $(MAKE) voice-model
 	./start laptop
-entire:  ## install and enable Entire, set AGENT= for other agents
-	bash scripts/setup_entire.sh
 views:   ## get rendered views from the GitHub Release, or use ARCHIVE=path for a local copy
 ifndef ARCHIVE
 	mkdir -p data/scene

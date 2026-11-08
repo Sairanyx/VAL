@@ -3,13 +3,22 @@
 How to run the demo, use the viewer, and fix what goes wrong.
 
 ## Set up
-**The short way:** `make demo`. It downloads Valmet's scan and Excel pack (`make data`), does every step
-here once, skips what's already done, and starts the demo.
+**The short way:** clone the repository and run `make demo`. It needs `git`, `make` and
+[uv](https://docs.astral.sh/uv/), on Linux, and internet the first time. It:
+1. downloads Valmet's scan and Excel pack from the `data-v1` release (`make data`)
+2. sets up a light Python environment in `.venv-demo` with only what the demo needs: no PyTorch, no GPU
+   (`make demo-env`)
+3. downloads our scene files, links the records, cuts the movable objects, and builds the highlights,
+   the BIM model and the speech model
+4. starts the demo on free ports and prints the address
 
-You need `gh auth login` once, plus two files from Viktor that aren't in git:
-- `Equipment Room.ply`, in `data/scene/equipment_room/`
-- The Excel pack, in `data/`, as any `.xlsx` file
+Steps already done are skipped, so later runs start straight away, offline. While the repository is private,
+the downloads need `gh auth login`; once it's public, they need no login.
 
+**The extraction pipeline** is separate: `make pipeline` runs a new scan through everything, with the full
+install (PyTorch), and needs an NVIDIA GPU. `make setup` installs that full stack.
+
+**Step by step**, with the full install, the scan in `data/scene/equipment_room/` and the Excel pack in `data/`:
 ```bash
 git pull
 make scene      # objects, floor map, and light scenes

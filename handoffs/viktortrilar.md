@@ -1,6 +1,6 @@
-# viktortrilar: main (handoff-0808)
-**Goal:** robust, clear demo on a laptop, with Val front and centre
-**Done:** on main via PRs #41 to #44: Benjamin's tutorial and IFC (tested), now at reading pace with a visible move and turn, Back, Val's maintenance, sensor, guidance and dashboard steps, and Go to critical. Object types checked from screenshots (`scenes/equipment_room.labels.json`), so records sit on fitting objects (19 of 30, pumps on pumps). Routing: old and deleted spots free their floor, smooth walk start, shared floor map. Earlier: Val moves by measure, glowing alerts back, no stickman, move and turn fixes
-**Verified:** 356 tests as CI, 433 with the Excel pack. Real GPU: tutorial Watch 22 steps, Back, move and turn seen; Benjamin's fix list 34 of 34; walking 34 of 34; deletes 9 of 9; routes 63 of 66 (misses under load)
-**Next:** on the demo laptop, run `make mapping` (applies the type fixes) and rebuild the zip. Record the video from Watch. Try the zip on Windows and Mac, and the two-finger twist on a tablet
-**Blockers:** remote branch cleanup needs `git push --delete` permission (list in chat). Valmet: confirm P-005, and OK the zip with their data for judges. `benjamin/delete-tweaks` can go: its route fix is merged, its no-confirm delete isn't wanted
+# viktortrilar: main (out of credits, 8 Nov)
+**Goal:** hand over: code is done, the submission isn't
+**Done:** everything is on main via PRs #41 to #48: Benjamin's tutorial and partial IFC (tested and slowed to reading pace, with a visible move and turn, Back, Val's own steps, Go to critical, and a fixed dashboard step), object types checked from screenshots, routing fixes, and removal of the unused template and packages
+**Verified:** 356 tests as CI runs them, and every PR passed CI. Real GPU: tutorial, fix list 34 of 34, walking, deletes, routes 63 of 66
+**Next:** the to-do table in `docs/PLAN.md` under "Now": video, slides, technical note, the avatar decision, demo laptop `make mapping`, precision number, form
+**Blockers:** Valmet to confirm P-005 and OK the zip. Deleting remote branches needs a repo owner

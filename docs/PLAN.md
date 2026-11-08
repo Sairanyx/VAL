@@ -30,31 +30,40 @@ Swap freely if someone's skills fit another area better. Update this table and `
 | **Benjamin** | Web viewer, tablet, demo video, slides | `web/`, `docs/` | 10% + 25% display |
 
 ## Now
-The core works, so the priority is proving it on real hardware and finishing the submission. Submit
-Sunday 09:00, deadline 10:00, per an earlier doc: Viktor is confirming this. Current state is in
-`handoffs/` and measured numbers are in `docs/RESULTS.md`.
+**Submit by Sunday 8 Nov, 10:00.** Code is feature-complete on `main`: stop adding features and fix only what
+rehearsal finds. Viktor is out of credits, so whoever picks up a task: put your name on it here. Measured numbers
+are in `docs/RESULTS.md`, and how `main` covers the brief is in `docs/CHALLENGE.md`, under "How we cover the brief".
 
-**Roihu is closed until at least Monday,** after the deadline, because of a security issue (CSC notice, 2026-11-07). Its masks, full renders, and video frames can't be reached, and any work needing them is off. Everything the demo needs is in Release `objects-v2`. Don't try to get around the closure. The 5090 is now our only GPU, so agree who's using it.
+### To do, in order
+| # | Task | Who | How |
+|---|---|---|---|
+| 1 | **Video**, required: at most 5 min, and the form wants it ideally under 2, working in the first 20 s | Benjamin | Record **Actions, Tutorial, Watch** (about 6 min, `?demo=1` starts it, `?notour` skips the offer), then trim. Show: the views, frames, a route to critical, the walk with labels, Val on arrival, maintenance logs, the dashboard. Say the camera is the worker (see 4) |
+| 2 | **Slides**, required: 5 to 8, on extraction, pathfinding, Excel mapping and AI | Benjamin, with a slide each from Sasha, Eduard and Hannu | Outline in `docs/PITCH.md`. Only numbers from `docs/RESULTS.md`. Say it accurately (below) |
+| 3 | **Technical note**, required: models, libraries, software | Sasha | SAM 3 + SAM 2 masks lifted to 3D, Qwen3.5 labels, A* on a floor map, FastAPI, three.js + Spark, faster-whisper, local models. Say we used `Equipment Room.ply`, not the damaged file the brief names |
+| 4 | **Decide on an avatar.** The brief asks twice for a *visible* worker or robot walking, and that's the 25% question. The walk is first-person now, with the minimap dot | Team | Either say clearly in the video that the camera is the worker, or bring back a figure (a robot with **Route for: Robot** is the smallest change: the removed version is in git, `git show 0bef408:web/avatar.js`) |
+| 5 | **Demo laptop** | Eduard | `git pull`, then `make mapping` (applies the checked object types, so P-002 leaves the washing machine), then `./start laptop`. Rehearse once with the internet off |
+| 6 | **Precision number** for the 30% criterion: score the 60-object sample | Sasha | Our only accuracy number for extraction. Add it to `docs/RESULTS.md` |
+| 7 | **Zip for judges**, optional | Anyone | `make bundle` (needs `make voice-model VOICE_MODEL=base.en`, `make bim`, `make highlights`, and the light cut: see `docs/USAGE.md`). Try it on Windows and a Mac. Share only by link, and only if Valmet agrees: it holds their data |
+| 8 | **Form** at sinceai.app | Anyone | Team name (the README still says `<team name>`), tagline of 140 characters, About text, Built with, GenAI tools, source `.zip` up to 250 MB with no data, video link, terms. Full list in `docs/TEST_CHECKLIST.md` |
+| 9 | **Ask Valmet** which pump is P-005, and whether the zip can go to judges | Viktor or anyone | Discord challenge channel |
+| 10 | **Tidy GitHub branches** | Repo owner | Only an owner can delete them. Everything merged can go: keep `main`, `eduard_main`, `viktor/laptop-demo`, `yasasha/dashboard`, `hannu_branch` |
 
-**In order:** rehearse on the demo laptop offline, try the zip on Windows and a Mac, record a safe demo
-video (the tutorial's **Watch** mode is built for this), slides, technical note, and README, then improve numbers if
-time remains. The 5090 isn't part of the demo any more: it runs on a laptop.
+### State of `main` (8 Nov)
+- **Viewer:** the five views (darkness, simple BIM, blob BIM, point cloud, real), filters, a see-through minimap,
+  glowing alerts, Focus, the tutorial (Watch or Try it, Back), Help with keys, arrow-key moves, and Go to critical.
+- **Val:** answers from the records with sources: condition, maintenance logs, sensor trends and guidance. It moves
+  objects by measure ("2 metres left", "next to the other chair"), runs viewer commands, takes voice through local
+  Whisper, refuses unsafe requests, and starts by itself on arrival at the fault.
+- **Data:** object types checked from screenshots (`scenes/equipment_room.labels.json`), so 19 of 30 records sit on
+  objects of a fitting type. The motor and sensor records stay unlinked.
+- **Routes:** use the floor freed by moved or deleted objects, and the walk starts smoothly.
+- **Checked on 8 Nov:** 356 tests as CI runs them. On a real GPU: the tutorial end to end, Benjamin's fix list 34 of
+  34, walking 34 of 34, deletes 9 of 9, routes 63 of 66 (the three misses were reads under heavy load).
 
-| Person | Task now |
-|---|---|
-| **Viktor** | Ask Valmet which pump is `P-005`, and whether the zip with their data can go to judges by link. Confirm the deadline |
-| **Benjamin** | Try the zip on another laptop. Test on a real tablet. Record the video. Own the slides |
-| **Eduard** | Rehearse offline on the demo laptop, with the mic and a real voice. Find a second good detour. Backend slide |
-| **Hannu** | Score the 60-question copilot test by hand. AI slide. Check the procedural links. Decide whether `skills/` belongs in this repo |
-| **Sasha** | Score the 60-object precision sample. Extraction slide and technical note. Push the dashboard work if it's still wanted. Retire or merge the old extraction branch |
-| **Coding agents** | Draft the README and notes from measured numbers, and fix what the rehearsal finds |
-
-**Cut first if short of time:** voice mode, written directions. Second-pass framing and pipe runs need Roihu's data or a SAM setup on the 5090, so they're off unless someone sets that up. Don't cut
-the rehearsal, video, precision number, or copilot test.
-
-**Say this accurately:** three objects are cut cleanly in advance, and other movable objects are cut by their box on demand, which can take neighbours along and leave dark floor. `P-005` on
-`obj-0049` is an unconfirmed pick. 29 of 30 Excel links are procedural. `P-005`'s record only has
-pressure and flow data. The floor under moved objects is copied, not scanned. Position is simulated.
+**Say this accurately:** links are procedural, marked with "?", and P-005 on `obj-0049` is an unconfirmed pick.
+Object types were checked by a coding agent from screenshots, not by a person. Sensor data is a sample from the
+pack, not live. The floor under moved objects is copied, not scanned. Position is simulated. Units are the scan's,
+close to metres but not checked. Val answers from the records without a model unless one is installed.
 
 ### Run the demo from a development setup
 Put `Equipment Room.ply` in `data/scene/equipment_room/` and the Excel pack in `data/`, then, with

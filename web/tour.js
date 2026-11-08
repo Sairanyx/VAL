@@ -8,14 +8,22 @@
 const POLL_MS = 100;
 const WALK_LIMIT_MS = 60000;
 const ANSWER_LIMIT_MS = 12000;
-const LEAD_MS = 1400; // in Watch, how long a control is pointed at before it's pressed
+const LEAD_MS = 2200; // in Watch, how long a control is pointed at before it's pressed
+// In Watch, each step stays up long enough to read: this much, plus a little for each word.
+const READ_BASE_MS = 2500;
+const READ_PER_WORD_MS = 230;
+const SLIDE_MS = 2600; // how long a moved object takes to glide to its new spot
+const TURN_MS = 2200; // and to turn
+const TURN_BY = Math.PI / 2;
+const VAL_READ_MS = 6500; // time to read one of Val's answers
 const PRAISE_MS = 1600; // in Try it, how long "Done" shows before the next step
 
 export function setupTour({ ui, handlers, press, view }) {
   const state = { running: false, paused: false, mode: null };
   let skip = 0; // each press of Next ends what's being waited for
   let showMe = false; // Try it: Show me was pressed for this step
-  let moved = false; // whether there's a move of ours to undo
+  let goBack = false; // Back was pressed: run the step before this one again
+  let moved = null; // the object the tutorial moved, to turn it next
   let spotTarget = null;
   let spotTimer = 0;
   let changesAtStart = 0; // changes made before the tutorial are never undone by it
@@ -105,30 +113,85 @@ export function setupTour({ ui, handlers, press, view }) {
     return path[path.length - 1];
   }
 
-  // Try small movable things, nearest first, until one can go on the route's middle.
+  // Find a small movable thing that can go on the route's middle, show it, and glide it there.
   async function blockTheRoute() {
     const path = view.route.state.route?.path;
     if (!path || path.length < 2) return false;
     const middle = halfway(path);
     const near = (object) => Math.hypot(object.center.x - middle[0], object.center.z - middle[2]);
+    // Big enough to see, small enough to fit on the route.
     const small = (object) => {
       const { bbox_min: low, bbox_max: high } = object.asset;
-      return Math.abs(high[0] - low[0]) < 1 && Math.abs(high[2] - low[2]) < 1;
+      const sides = [Math.abs(high[0] - low[0]), Math.abs(high[2] - low[2])];
+      return Math.max(...sides) > 0.35 && Math.max(...sides) < 1.2;
     };
+    // A chair, cart or box shows a turn; a round bucket doesn't.
+    const shows = (object) => ({ chair: 0, cart: 1, box: 1 })[object.asset.label] ?? 3;
     const candidates = view.objects
       .filter((o) => o.asset.mobility === "movable" && !o.gone && small(o))
-      .sort((a, b) => near(a) - near(b))
-      .slice(0, 6);
+      .sort((a, b) => near(a) + shows(a) - (near(b) + shows(b)))
+      .slice(0, 8);
     const before = JSON.stringify(path);
     for (const object of candidates) {
-      const result = await view.moveObject(object, [middle[0], object.center.y, middle[2]]);
-      if (result.ok) {
-        moved = true;
-        await until(() => JSON.stringify(view.route.state.route?.path) !== before, 4000);
-        return true;
-      }
+      const spot = [middle[0], object.center.y, middle[2]];
+      if (!(await view.checkMove(object, spot, object.yaw || 0)).ok) continue;
+      // Stand back so both the object and the route are in view.
+      await view.goLookAt(object);
+      view.closeInfo();
+      await wait(1500);
+      if (!state.running) return false;
+      await pressShown("move");
+      await wait(800);
+      const result = await glide(object, spot, object.yaw || 0, SLIDE_MS);
+      if (!result.ok) continue;
+      moved = object;
+      await until(() => JSON.stringify(view.route.state.route?.path) !== before, 4000);
+      return true;
     }
     return false;
+  }
+
+  // Glide an object to a spot, and turn it, so the move can be seen, then save it once. If the
+  // backend refuses, it glides back.
+  async function glide(object, center, yaw, ms) {
+    const from = object.center.toArray();
+    const fromYaw = object.yaw || 0;
+    const frame = async (share) => {
+      const eased = share * share * (3 - 2 * share);
+      const at = from.map((value, axis) => value + (center[axis] - value) * eased);
+      view.placeAt(object, at, fromYaw + (yaw - fromYaw) * eased);
+      view.wake();
+      await sleep(16);
+    };
+    const started = performance.now();
+    for (let share = 0; share < 1; share = Math.min(1, (performance.now() - started) / ms)) {
+      await frame(share);
+    }
+    const result = await view.moveObject(object, center, yaw);
+    if (!result.ok) {
+      const back = performance.now();
+      for (let share = 0; share < 1; share = Math.min(1, (performance.now() - back) / 800)) {
+        const eased = share * share * (3 - 2 * share);
+        view.placeAt(
+          object,
+          center.map((value, axis) => value + (from[axis] - value) * eased),
+          yaw + (fromYaw - yaw) * eased,
+        );
+        view.wake();
+        await sleep(16);
+      }
+      view.placeAt(object, from, fromYaw);
+    }
+    return result;
+  }
+
+  async function askVal(question) {
+    point("open-copilot");
+    await wait(LEAD_MS / 2);
+    view.copilot.open(question);
+    point("copilot");
+    await wait(800);
+    await valAnswered();
   }
 
   // Wait for Val's answer: the messages have stopped changing for a moment.
@@ -338,8 +401,8 @@ export function setupTour({ ui, handlers, press, view }) {
         hold: 3500,
       },
       fault && {
-        title: `A route to ${tag}`,
-        text: `One press plans a collision-free route to ${tag} for a person, 0.6 m wide, around walls, machines and anything moved.`,
+        title: "A route to what's critical",
+        text: `One press plans a collision-free route to the most critical device, ${tag} in this demo, for a person, 0.6 m wide, around walls, machines and anything moved.`,
         how: "Press G, or Go to the fault in the object's details.",
         target: "go-fault",
         task: "Press G to plan the route.",
@@ -362,8 +425,41 @@ export function setupTour({ ui, handlers, press, view }) {
         show: async () => {
           const done = await blockTheRoute();
           if (!done) ui.text.textContent = "Nothing could be moved there just now, so the route stays.";
+          else ui.how.textContent = "The route has gone around it.";
         },
-        hold: 4500,
+        hold: 3000,
+      },
+      fault && {
+        title: "Turn it",
+        text: "In Move, Rotate turns the object instead: drag across the screen, use the left and right arrow keys, or the 45° buttons. A turn that would hit something is refused.",
+        how: "Move, then Rotate, or R. Enter when done.",
+        target: "manip-mode-rotate",
+        task: "Turn the object you moved, then press Done.",
+        prepare: () => (changesBefore = view.changeCount()),
+        done: () => view.changeCount() > changesBefore,
+        show: async () => {
+          const object = moved;
+          if (!object) return;
+          if (!shown($("manip-bar"))) {
+            view.select(object);
+            await pressShown("move");
+          }
+          // Look at it where it stands now, so the turn is in view.
+          await view.goLookAt(object);
+          view.closeInfo();
+          await wait(1200);
+          if (!shown($("manip-bar"))) await pressShown("move");
+          await pressShown("manip-mode-rotate");
+          await wait(600);
+          let result = await glide(object, object.center.toArray(), (object.yaw || 0) + TURN_BY, TURN_MS);
+          if (!result.ok) {
+            result = await glide(object, object.center.toArray(), (object.yaw || 0) - TURN_BY, TURN_MS);
+          }
+          if (!result.ok) ui.how.textContent = `That turn was refused: ${result.message}`;
+          await wait(1500);
+          await pressShown("manip-done");
+        },
+        hold: 2000,
       },
       fault && {
         title: "Walk there",
@@ -397,7 +493,7 @@ export function setupTour({ ui, handlers, press, view }) {
           // Only what was changed during the tutorial, never earlier work.
           if (view.changeCount() > changesAtStart) {
             await pressShown("undo-last", true);
-            moved = false;
+            moved = null;
           } else point("undo-last");
           await wait(1500);
           menu(false);
@@ -405,21 +501,76 @@ export function setupTour({ ui, handlers, press, view }) {
         hold: 2500,
       },
       {
-        title: "Ask Val",
-        text: `Val is the service assistant. It answers from the Excel records, cites them, and says how sure it is. ${fault ? `Reaching ${tag} starts the diagnosis by itself.` : ""}`,
-        how: "Press V, or Ask Val. Type or use the microphone.",
+        title: "Val, the service assistant",
+        text: "Val is the heart of it: a service assistant that pulls together what's on record for each device, its condition, maintenance logs, sensor readings and service guidance, and says where each answer came from and how sure it is. It runs on this machine.",
+        how: "Press V, or Ask Val. Type, or talk with the microphone.",
         target: "open-copilot",
-        task: `Ask Val something, such as "What's wrong with ${tag}?"`,
+        task: 'Ask Val "What needs attention?"',
         prepare: () => (mark = $("val-messages").textContent),
-        done: () => $("val-messages").textContent !== mark && $("val-messages").textContent.length > mark.length + 20,
+        done: () => $("val-messages").textContent.length > mark.length + 20,
         show: async () => {
-          point("open-copilot");
-          await wait(LEAD_MS);
-          view.copilot.open(`What's wrong with ${tag}?`);
-          await wait(800);
-          await valAnswered();
+          await askVal("What needs attention?");
         },
-        hold: 7000,
+        hold: VAL_READ_MS,
+      },
+      fault && {
+        title: "Maintenance logs",
+        text: `Val reads the work orders: when ${tag} was last serviced, what was done, and what was found.`,
+        how: `Ask "When was ${tag} last serviced?"`,
+        target: "copilot",
+        task: `Ask Val when ${tag} was last serviced.`,
+        prepare: () => (mark = $("val-messages").textContent),
+        done: () => $("val-messages").textContent.length > mark.length + 20,
+        show: async () => {
+          await askVal(`When was ${tag} last serviced?`);
+        },
+        hold: VAL_READ_MS,
+      },
+      fault && {
+        title: "Sensor data",
+        text: "It reads the device's sensor history and says how each reading is trending. Here it's a sample from the records; at a plant it would come live from the control system.",
+        how: `Ask "What are the latest readings for ${tag}?"`,
+        target: "copilot",
+        task: `Ask Val for ${tag}'s latest readings.`,
+        prepare: () => (mark = $("val-messages").textContent),
+        done: () => $("val-messages").textContent.length > mark.length + 20,
+        show: async () => {
+          await askVal(`What are the latest readings for ${tag}?`);
+        },
+        hold: VAL_READ_MS,
+      },
+      fault && {
+        title: "Guidance and what to check",
+        text: "And the service guidance for that kind of equipment, to say what to check first, always with the safety steps. Sources are listed under each answer.",
+        how: `Ask "What should I check first on ${tag}?"`,
+        target: "copilot",
+        task: `Ask Val what to check first on ${tag}.`,
+        prepare: () => (mark = $("val-messages").textContent),
+        done: () => $("val-messages").textContent.length > mark.length + 20,
+        show: async () => {
+          await askVal(`What should I check first on ${tag}?`);
+        },
+        hold: VAL_READ_MS,
+      },
+      fault && {
+        title: "The record at a glance",
+        text: "Dashboard draws the whole record as charts: health, sensor trends, alarms and events, and the maintenance history.",
+        how: "Tap a device with a record, then Dashboard.",
+        target: "open-dashboard",
+        task: "Open the Dashboard of a device with a record.",
+        done: () => shown($("dashboard")),
+        show: async () => {
+          press("copilot-close");
+          view.select(fault);
+          await wait(600);
+          await pressShown("open-dashboard");
+          await wait(1500);
+        },
+        hold: 6000,
+        after: () => {
+          $("dashboard").hidden = true;
+          view.closeInfo();
+        },
       },
       {
         title: "Safe by design",
@@ -473,11 +624,14 @@ export function setupTour({ ui, handlers, press, view }) {
     return steps.filter(Boolean);
   }
 
+  // Takes back everything changed during the tutorial, and nothing from before it.
   async function undoOurMove() {
-    if (!moved) return;
-    moved = false;
-    await view.undoLast();
+    for (let left = 20; left > 0 && view.changeCount() > changesAtStart; left--) {
+      await view.undoLast();
+    }
+    moved = null;
   }
+
 
   // Puts the viewer back, whichever step it was stopped on.
   async function tidy(before) {
@@ -509,7 +663,7 @@ export function setupTour({ ui, handlers, press, view }) {
     ui.how.textContent = "";
     ui.count.textContent = "";
     ui.choice.hidden = false;
-    for (const button of [ui.pause, ui.next, ui.show]) button.hidden = true;
+    for (const button of [ui.pause, ui.next, ui.show, ui.back]) button.hidden = true;
     await until(() => state.mode !== null);
     ui.choice.hidden = true;
   }
@@ -517,6 +671,12 @@ export function setupTour({ ui, handlers, press, view }) {
   function showControls() {
     ui.pause.hidden = state.mode !== "watch";
     ui.next.hidden = false;
+    ui.back.hidden = false;
+  }
+
+  function readingTime(step) {
+    const words = `${step.text ?? ""} ${step.how ?? ""}`.split(/\s+/).length;
+    return READ_BASE_MS + words * READ_PER_WORD_MS;
   }
 
   async function runStep(step) {
@@ -526,7 +686,7 @@ export function setupTour({ ui, handlers, press, view }) {
       await step.prepare?.();
       await step.show?.();
       point(step.target);
-      if (step.hold) await wait(step.hold);
+      await wait(Math.max(step.hold ?? 0, readingTime(step)));
     } else {
       point(step.target);
       await step.prepare?.();
@@ -570,8 +730,10 @@ export function setupTour({ ui, handlers, press, view }) {
     if (state.running) {
       showControls();
       const steps = buildSteps();
-      for (const [index, step] of steps.entries()) {
-        if (!state.running) break;
+      for (let index = 0; index < steps.length && state.running; ) {
+        const step = steps[index];
+        goBack = false;
+        ui.back.disabled = index === 0;
         ui.title.textContent = step.title;
         ui.text.textContent = step.text;
         ui.how.textContent = step.how ?? "";
@@ -582,6 +744,7 @@ export function setupTour({ ui, handlers, press, view }) {
           // One step going wrong shouldn't end the tutorial.
           console.warn(`Tutorial step "${step.title}": ${error.message}`);
         }
+        index = goBack ? Math.max(0, index - 1) : index + 1;
       }
     }
     state.running = false;
@@ -603,6 +766,10 @@ export function setupTour({ ui, handlers, press, view }) {
   }
 
   ui.next.onclick = () => skip++;
+  ui.back.onclick = () => {
+    goBack = true;
+    skip++;
+  };
   ui.stop.onclick = stop;
   ui.show.onclick = () => (showMe = true);
   ui.watch.onclick = () => (state.mode = "watch");

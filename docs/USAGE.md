@@ -101,7 +101,7 @@ the file `make bim` built, which has the scan meshes but none of the changes.
    - Releasing on a red spot puts it back at the last good spot. A wall or fixed equipment blocks it too.
 5. **Done**, or Esc, finishes. **Undo** in **Actions** takes back the latest change, and **Reset all** puts everything back.
 
-**Try this first:** the roll cage `obj-0067`. Plan a route with **Go to P-005** from the middle of the room,
+**Try this first:** the roll cage `obj-0067`. Plan a route with **Go to critical** from the middle of the room,
 then drag the cage onto the route. The route bends around it. To drag from a better view without changing
 the route, press **Walk** to switch to **Fly** first.
 
@@ -216,10 +216,11 @@ full list under **Frame colours**.
 
 ## Run the tutorial
 The first time in a browser, it offers itself. Later: **Actions**, then **Tutorial**, **Start the tutorial** in Help,
-or say "Start the tutorial". **Watch** plays all 17 steps by itself, from darkness to the real room, then objects,
-filters, alerts, the map, a route, a move, the walk, Val, safety and BIM, in about 2.5 minutes. It's built for the
-video. **Try it myself** points at each control and waits for you to use it, and **Show me** does it for you.
-**Pause**, **Next** and **Close** are on its caption, and Esc stops it. It puts everything back afterwards, but never
+or say "Start the tutorial". **Watch** plays all 22 steps by itself at reading pace, in about 6 minutes: the room and its
+views, objects, filters, alerts, the map, a route to what's critical, an object gliding onto the route and turning,
+the walk, then Val on maintenance logs, sensor data, guidance and the dashboard, safety, and BIM. It's built for
+the video. **Try it myself** points at each control and waits for you to use it, and **Show me** does it for you.
+**Back**, **Pause**, **Next** and **Close** are on its caption, and Esc stops it. It puts everything back afterwards, but never
 undoes changes made before it started. `?demo=1` starts Watch on opening, and `?notour` skips the offer.
 
 ## Download IFC of part of the model
@@ -244,12 +245,12 @@ Pick a row in **Objects**, press **Focus** on an object's panel, or say "Focus o
 spot on the floor with a clear line of sight, far enough back to see it all, and side-on to long objects.
 
 ## Other controls
-The main buttons are **Go to P-005**, **?**, **Filters**, **Objects**, **Map**, **Ask Val** and **Actions**, with
+The main buttons are **Go to critical**, **?**, **Filters**, **Objects**, **Map**, **Ask Val** and **Actions**, with
 **Walk route** and **Clear route** while a route shows. Everything else is in **Actions**.
 
 | Control | What it does |
 |---|---|
-| **Go to P-005** | Plans a route to the faulty device from where you stand. Arrows show the way |
+| **Go to critical** | Plans a route to the most critical device, P-005 in this demo, from where you stand. Arrows show the way |
 | **Movement: Walk / Fly** | In **Walk** the route starts from wherever you move to. In **Fly** you can look around from anywhere, and the route keeps its start |
 | **Walk route** | Walks the route as the operator sees it, around what's in the way. Reaching the faulty device starts Val's diagnosis |
 | **Route for: Person / Robot** | Changes the body size and height for routes |
@@ -280,9 +281,9 @@ On a laptop, use `./start laptop`: objects are cut from the light scene, which `
 | `make api` fails on a missing file | `make mapping` hasn't run | Run `make scene mapping` |
 | No **Move** button | The object is fixed or unsure | The panel says which. Try `obj-0067` |
 | Box goes red and panel says "Can't place it here" | That spot is taken | Drop it somewhere else. Tiny overlaps are allowed, because boxes are loose |
-| Route jumps or disappears as you look around | You're in Walk mode, so it starts from where you are | Press **Walk** to switch to **Fly**, then **Go to P-005** again |
+| Route jumps or disappears as you look around | You're in Walk mode, so it starts from where you are | Press **Walk** to switch to **Fly**, then **Go to critical** again |
 | Only an outline moves | The backend couldn't cut it | Check `make api` is running and `Equipment Room.ply` is in place |
-| Object moves, but no route change | No route showing, or it isn't in the way | **Go to P-005** first, then drag onto the line |
+| Object moves, but no route change | No route showing, or it isn't in the way | **Go to critical** first, then drag onto the line |
 | "Couldn't save the move, so it went back" | The backend refused it, so the object returned to where the backend has it | The message says why. Try another spot |
 | "Couldn't save the change, trying again" | The backend can't be reached. Routes ignore the change until it's saved | Start `make api`. The viewer sends it once it's back |
 | "Couldn't add an object: Selecting needs the scene" | `Equipment Room.ply` is missing | Put it in `data/scene/equipment_room/` |

@@ -1059,3 +1059,6 @@ kbd {
 }
 #help-panel dt { line-height: 1.9; }
 #help-panel dl { grid-template-columns: 10.5em 1fr; }
+
+/* The tutorial's caption makes room for the move toolbar. */
+body:has(#manip-bar:not([hidden])) #tour { bottom: 150px; }

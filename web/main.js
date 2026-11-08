@@ -1660,7 +1660,8 @@ function commandHandlers() {
 async function load() {
   const data = await (await fetch("assets.json")).json();
   faultTag = data.fault_tag ?? faultTag;
-  $("go-fault").textContent = `Go to ${faultTag}`;
+  // The demo's critical device: one press routes there, whichever it is.
+  $("go-fault").textContent = "Go to critical";
   if (data.up) {
     const up = new THREE.Vector3(...data.up).normalize();
     root.quaternion.setFromUnitVectors(up, new THREE.Vector3(0, 1, 0));
@@ -1910,6 +1911,7 @@ async function load() {
       pause: $("tour-pause"),
       next: $("tour-next"),
       stop: $("tour-stop"),
+      back: $("tour-back"),
       how: $("tour-how"),
       show: $("tour-show"),
       choice: $("tour-choice"),
@@ -1931,7 +1933,10 @@ async function load() {
       fault: () => objects.find((o) => kind(o.asset) === "fault" && !o.gone),
       goLookAt,
       range: () => range,
-      moveObject: (object, position) => objectLayer.moveTo(object, position),
+      moveObject: (object, position, yaw) => objectLayer.moveTo(object, position, yaw),
+      placeAt: (object, center, yaw) => objectLayer.placeAt(object, center, yaw),
+      checkMove: (object, position, yaw) => checkMove(object, position, yaw),
+      select: (object) => showInfo(object),
       undoLast,
       closeInfo: () => $("info-close").click(),
       closeFilters: () => ($("filter-panel").hidden = true),

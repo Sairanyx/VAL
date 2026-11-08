@@ -46,7 +46,9 @@ database, API, and viewer, and prints the address to open. Ctrl+C stops it. `mak
 make api
 make web SCENE=data/scene/equipment_room/cut/base.ply ASSETS=data/scene/equipment_room/assets_mapped.json SHAPES=data/scene/equipment_room/shapes.json PIECES=data/scene/equipment_room/cut
 ```
-Open http://localhost:8000. On a tablet on the same network, use `http://<this machine's IP>:8000`.
+Open the address `./start` prints. It uses ports 8000 and 8001 when they're free, or the next free ones. With
+`make web` and `make api` by hand, set `WEB_PORT=` and `API_PORT=` to choose. On a tablet on the same network,
+use `http://<this machine's IP>:<port>`.
 
 For a tablet or a laptop without a good GPU, cut a lighter scene first:
 `make pieces PIECES_FROM=data/scene/equipment_room/light_full.ply`

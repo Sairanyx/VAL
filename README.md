@@ -6,8 +6,6 @@
 Team Newbies, Since AI Hackathon 2026, Turku, for Valmet's challenge *Industrial Metaverse: Semantic
 3D Scene Understanding & Autonomous Field-Service Copilot*.
 
-![The equipment room in VAL: a route to the critical pump P-005, nearby equipment labelled with its condition and health, and the minimap](docs/images/hero.jpg)
-
 **Contents:** [Summary](#summary) · [The problem](#the-problem) · [What VAL does](#what-val-does) ·
 [How it works](#how-it-works) · [Results](#results) · [Run it](#run-it) · [Limits](#limits-and-what-we-say-honestly) ·
 [What's next](#whats-next) · [Repository](#repository) · [Team](#team) · [Pre-existing work](#pre-existing-work)

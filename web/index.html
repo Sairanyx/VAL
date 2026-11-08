@@ -38,7 +38,7 @@
   <div id="buttons">
     <button id="follow" hidden>Walk route</button>
     <button id="clear-route" hidden>Clear route</button>
-    <button id="go-fault" hidden>Go to P-005</button>
+    <button id="go-fault" hidden title="Plan a route to the most critical device (G)">Go to critical</button>
     <button id="open-help" title="How to use this (?)" aria-label="Help">?</button>
     <button id="open-filters" title="Choose what's shown (T)">Filters</button>
     <button id="open-list" title="Equipment by importance (L)">Objects</button>
@@ -96,6 +96,7 @@
     <div class="tour-foot">
       <span id="tour-count"></span>
       <button id="tour-show" hidden>Show me</button>
+      <button id="tour-back" hidden>Back</button>
       <button id="tour-pause">Pause</button>
       <button id="tour-next">Next</button>
       <button id="tour-stop">Close</button>
@@ -171,7 +172,7 @@
       <button id="reset-moves" title="Put everything back as scanned">Reset all</button>
     </div>
     <p class="menu-keys">Keys: Delete removes · Ctrl+Z undo · M move (arrow keys move, R rotate, PgUp/PgDn height, Enter done) · C copy ·
-      ? help · B next view · N name · T filters · L objects · V talk to Val · F walk/fly · G go to P-005 · Esc back</p>
+      ? help · B next view · N name · T filters · L objects · V talk to Val · F walk/fly · G go to critical · Esc back</p>
   </div>
 
   <div id="dashboard" hidden>

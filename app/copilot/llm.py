@@ -129,7 +129,14 @@ class OllamaWriter:
         self.url = url
         self.seconds = seconds
         # Answers wait for the model to load unless it's already there, so load it now.
-        threading.Thread(target=self._post, args=({"model": model, "keep_alive": -1},)).start()
+        threading.Thread(target=self._load, daemon=True).start()
+
+    def _load(self) -> None:
+        """Ask Ollama to load the model. If it's slow or not running, the first answer waits."""
+        try:
+            self._post({"model": self.model, "keep_alive": -1})
+        except OSError:  # timeouts and refused connections
+            log.info("The model is still loading, so the first answer may be slower")
 
     def _post(self, body: dict[str, Any]) -> str:
         request = urllib.request.Request(

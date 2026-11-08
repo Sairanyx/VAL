@@ -22,3 +22,4 @@ web/.cert/
 .idea/
 skills/
 dist/
+.venv-demo/

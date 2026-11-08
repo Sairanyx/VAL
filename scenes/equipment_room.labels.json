@@ -1,7 +1,7 @@
 {
   "scene": "equipment_room",
   "reviewed": "2026-11-07",
-  "method": "Each object was photographed in the viewer from its best view, its box drawn on the image, and judged by eye by a coding agent (not a person) on contact sheets, with its description as extra evidence. Pipes, cables and hoses whose description agreed were skipped. Only clear mistakes are corrected; 'object' means the type couldn't be told.",
+  "method": "Each object was photographed in the viewer from its best view, its box drawn on the image, and judged by eye by a coding agent (not a person) on contact sheets, with its description as extra evidence. Pipes, cables and hoses whose description agreed were skipped. Only clear mistakes are corrected; 'object' means the type couldn't be told. Rechecked on 8 Nov from close-up contact sheets of every corrected and record-linked object: 20 entries changed or removed.",
   "fixes": [
     {
       "object_id": "obj-0004",
@@ -40,16 +40,27 @@
       "evidence": "Grey wet-and-dry vacuum cleaner on wheels"
     },
     {
+      "object_id": "obj-0035",
+      "center": [
+        1.291,
+        1.024,
+        0.711
+      ],
+      "label": "vacuum cleaner",
+      "was": "object",
+      "evidence": "Yellow and black wet vacuum on wheels",
+      "mobility": "movable"
+    },
+    {
       "object_id": "obj-0040",
       "center": [
         -1.096,
         0.906,
         2.102
       ],
-      "label": "vacuum cleaner",
+      "label": "heater",
       "was": "object",
-      "mobility": "movable",
-      "evidence": "Grey vacuum cleaner on wheels, not a motor"
+      "evidence": "White ribbed portable radiator, not a vacuum cleaner"
     },
     {
       "object_id": "obj-0041",
@@ -97,27 +108,15 @@
       "evidence": "Wire mesh roll cage on wheels"
     },
     {
-      "object_id": "obj-0057",
-      "center": [
-        -2.679,
-        0.347,
-        2.788
-      ],
-      "label": "shelf",
-      "was": "tank",
-      "evidence": "Shelving with boxes, no tank in the frame"
-    },
-    {
       "object_id": "obj-0066",
       "center": [
         3.42,
         -0.138,
         -3.503
       ],
-      "label": "door",
+      "label": "electrical cabinet",
       "was": "cart",
-      "mobility": "fixed",
-      "evidence": "Grey steel door with notice, in the entrance doorway"
+      "evidence": "White wall cabinet with a hinged door"
     },
     {
       "object_id": "obj-0068",
@@ -161,9 +160,9 @@
         -0.053,
         -2.03
       ],
-      "label": "object",
+      "label": "pump",
       "was": "pump",
-      "evidence": "Frame holds the open door and wall, no pump visible"
+      "evidence": "Black and blue circulator pump on the pipe"
     },
     {
       "object_id": "obj-0108",
@@ -195,9 +194,9 @@
         -0.055,
         -3.349
       ],
-      "label": "object",
+      "label": "pump",
       "was": "pump",
-      "evidence": "Frame holds a white pole by the door, no pump"
+      "evidence": "Red inline circulator pump with a black motor"
     },
     {
       "object_id": "obj-0111",
@@ -206,10 +205,9 @@
         0.699,
         2.143
       ],
-      "label": "washing machine",
+      "label": "object",
       "was": "object",
-      "mobility": "movable",
-      "evidence": "Lower front of the washing machine"
+      "evidence": "Can't tell from the scan"
     },
     {
       "object_id": "obj-0113",
@@ -218,10 +216,9 @@
         1.032,
         -0.506
       ],
-      "label": "washing machine",
+      "label": "object",
       "was": "appliance",
-      "mobility": "movable",
-      "evidence": "Front of the same washing machine, round door visible"
+      "evidence": "A white stand or table, not a washing machine"
     },
     {
       "object_id": "obj-0115",
@@ -246,17 +243,6 @@
       "evidence": "Bottles on top of the washing machine, no valve"
     },
     {
-      "object_id": "obj-0119",
-      "center": [
-        -0.695,
-        0.769,
-        3.139
-      ],
-      "label": "object",
-      "was": "valve",
-      "evidence": "Top of the washing machine and bottles, no valve"
-    },
-    {
       "object_id": "obj-0122",
       "center": [
         1.837,
@@ -266,18 +252,6 @@
       "label": "box",
       "was": "appliance",
       "evidence": "Grey sheet-metal box with lid and latch on the floor"
-    },
-    {
-      "object_id": "obj-0126",
-      "center": [
-        -3.887,
-        0.839,
-        3.081
-      ],
-      "label": "electrical cabinet",
-      "was": "box",
-      "mobility": "fixed",
-      "evidence": "Green wall-mounted electrical box"
     },
     {
       "object_id": "obj-0133",
@@ -321,10 +295,9 @@
         -0.089,
         -2.523
       ],
-      "label": "pipe",
+      "label": "electrical cabinet",
       "was": "object",
-      "mobility": "fixed",
-      "evidence": "Vertical insulated pipe with green band"
+      "evidence": "White wall-mounted housing with a display"
     },
     {
       "object_id": "obj-0142",
@@ -338,28 +311,6 @@
       "evidence": "Blue flanged valve body on the pipe"
     },
     {
-      "object_id": "obj-0144",
-      "center": [
-        -2.704,
-        0.023,
-        2.884
-      ],
-      "label": "object",
-      "was": "tank",
-      "evidence": "Pipe rack with small pumps behind rails, not a tank"
-    },
-    {
-      "object_id": "obj-0145",
-      "center": [
-        0.174,
-        0.159,
-        2.036
-      ],
-      "label": "valve",
-      "was": "tank",
-      "evidence": "Two blue valves with orange actuators, not a tank"
-    },
-    {
       "object_id": "obj-0149",
       "center": [
         -1.021,
@@ -369,6 +320,17 @@
       "label": "box",
       "was": "appliance",
       "evidence": "Same grey metal box, lower part, lid and latch"
+    },
+    {
+      "object_id": "obj-0151",
+      "center": [
+        -0.35,
+        -0.016,
+        1.449
+      ],
+      "label": "valve",
+      "was": "object",
+      "evidence": "Two orange valve actuators on the pipes"
     },
     {
       "object_id": "obj-0153",
@@ -395,6 +357,17 @@
       "evidence": "Vertical insulated pipe, not a cart"
     },
     {
+      "object_id": "obj-0159",
+      "center": [
+        -0.955,
+        1.002,
+        0.217
+      ],
+      "label": "object",
+      "was": "object",
+      "evidence": "A metal stand, not a valve"
+    },
+    {
       "object_id": "obj-0167",
       "center": [
         1.048,
@@ -413,9 +386,9 @@
         -0.275,
         1.008
       ],
-      "label": "pipe fitting",
+      "label": "object",
       "was": "tank",
-      "evidence": "Insulated pipe elbow, not a tank"
+      "evidence": "Wrapped bundle, not a fitting"
     },
     {
       "object_id": "obj-0176",
@@ -461,28 +434,6 @@
       "label": "pump",
       "was": "pipe",
       "evidence": "Red and black inline circulator pump on the pipe"
-    },
-    {
-      "object_id": "obj-0209",
-      "center": [
-        2.871,
-        0.824,
-        3.016
-      ],
-      "label": "washing machine",
-      "was": "box",
-      "evidence": "Front panel of the washing machine"
-    },
-    {
-      "object_id": "obj-0215",
-      "center": [
-        0.998,
-        0.119,
-        2.185
-      ],
-      "label": "valve",
-      "was": "tank",
-      "evidence": "Blue valves with orange actuators beside the red tank"
     },
     {
       "object_id": "obj-0216",
@@ -538,10 +489,9 @@
         0.439,
         3.167
       ],
-      "label": "pipe",
+      "label": "object",
       "was": "object",
-      "mobility": "fixed",
-      "evidence": "Insulated pipe U-bend by the red tanks"
+      "evidence": "Black bag on a white box, not a pipe"
     },
     {
       "object_id": "obj-0268",
@@ -611,6 +561,17 @@
       "evidence": "Pipe rack and rails, no tank in the frame"
     },
     {
+      "object_id": "obj-0335",
+      "center": [
+        -4.75,
+        0.307,
+        -2.278
+      ],
+      "label": "object",
+      "was": "object",
+      "evidence": "A grey ledge under the cabinets, not a valve"
+    },
+    {
       "object_id": "obj-0339",
       "center": [
         2.032,
@@ -661,10 +622,9 @@
         -0.381,
         -2.058
       ],
-      "label": "electrical cabinet",
+      "label": "pipe",
       "was": "object",
-      "mobility": "fixed",
-      "evidence": "White wall-mounted enclosure above a red pump"
+      "evidence": "White insulated pipes with green bands"
     },
     {
       "object_id": "obj-0383",
@@ -689,16 +649,26 @@
       "evidence": "Insulated pipes along the ceiling"
     },
     {
+      "object_id": "obj-0388",
+      "center": [
+        1.506,
+        -0.058,
+        -3.554
+      ],
+      "label": "object",
+      "was": "object",
+      "evidence": "A blurry patch of floor, not a valve"
+    },
+    {
       "object_id": "obj-0396",
       "center": [
         -3.824,
         -0.771,
         1.009
       ],
-      "label": "pipe",
+      "label": "light fixture",
       "was": "object",
-      "mobility": "fixed",
-      "evidence": "Insulated pipes along the ceiling"
+      "evidence": "Ceiling light panel"
     },
     {
       "object_id": "obj-0398",
@@ -730,10 +700,9 @@
         1.034,
         -3.195
       ],
-      "label": "fan",
+      "label": "bag",
       "was": "object",
-      "mobility": "movable",
-      "evidence": "Metal desk fan on a blue trolley"
+      "evidence": "Yellow crumpled bag on the floor"
     },
     {
       "object_id": "obj-0421",
@@ -746,6 +715,17 @@
       "was": "object",
       "mobility": "fixed",
       "evidence": "Insulated pipe run along the ceiling"
+    },
+    {
+      "object_id": "obj-0432",
+      "center": [
+        3.688,
+        -0.01,
+        2.05
+      ],
+      "label": "object",
+      "was": "object",
+      "evidence": "Small white object on cables, not a valve"
     },
     {
       "object_id": "obj-0440",

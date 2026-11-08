@@ -126,3 +126,14 @@ def test_a_reason_naming_the_old_type_is_replaced():
     asset = {**obj("a", "pipe"), "label": "pipe", "mobility_reason": "pipe is fixed equipment"}
     apply_label_fixes([asset], [{"object_id": "a", "center": [0.0, 0.0, 0.0], "label": "pump"}])
     assert "pipe" not in asset["mobility_reason"]
+
+
+def test_a_specific_type_wins_over_other_model_guesses():
+    pipe = {**obj("p", "valve"), "label": "pipe"}  # labelled pipe, but SAM said valve
+    assert build_mapping([pipe], [record("V1", "CONTROL_VALVE")]) == []
+
+
+def test_sam_labels_alone_never_link_a_record():
+    fragment = {**obj("f", None), "sam_label": "valve"}
+    del fragment["suggested_label"]
+    assert build_mapping([fragment], [record("V1", "CONTROL_VALVE")]) == []

@@ -81,6 +81,91 @@ def _count(cols: np.ndarray, rows: np.ndarray, shape: tuple[int, int]) -> np.nda
     return counts
 
 
+def _window(grid: NavGrid, low, high) -> tuple[np.ndarray, np.ndarray]:
+    """Return the first and past-the-last cells under a box, clipped to the map."""
+    axes = list(grid.axes)
+    shape = np.asarray(grid.free.shape)
+    first = np.floor((np.asarray(low, float)[axes] - grid.origin) / grid.cell).astype(int)
+    last = np.floor((np.asarray(high, float)[axes] - grid.origin) / grid.cell).astype(int)
+    start = np.clip(np.minimum(first, last), 0, shape - 1)
+    stop = np.clip(np.maximum(first, last) + 1, 1, shape)
+    return start, stop
+
+
+def _with_free(grid: NavGrid, free: np.ndarray, low_free: np.ndarray) -> NavGrid:
+    return NavGrid(
+        origin=grid.origin,
+        cell=grid.cell,
+        floor_height=grid.floor_height,
+        up=grid.up,
+        axes=grid.axes,
+        free=free,
+        clearance=ndimage.distance_transform_edt(free) * grid.cell,
+        clearance_low=ndimage.distance_transform_edt(low_free) * grid.cell,
+    )
+
+
+def open_boxes(grid: NavGrid, boxes: list[tuple[list[float], list[float]]]) -> NavGrid:
+    """Return the map with the floor under these boxes open: objects taken out of the room. The
+    scan never saw the floor under them, so it's assumed to be there."""
+    if not boxes:
+        return grid
+    free = grid.free.copy()
+    low_free = grid.clearance_low > 0
+    for low, high in boxes:
+        start, stop = _window(grid, low, high)
+        window = (slice(start[0], stop[0]), slice(start[1], stop[1]))
+        free[window] = True
+        low_free[window] = True
+    return _with_free(grid, free, low_free)
+
+
+def splat_cells(grid: NavGrid, positions: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Return each splat's floor-map cell and its height above the floor."""
+    cells = np.floor((positions[:, list(grid.axes)] - grid.origin) / grid.cell).astype(np.int32)
+    return cells, (positions @ grid.up - grid.floor_height).astype(np.float32)
+
+
+def vacate(
+    grid: NavGrid,
+    positions: np.ndarray,
+    opacities: np.ndarray,
+    own: np.ndarray,
+    boxes: list[tuple[list[float], list[float]]],
+    placed: tuple[np.ndarray, np.ndarray] | None = None,
+) -> NavGrid:
+    """Return the map with the floor opened where objects used to stand, in their old boxes.
+
+    `own` marks the splats of the objects that have left. Under each old box, a cell opens if no
+    other solid splats would block it, and either floor was seen there or the object stood there,
+    as it stood on floor. Walls and fixed equipment in the box still block.
+    `placed` is `splat_cells(grid, positions)`, worked out once, as the scene doesn't change.
+    """
+    if not boxes:
+        return grid
+    free = grid.free.copy()
+    low_free = grid.clearance_low > 0
+    cells, heights = placed if placed is not None else splat_cells(grid, positions)
+    for low, high in boxes:
+        start, stop = _window(grid, low, high)
+        inside = ((cells >= start) & (cells < stop)).all(axis=1)
+        if not inside.any():
+            continue
+        local = cells[inside] - start
+        size = tuple((stop - start).tolist())
+        height = heights[inside]
+        solid = (opacities[inside] >= SOLID_OPACITY) & ~own[inside]
+        mine = own[inside]
+        seen = _count(*local[np.abs(height) <= FLOOR_BAND].T, size) >= FLOOR_HITS
+        window = (slice(start[0], stop[0]), slice(start[1], stop[1]))
+        for band, target in ((BODY_BAND, free), (LOW_BAND, low_free)):
+            in_band = (height >= band[0]) & (height <= band[1])
+            blocked = _count(*local[solid & in_band].T, size) >= SOLID_HITS
+            stood = _count(*local[mine & in_band].T, size) > 0
+            target[window] |= ~blocked & (seen | stood)
+    return _with_free(grid, free, low_free)
+
+
 def largest_region(mask: np.ndarray) -> np.ndarray:
     labels, found = ndimage.label(mask)
     if not found:

@@ -14,6 +14,7 @@ import math
 import os
 import re
 import tempfile
+import threading
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
@@ -32,6 +33,7 @@ from app.api.select_object import (
     NothingSelected,
     already_known,
     crop_selection,
+    in_box,
     pick_object,
     split_object,
     suggest_config,
@@ -42,7 +44,7 @@ from app.bim.model import build_model
 from app.copilot.llm import can_reword, load_writer, warm_up
 from app.copilot.voice import MAX_AUDIO_BYTES, TRANSCRIBER
 from app.dashboard import render_dashboard
-from app.nav.grid import NavGrid, largest_region, load_grid
+from app.nav.grid import NavGrid, largest_region, load_grid, open_boxes, splat_cells, vacate
 from app.nav.route import (
     BODIES,
     NoRoute,
@@ -58,6 +60,7 @@ from app.scene.load import Splats, read_splats, write_splats
 from app.scene.split_movable import FLOOR_MARGIN, split_movable
 
 DEFAULT_ASSETS = Path("fixtures/sample_assets.json")
+OPENED_MAPS_KEPT = 8  # floor maps with moved and deleted objects' spots opened
 UNCONFIRMED_NEW = "new, unconfirmed"
 Position = Annotated[list[float], Field(min_length=3, max_length=3)]
 
@@ -311,6 +314,68 @@ def create_app(
     ) -> dict:
         return {"assets": [with_condition(a) for a in store.nearby((x, y, z), radius)]}
 
+    # A few recent states: a drag asks with and without the dragged object, turn about.
+    opened_maps: dict[tuple, NavGrid] = {}
+    scan_cells: list = []  # each splat's cell and height, then its opacity
+    building_map = threading.Lock()
+
+    def floor_map(also_left: str | None = None) -> NavGrid | None:
+        """Return the floor map with the spots that objects have left open again.
+
+        Route, best view, walkable floor and move checks all use this one, so they agree.
+        - Moved objects: their old box opens where only splats that went with them blocked it.
+          That needs the scene file, or their old spot stays blocked as before.
+        - Deleted objects whose splats were hidden: their whole box opens, as the scan never saw
+          the floor under them. "Remove info" keeps them in the scan, so they still block.
+        `also_left` is an object being dragged, before it's saved. Undo and Reset close it again.
+        """
+        if grid is None:
+            return None
+        moved = {
+            asset["object_id"]
+            for asset in store.assets.values()
+            if asset["status"] not in GONE and store.has_moved(asset)
+        }
+        if also_left:
+            moved.add(also_left)
+        deleted = {
+            asset["object_id"]
+            for asset in store.assets.values()
+            if asset["status"] == "removed" and not asset.get("splats_kept")
+        }
+        key = (tuple(sorted(moved)), tuple(sorted(deleted - moved)))
+        if not key[0] and not key[1]:
+            return grid
+        # Requests run on several threads, and one map is built once, whichever asks first.
+        with building_map:
+            if key not in opened_maps:
+                opened = grid
+                if key[0]:
+                    try:
+                        splats = splats_for_selection()
+                    except HTTPException:
+                        splats = None
+                    if splats is not None:
+                        if not scan_cells:  # once: the scan doesn't move
+                            scan_cells.extend(
+                                [splat_cells(grid, splats.positions), splats.opacities]
+                            )
+                        own = left_splats(key[0], splats.positions)
+                        boxes = [home_corners(object_id) for object_id in key[0]]
+                        opened = vacate(
+                            opened, splats.positions, scan_cells[1], own, boxes, scan_cells[0]
+                        )
+                if key[1]:
+                    opened = open_boxes(opened, [home_corners(object_id) for object_id in key[1]])
+                if len(opened_maps) >= OPENED_MAPS_KEPT:
+                    del opened_maps[next(iter(opened_maps))]  # the oldest
+                opened_maps[key] = opened
+        return opened_maps[key]
+
+    def home_corners(object_id: str) -> tuple[list[float], list[float]]:
+        home = store.home_box(object_id)
+        return home["bbox_min"], home["bbox_max"]
+
     @app.get("/api/objects/{object_id}/view")
     def object_view(object_id: str) -> dict:
         """Return where to stand to see an object. Null without a floor map."""
@@ -318,7 +383,7 @@ def create_app(
         view = None
         if grid is not None:
             view = best_view(
-                grid,
+                floor_map(),
                 tuple(asset["bbox_min"]),
                 tuple(asset["bbox_max"]),
                 footprints(store, object_id),
@@ -333,7 +398,7 @@ def create_app(
         if grid is not None:
             try:
                 found = plan_route(
-                    grid,
+                    floor_map(request.preview.object_id if request.preview else None),
                     tuple(request.start),
                     tuple(asset["bbox_min"]),
                     tuple(asset["bbox_max"]),
@@ -405,9 +470,10 @@ def create_app(
 
     def move_check(object_id: str, position: list[float], yaw: float | None = None) -> MoveCheck:
         asset = require(object_id)
-        # Checked at the new angle, so turning can't push an object into another.
+        # Checked at the new angle, so turning can't push an object into another. Its own old spot
+        # counts as open, so it can go back, and so can something else.
         original = store.original(object_id)
-        return check_move(asset, position, store.visible(), grid, original, yaw)
+        return check_move(asset, position, store.visible(), floor_map(object_id), original, yaw)
 
     @app.post("/api/objects/{object_id}/check-move")
     def check_a_move(object_id: str, request: MoveCheckRequest) -> dict:
@@ -440,15 +506,49 @@ def create_app(
             raise HTTPException(409, str(error)) from None
 
     scene_splats: list[Splats] = []
+    reading = threading.Lock()
 
     def splats_for_selection() -> Splats:
         """Read the scene once, when first needed. It holds every splat's position."""
-        if not scene_splats:
-            path = os.getenv("SCENE_PLY")
-            if not path or not Path(path).exists():
-                raise HTTPException(503, "This needs the scene: set SCENE_PLY to its file.")
-            scene_splats.append(read_splats(Path(path)))
+        with reading:  # Requests and the warm-up below mustn't read it twice.
+            if not scene_splats:
+                path = os.getenv("SCENE_PLY")
+                if not path or not Path(path).exists():
+                    raise HTTPException(503, "This needs the scene: set SCENE_PLY to its file.")
+                scene_splats.append(read_splats(Path(path)))
         return scene_splats[0]
+
+    splats_that_left: dict[str, np.ndarray] = {}
+
+    def left_splats(object_ids: tuple[str, ...], positions: np.ndarray) -> np.ndarray:
+        """Return the splats that went with these objects: everything in each one's old box, as
+        the viewer hides that box when it moves, except splats labelled as another object."""
+        members_of({"object_id": object_ids[0]})  # loads the labels
+        labels = scan_members["labels"]
+        labelled = labels is not None and len(labels) == len(positions)
+        left = np.zeros(len(positions), dtype=bool)
+        for object_id in object_ids:
+            if object_id not in splats_that_left:  # An object's old box never changes.
+                asset = store.get(object_id)
+                inside = in_box(positions, store.home_box(object_id))
+                if labelled:
+                    parts = asset.get("combined_from") or [object_id]
+                    mine = [scan_members["index"].get(part) for part in parts]
+                    # Most splats have no object (-1). Another object's splats stay put.
+                    inside &= (labels == -1) | np.isin(labels, [i for i in mine if i is not None])
+                splats_that_left[object_id] = np.flatnonzero(inside)
+            left[splats_that_left[object_id]] = True
+        return left
+
+    # Read the scene while nobody's waiting, so the first move or route after a move isn't slow.
+    def warm_scene() -> None:
+        try:
+            splats_for_selection()
+        except (HTTPException, OSError, ValueError) as error:
+            print(f"Scene not read ahead: {error}")
+
+    if grid is not None and os.getenv("SCENE_PLY"):
+        threading.Thread(target=warm_scene, daemon=True).start()
 
     piece_files = Path(tempfile.mkdtemp(prefix="object-pieces-"))
 
@@ -606,7 +706,7 @@ def create_app(
         if grid is None:
             raise HTTPException(404, "No floor map is loaded")
         width, band = BODIES[profile]
-        clearance = clearance_with_footprints(grid, footprints(store, ""), band)
+        clearance = clearance_with_footprints(floor_map(), footprints(store, ""), band)
         walk = largest_region(clearance >= width / 2)
         return {
             "origin": [float(v) for v in grid.origin],

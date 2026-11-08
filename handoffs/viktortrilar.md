@@ -1,6 +1,6 @@
-# viktortrilar: viktor/laptop-demo
-**Goal:** make the demo robust, clear and runnable on a judge's laptop, per the fix list
-**Done:** filters (`web/filters.js`), see-through minimap, plain alerts, Focus and best view (`best_view`), five-step View (`web/views.js`), guided Demo (`web/tour.js`), worker or robot on the route (`web/avatar.js`), diagnosis on arrival, arrow keys while moving, Help panel. `make bundle` builds a zip with its own uv (`scripts/make_bundle.py`, `scripts/laptop/`). Merged Sasha's dashboard. Labels show status and health. Devlog in `docs/DEVLOG.md`, brief comparison in `docs/CHALLENGE.md`
-**Verified:** 413 tests, lint. Real GPU browser checks: 17 tour, 9 walk, 42 filters and minimap, 20 of 22 keys (2 refused turns), 28 combine, 13 naming, 11 polish, 18 split and filters. The zip from an empty folder on Linux: first run 19 s, tour 17 of 17
-**Next:** try the zip on Windows and Mac. Rehearse offline on the demo laptop. Test the mic with a real voice. Someone else tries the new features
-**Blockers:** Valmet must confirm which pump is P-005, and OK sending their data to judges by link. Deadline Sunday 10:00. Roihu closed until at least Monday
+# viktortrilar: main (handoff-0808)
+**Goal:** robust, clear demo on a laptop, with Val front and centre
+**Done:** on main via PRs #41 to #44: Benjamin's tutorial and IFC (tested), now at reading pace with a visible move and turn, Back, Val's maintenance, sensor, guidance and dashboard steps, and Go to critical. Object types checked from screenshots (`scenes/equipment_room.labels.json`), so records sit on fitting objects (19 of 30, pumps on pumps). Routing: old and deleted spots free their floor, smooth walk start, shared floor map. Earlier: Val moves by measure, glowing alerts back, no stickman, move and turn fixes
+**Verified:** 356 tests as CI, 433 with the Excel pack. Real GPU: tutorial Watch 22 steps, Back, move and turn seen; Benjamin's fix list 34 of 34; walking 34 of 34; deletes 9 of 9; routes 63 of 66 (misses under load)
+**Next:** on the demo laptop, run `make mapping` (applies the type fixes) and rebuild the zip. Record the video from Watch. Try the zip on Windows and Mac, and the two-finger twist on a tablet
+**Blockers:** remote branch cleanup needs `git push --delete` permission (list in chat). Valmet: confirm P-005, and OK the zip with their data for judges. `benjamin/delete-tweaks` can go: its route fix is merged, its no-confirm delete isn't wanted

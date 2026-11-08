@@ -10,7 +10,7 @@ How to run the demo, use the viewer, and fix what goes wrong.
    (`make demo-env`)
 3. downloads our scene files, links the records, cuts the movable objects, and builds the highlights,
    the BIM model and the speech model
-4. starts the demo on free ports and prints the address
+4. starts the demo on free ports, and opens it in your browser when it's ready, with the tutorial offered
 
 Steps already done are skipped, so later runs start straight away, offline. While the repository is private,
 the downloads need `gh auth login`; once it's public, they need no login.
@@ -55,7 +55,7 @@ database, API, and viewer, and prints the address to open. Ctrl+C stops it. `mak
 make api
 make web SCENE=data/scene/equipment_room/cut/base.ply ASSETS=data/scene/equipment_room/assets_mapped.json SHAPES=data/scene/equipment_room/shapes.json PIECES=data/scene/equipment_room/cut
 ```
-Open the address `./start` prints. It uses ports 8000 and 8001 when they're free, or the next free ones. With
+`./start` opens the viewer in your browser when it's ready (`NO_BROWSER=1` stops that), and prints the address. It uses ports 8000 and 8001 when they're free, or the next free ones. With
 `make web` and `make api` by hand, set `WEB_PORT=` and `API_PORT=` to choose. On a tablet on the same network,
 use `http://<this machine's IP>:<port>`.
 

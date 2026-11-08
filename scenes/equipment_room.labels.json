@@ -497,18 +497,6 @@
       "evidence": "Pipe elbow beside the red pumps"
     },
     {
-      "object_id": "obj-0220",
-      "center": [
-        -3.772,
-        0.72,
-        -1.158
-      ],
-      "label": "vacuum cleaner",
-      "was": "pipe fitting",
-      "mobility": "movable",
-      "evidence": "Vacuum cleaner and its hose, not a pipe fitting"
-    },
-    {
       "object_id": "obj-0225",
       "center": [
         -4.146,

@@ -375,6 +375,7 @@ $("open-dashboard").onclick = () => {
   const id = encodeURIComponent(selected.asset.object_id);
   $("dashboard-status").textContent = "Drawing the dashboard...";
   image.hidden = true;
+  image.removeAttribute("src"); // or the last device's dashboard shows first
   image.onload = () => {
     $("dashboard-status").textContent = "";
     image.hidden = false;
@@ -386,6 +387,10 @@ $("open-dashboard").onclick = () => {
   $("dashboard").hidden = false;
 };
 $("dashboard-close").onclick = () => ($("dashboard").hidden = true);
+// A click beside the charts closes them too.
+$("dashboard").addEventListener("click", (event) => {
+  if (event.target === $("dashboard")) $("dashboard").hidden = true;
+});
 $("duplicate-object").onclick = () => selected && duplicateObject(selected);
 $("delete-object").onclick = askToDelete;
 $("forget-object").onclick = () => selected && forgetObject(selected);
@@ -782,6 +787,7 @@ function goBack() {
   else if (!$("more-menu").hidden) showMenu(false);
   else if (!$("rename-form").hidden) $("rename-form").hidden = true;
   else if (!$("help-panel").hidden) $("help-panel").hidden = true;
+  else if (!$("dashboard").hidden) $("dashboard").hidden = true;
   else if (tour?.state.running) tour.stop();
   else if (stages?.state.stage === "dark") stages.set("real");
   else if (!$("delete-confirm").hidden) $("delete-confirm").hidden = true;

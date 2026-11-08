@@ -41,9 +41,13 @@ REVIEWED = "reviewed from screenshots"  # by a coding agent, see the labels file
 
 
 def object_labels(asset: dict) -> set[str]:
-    if asset.get("label_source") == REVIEWED:
-        return {asset["label"]}  # Checked by looking, so the model's guesses don't count.
-    return {asset.get(key) for key in ("label", "suggested_label", "sam_label")} - {None}
+    """The types an object may be matched by. A specific type wins over the vision model's other
+    guess, which only counts for an object still called "object". SAM's mask labels don't count:
+    they were too weak, calling fragments and pipes valves."""
+    label = asset.get("label")
+    if asset.get("label_source") == REVIEWED or label not in (None, "object"):
+        return {label}
+    return {label, asset.get("suggested_label")} - {None}
 
 
 def apply_label_fixes(assets: list[dict], fixes: list[dict]) -> int:

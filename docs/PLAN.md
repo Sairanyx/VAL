@@ -54,8 +54,8 @@ are in `docs/RESULTS.md`, and how `main` covers the brief is in `docs/CHALLENGE.
 - **Val:** answers from the records with sources: condition, maintenance logs, sensor trends and guidance. It moves
   objects by measure ("2 metres left", "next to the other chair"), runs viewer commands, takes voice through local
   Whisper, refuses unsafe requests, and starts by itself on arrival at the fault.
-- **Data:** object types checked from screenshots (`scenes/equipment_room.labels.json`), so 19 of 30 records sit on
-  objects of a fitting type. The motor and sensor records stay unlinked.
+- **Data:** object types checked from screenshots (`scenes/equipment_room.labels.json`), so 20 of 30 records sit on
+  objects of a fitting type, rechecked close up on 8 Nov. The motor and sensor records stay unlinked.
 - **Routes:** use the floor freed by moved or deleted objects, and the walk starts smoothly.
 - **Checked on 8 Nov:** 356 tests as CI runs them. On a real GPU: the tutorial end to end, Benjamin's fix list 34 of
   34, walking 34 of 34, deletes 9 of 9, routes 63 of 66 (the three misses were reads under heavy load).

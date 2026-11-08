@@ -91,7 +91,7 @@ Checked against the docx, 2026-11-07.
 | Modular, automated backend | Done: `make pipeline` from one config, but only dry-run from start to end | `scripts/pipeline.py` |
 | Runnable locally or clearly recorded | Runs from a zip on Linux. Windows and Mac untested. Video not recorded yet | `make bundle` |
 | Repo with a concise README and setup | Done. The team name is still a placeholder | `README.md` |
-| 5-8 slides | Not done (Benjamin, with Sasha, Eduard, Hannu) | `docs/PITCH.md` |
+| 5-8 slides | Not done (Benjamin, with Sasha, Eduard, Hannu) | |
 | Video, 5 minutes at most | Not done (Benjamin). The form wants it ideally under 2 minutes, working in the first 20 seconds | |
 | Technical note on models, libraries and software | Not done (Sasha) | |
 | Extra credit: objects you can move | Done, by cutting each object's own splats. Only some cuts are clean | `app/scene` |

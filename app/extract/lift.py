@@ -6,7 +6,7 @@ Each splat is projected into every view. If it's visible there, it's recorded ag
 lands in. Masks that cover mostly the same splats are the same object seen from different views, so
 they merge. Each splat then joins the object that most of its views agree on.
 
-Writes assets.json and splat_labels.npy, as defined in docs/PLAN.md. MASKS_DIR holds object_mask/
+Writes assets.json and splat_labels.npy. MASKS_DIR holds object_mask/
 and object_mask_json/, and each RENDER_DIR holds depth/ and cameras.json. Units are metres.
 """
 

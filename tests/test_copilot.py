@@ -88,7 +88,7 @@ def test_composite_confidence_calculation():
 
 
 # -------------------------------------------------------------------------
-# 3. Conversation & Demo Scenario Tests (docs/PLAN.md)
+# 3. Conversation & Demo Scenario Tests
 # -------------------------------------------------------------------------
 
 

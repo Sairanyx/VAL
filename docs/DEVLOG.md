@@ -9,7 +9,7 @@ Eduard set up the repo: training template, GPU check, LUMI jobs and Docker. It's
 "Pre-existing work" in the README. None of it is the product, and it was removed on the last morning.
 
 ## Friday: the plan and a first look (6 Nov, afternoon to midnight)
-We wrote down how people and agents share the repo (`AGENTS.md`, a handoff file per person) and read
+We wrote down how people and agents share the repo, with a handoff file per person, and read
 the brief closely. Two things shaped everything after:
 - Valmet's supplied `Industrial Boiler Room.ply` was damaged: 67% of its records look like random
   bytes. Valmet's replacement, `Equipment Room.ply`, is the one we use.
@@ -78,4 +78,4 @@ folder caught a missing package that our own machines were hiding. Weak graphics
 drop in resolution, which took turning on that ThinkPad from about 14 to about 50 frames a second.
 
 ## Still open at the time of writing
-See "How we cover the brief" in [CHALLENGE.md](CHALLENGE.md) and the [checklist](TEST_CHECKLIST.md).
+See "How we cover the brief" in [CHALLENGE.md](CHALLENGE.md).

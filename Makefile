@@ -21,13 +21,16 @@ MODEL_DIR ?= data/models/$(MODEL)
 LAPTOP_MODEL ?= gemma4:e2b
 VOICE_MODEL ?= small.en
 
-.PHONY: setup demo entire views scene scene-full model laptop-model voice-model pieces highlights shapes bim bundle pipeline web fmt lint test check api floor mapping db nav-check start-browser start-laptop start-tablet
+.PHONY: setup demo data entire views scene scene-full model laptop-model voice-model pieces highlights shapes bim bundle pipeline web fmt lint test check api floor mapping db nav-check start-browser start-laptop start-tablet
 
+data:    ## get Valmet's scan and Excel pack from the data-v1 release, unless they're already here
+	mkdir -p $(SCENE_DIR)
+	test -f "$(SCENE_DIR)/Equipment Room.ply" || gh release download data-v1 --pattern equipment_room.ply --output "$(SCENE_DIR)/Equipment Room.ply" 2>/dev/null || curl -fL -o "$(SCENE_DIR)/Equipment Room.ply" https://github.com/Sairanyx/Newbies/releases/download/data-v1/equipment_room.ply
+	ls data/*.xlsx >/dev/null 2>&1 || gh release download data-v1 --pattern builder_pack.xlsx --output data/builder_pack.xlsx 2>/dev/null || curl -fL -o data/builder_pack.xlsx https://github.com/Sairanyx/Newbies/releases/download/data-v1/builder_pack.xlsx
 setup:   ## install everything
 	uv sync
 demo:    ## everything in one go: set up once, then start. Needs Valmet's scan in SCENE_DIR and Excel pack in data/
-	@test -f "$(SCENE_DIR)/Equipment Room.ply" || { echo "Put Valmet's 'Equipment Room.ply' in $(SCENE_DIR)/ first."; exit 1; }
-	@ls data/*.xlsx >/dev/null 2>&1 || { echo "Put Valmet's Excel pack (.xlsx) in data/ first."; exit 1; }
+	$(MAKE) data
 	uv sync
 	test -f $(SCENE_DIR)/assets_viewer.json || $(MAKE) scene
 	$(MAKE) mapping

@@ -234,6 +234,7 @@ button.danger-solid {
 }
 #loading[hidden] { display: none; }
 #loading p { margin: 0 0 10px; font-weight: 600; }
+#loading-logo { display: block; width: 110px; height: auto; margin: 0 auto 10px; }
 #loading-bar {
   height: 6px;
   overflow: hidden;

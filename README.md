@@ -5,6 +5,10 @@
 
 Team Newbies, Since AI Hackathon 2026, for Valmet's Industrial Metaverse challenge.
 
+```bash
+make demo   # downloads, sets up and starts everything; needs git, make and uv on Linux
+```
+
 ## The problem
 When a pump starts failing in a plant room, the technician sent to fix it has to work out several
 things before touching anything. Where exactly is it? What's around it? What has gone wrong before, and
@@ -18,26 +22,31 @@ week, or how to get to it without walking through a tank. And the companies runn
 usually don't want their data going to a cloud service to find out.
 
 ## What we built
-VAL turns Valmet's scan of an equipment room into a twin that does know those things. It finds the
-objects in the scan, links them to Valmet's equipment records, works out where you can walk, and takes
-you to the device that needs attention.
+VAL turns Valmet's scan of an equipment room into a twin that does know those things:
 
-Its assistant is **Val**: a field-service copilot you can type or talk to. Val answers from the plant's
-own records, always says where an answer came from, and suggests safe checks. It never operates the
-plant. Everything, Val included, runs on one laptop with no internet, so the plant's data never leaves
-the site.
+- **It knows what's in the room.** 440 objects found in the scan, each framed in 3D and named.
+- **It knows what they are on record.** Valmet's equipment records are linked to the scanned objects,
+  so you see each device's condition and health where it stands.
+- **It knows where you can walk.** A floor map from the scan gives collision-free routes, for a person
+  or a small robot, that update when things move.
+- **It explains what's wrong.** **Val**, a field-service copilot you can type or talk to, answers from
+  the plant's own records, says where each answer came from, and suggests safe checks. It never
+  operates the plant.
+
+All of it, Val included, runs on one laptop with no internet, so the plant's data never leaves the site.
 
 ### Every object, framed
-VAL finds 440 objects in the scan and draws a frame around each one, coloured by type. Equipment with a
-record shows its condition and health. Equipment that needs attention glows as you approach it. You can
-filter by type or condition, or open a list of equipment sorted by what needs attention first.
+Each object gets a frame coloured by type. Equipment with a record shows its condition and health, and
+equipment that needs attention glows as you approach it. Filters narrow everything at once, by type,
+condition or whether it can move, and the equipment list puts what needs attention first.
 
 ![Filters and the equipment list](docs/images/find.jpg)
 
 ### From a simple model to the real room
 The same room can be shown five ways: dark, a simple BIM model of fitted shapes, a rougher model built
-from the scan's surfaces, the raw point cloud, and the real scan. Press the **B** key, or ask Val to
-"show the point cloud". The BIM model exports to IFC for CAD and BIM tools.
+from the scan's surfaces, the raw point cloud, and the real scan. Press the **B** key to step through
+them, or ask Val to "show the point cloud". The BIM model exports to IFC, the format CAD and BIM tools
+read, and the floor plan to DXF.
 
 ![The simple BIM, the blob BIM, the point cloud and the real scan](docs/images/views.jpg)
 
@@ -56,41 +65,61 @@ P-005", "move the cart 2 metres left".
 
 ![Val explaining the fault on arrival](docs/images/val.jpg)
 
-Each device's full record can also be opened as a dashboard of charts.
+Each device's full record can also be opened as a dashboard: health, sensor trends, alarms and events,
+and its maintenance history.
 
 ![A device's dashboard](docs/images/dashboard.jpg)
 
 ### Changing the room
-Rooms change, so objects can be moved, turned, copied, split, combined or deleted, with the mouse,
-the arrow keys, touch or by asking Val. The scanned object itself moves, not just its frame, and the
-route goes around it. Every change can be undone.
+Rooms change, so objects can be moved, turned, copied, split, combined or deleted, with the mouse, the
+arrow keys, touch or by asking Val. The scanned object itself moves, not just its frame: its own points
+are cut out of the scan and the floor under it is filled in. A move into a wall or a machine is refused
+with the reason, the route goes around the new spot, and every change can be undone.
 
 A tutorial runs on the first visit: watch it play through, or try each step yourself.
 
 ## How it works
-1. **Finding objects.** We render hundreds of views of the scan, cut each view into object masks with
-   SAM, and combine the masks across views into 3D objects. A local vision model names each object, and
-   we checked the names against screenshots.
-2. **Linking records.** Valmet's records don't say where each device is, so each record is placed on an
-   object of the right kind, as the challenge allows. Every link is marked as unconfirmed, with a "?"
-   after the name.
-3. **Routes.** A floor map is built from the scan, showing where a person or a small robot fits. Routes
-   are planned with A* and updated when objects move.
-4. **Val.** Code looks up the facts in the records and checks every ID and number. A small language
-   model running on the laptop only puts them into words.
-5. **The app.** A Python backend (FastAPI) and a browser viewer (three.js with Spark for the scan).
 
-Code: [`app/extract`](app/extract) finding objects, [`app/nav`](app/nav) routes,
-[`app/copilot`](app/copilot) Val and the record links, [`app/api`](app/api) the backend,
+**Finding objects.** A scan has no objects in it, only 1.7 million coloured blobs. We render 700 views
+of it, cut every view into object masks with SAM 3 and SAM 2, and match the masks
+across views: 22,671 masks become 440 objects, each a set of the scan's own points with a 3D box. A
+vision model running locally (Qwen) names each object from several views. Its names were often wrong,
+so we checked them against close-up screenshots and corrected the clear mistakes.
+
+**Linking records.** Valmet's Excel pack describes 30 devices but not where they are, so each record is
+placed on an object of the right kind, as the challenge allows: a pump record on a pump, never on a
+light. Healthy devices go near the route, so a walk passes normal equipment and ends at the fault.
+Every link stores how it was made and how sure we are, and shows a "?" after the name. We never claim
+an identity we don't know.
+
+**Finding the way.** The floor map is built from the scan in 5 cm cells, with how much room there is
+at body height for a 0.6 m-wide person, or low down for a small robot. Routes are planned with A* and
+stop where you can see the device. Moving an object blocks its new spot and frees its old one, and the
+route updates while you drag.
+
+**Val.** Code looks up every fact in the records first and checks each ID, tag and number. A small
+language model on the laptop only puts the facts into words, and without one Val still answers from
+templates. Safety rules refuse anything that would operate the plant or skip a safety step. Speech is
+recognised on the laptop too, with faster-whisper, and viewer commands are matched in code, so
+"hide the pipes" never depends on a model.
+
+**The app.** A Python backend (FastAPI) serves routes, move checks, Val and the exports. The viewer runs
+in any browser with three.js and Spark, which draws the scan. It stops redrawing when nothing changes
+and lowers its resolution on weak graphics, so it runs on a laptop without a graphics card.
+
+Code: [`app/extract`](app/extract) finding objects, [`app/copilot`](app/copilot) Val and the record
+links, [`app/nav`](app/nav) the floor map and routes, [`app/api`](app/api) the backend,
 [`web`](web) the viewer.
 
 ## Results
-- 440 objects found in the scan.
-- 20 of Valmet's 30 records linked, each to an object of the right kind. All six pumps sit on pumps.
-- A route to any of the 440 objects for a small robot, and to 384 for a person; the rest are out of a
-  person's reach.
-- Val met the expected answer on 56 of 60 test questions, and refused everything it should.
-- Speech recognised correctly 9 times out of 10, with background noise.
+| | |
+|---|---|
+| Objects found | 440, in about 26 minutes on one GPU |
+| Records linked | 20 of 30, each on an object of the right kind; all six pump records sit on pumps |
+| Reachable | every object for a small robot, 384 of 440 for a person |
+| Val | the expected answer on 56 of 60 test questions, and every unsafe request refused |
+| Speech | 9 of 10 phrases right, with background noise added |
+| Viewer | the light scene loads in about 6.5 s on a laptop with integrated graphics |
 
 Full measurements: [`docs/RESULTS.md`](docs/RESULTS.md).
 
@@ -98,12 +127,14 @@ Full measurements: [`docs/RESULTS.md`](docs/RESULTS.md).
 ```bash
 make demo
 ```
-The first run downloads Valmet's scan and Excel pack, installs only what the demo needs (no PyTorch,
-no GPU) and builds everything, which needs internet; after that it starts straight away, offline.
-Open the address it prints. To run the extraction pipeline itself on a new scan, use `make pipeline`,
-which installs the full stack and needs an NVIDIA GPU. For another
-laptop, `make bundle` builds a zip that sets itself up on first run. Details:
-[`docs/USAGE.md`](docs/USAGE.md).
+The first run downloads Valmet's scan and Excel pack, installs only what the demo needs (no PyTorch, no
+GPU), and builds the scene files, which takes a while and needs internet. After that it starts straight
+away, offline, on free ports. Open the address it prints.
+
+- `make pipeline` runs a new scan through the whole extraction, with the full install and an NVIDIA GPU.
+- `make bundle` builds a zip for another laptop that sets itself up on first run.
+
+Details: [`docs/USAGE.md`](docs/USAGE.md).
 
 ## Limits
 - The record links are placed by type, not confirmed. Even P-005 is our best guess.

@@ -20,6 +20,8 @@ MODEL ?= Qwen3.5-9B
 MODEL_DIR ?= data/models/$(MODEL)
 LAPTOP_MODEL ?= gemma4:e2b
 VOICE_MODEL ?= small.en
+WEB_PORT ?= 8000
+API_PORT ?= 8001
 
 .PHONY: setup demo data views scene scene-full model laptop-model voice-model pieces highlights shapes bim bundle pipeline web fmt lint test check api floor mapping db nav-check start-browser start-laptop start-tablet
 
@@ -86,9 +88,9 @@ start-tablet: ## start everything for the Lenovo tablet. Same as ./start tablet
 db:      ## start local TimescaleDB and load the Excel telemetry
 	docker compose up -d --wait db
 	DATABASE_URL=$(DATABASE_URL) uv run python -m app.api.db
-api:     ## backend API at http://localhost:8001/docs. Uses the language model if make model has run
+api:     ## backend API at http://localhost:$(API_PORT)/docs (8001 unless API_PORT= is set). Uses the language model if make model has run
 	$(if $(wildcard $(MODEL_DIR)/config.json),COPILOT_MODEL=$(MODEL_DIR),$(if $(shell ollama list 2>/dev/null | grep -F '$(LAPTOP_MODEL)'),COPILOT_OLLAMA=$(LAPTOP_MODEL))) SCENE_PLY="$(FLOOR_SCENE)" DATABASE_URL=$(DATABASE_URL) SCENE_ASSETS=$(SCENE_DIR)/assets_mapped.json SCENE_GRID=$(SCENE_DIR)/nav_grid.npz \
-	uv run uvicorn app.api.main:app --host 0.0.0.0 --port 8001 --reload --reload-dir app
+	uv run uvicorn app.api.main:app --host 0.0.0.0 --port $(API_PORT) --reload --reload-dir app
 floor:   ## rebuild the floor map (make scene includes one), needs "Equipment Room.ply" in SCENE_DIR. Pass VIEWS=, or floaters block aisles
 	uv run python -m app.nav.grid "$(FLOOR_SCENE)" $(if $(VIEWS),--views $(VIEWS)) $(if $(wildcard $(SCENE_DIR)/walked.npy),--walked $(SCENE_DIR)/walked.npy) --labels $(SCENE_DIR)/splat_labels.npy --assets $(SCENE_DIR)/assets_final.json --out $(SCENE_DIR)/nav_grid.npz --preview runs/floor.png
 nav-check: ## test floor map, routes, mapping and API together, and draw runs/nav_check.png
@@ -96,8 +98,8 @@ nav-check: ## test floor map, routes, mapping and API together, and draw runs/na
 mapping: ## link Excel records to objects, marking them procedural
 	uv run python -m app.copilot.mapping $(SCENE_DIR)
 SCENE ?= data/scene/sample/scene.ply
-web:     ## web viewer on port 8000, SCENE= picks the splat, HTTPS=1 for phone sensors, LIGHT= for phones
-	uv run python web/serve.py --scene "$(SCENE)" $(if $(HTTPS),--https) $(if $(ASSETS),--assets "$(ASSETS)") $(if $(SHAPES),--shapes "$(SHAPES)") $(if $(PIECES),--pieces "$(PIECES)") $(if $(HIGHLIGHTS),--highlights "$(HIGHLIGHTS)") $(if $(LIGHT),--light "$(LIGHT)") $(if $(BIM),--bim "$(BIM)")
+web:     ## web viewer on WEB_PORT (8000), SCENE= picks the splat, HTTPS=1 for phone sensors, LIGHT= for phones
+	uv run python web/serve.py --scene "$(SCENE)" --port $(WEB_PORT) --api-port $(API_PORT) $(if $(HTTPS),--https) $(if $(ASSETS),--assets "$(ASSETS)") $(if $(SHAPES),--shapes "$(SHAPES)") $(if $(PIECES),--pieces "$(PIECES)") $(if $(HIGHLIGHTS),--highlights "$(HIGHLIGHTS)") $(if $(LIGHT),--light "$(LIGHT)") $(if $(BIM),--bim "$(BIM)")
 fmt:     ## tidy code style and auto-fix lint
 	uv run --only-group dev ruff format .
 	uv run --only-group dev ruff check --fix .

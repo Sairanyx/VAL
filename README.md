@@ -95,13 +95,11 @@ Code: [`app/extract`](app/extract) finding objects, [`app/nav`](app/nav) routes,
 Full measurements: [`docs/RESULTS.md`](docs/RESULTS.md).
 
 ## Running it
-Put Valmet's `Equipment Room.ply` in `data/scene/equipment_room/` and their Excel pack in `data/`
-(neither is in this repository), then:
 ```bash
 make demo
 ```
-The first run downloads and builds everything, which needs internet; after that it starts straight
-away, offline. Open the address it prints. For another
+The first run downloads Valmet's scan and Excel pack and builds everything, which needs internet;
+after that it starts straight away, offline. Open the address it prints. For another
 laptop, `make bundle` builds a zip that sets itself up on first run. Details:
 [`docs/USAGE.md`](docs/USAGE.md).
 

@@ -3,8 +3,8 @@
 How to run the demo, use the viewer, and fix what goes wrong.
 
 ## Set up
-**The short way:** put the two files below in place, then run `make demo`. It does every step here
-once, skips what's already done, and starts the demo.
+**The short way:** `make demo`. It downloads Valmet's scan and Excel pack (`make data`), does every step
+here once, skips what's already done, and starts the demo.
 
 You need `gh auth login` once, plus two files from Viktor that aren't in git:
 - `Equipment Room.ply`, in `data/scene/equipment_room/`

@@ -1,12 +1,4 @@
 services:
-  train:
-    build: .
-    volumes: ["./app:/app/app", "./data:/app/data", "./runs:/app/runs"]
-    # GPU access (needs nvidia-container-toolkit on the host)
-    deploy:
-      resources:
-        reservations:
-          devices: [{ driver: nvidia, count: all, capabilities: [gpu] }]
   # Runs on the local server only, so plant data stays on site.
   db:
     image: timescale/timescaledb:latest-pg17

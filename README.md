@@ -17,11 +17,11 @@ then double-click `START-WINDOWS.bat`, or `START-MAC.command`, or run `sh START-
 run sets itself up inside that folder and needs internet once. It offers a tutorial the first time: **Watch** shows everything, and **Try it myself** walks you through.
 
 ## Setup for development (once)
-Needs: `git`, `make`, NVIDIA driver. One line (Linux) — installs uv, clones, sets up, checks GPU:
+Needs `git` and `make`. One line (Linux) installs uv, clones, and sets up:
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh && source ~/.local/bin/env && git clone https://github.com/Sairanyx/Newbies.git && cd Newbies && make setup && make gpu
+curl -LsSf https://astral.sh/uv/install.sh | sh && source ~/.local/bin/env && git clone https://github.com/Sairanyx/Newbies.git && cd Newbies && make setup
 ```
-Should end by printing your GPU name.
+The extraction pipeline and Val's larger model need an NVIDIA GPU. The demo itself doesn't.
 
 ## Commands
 | Command | What it does |
@@ -31,8 +31,6 @@ Should end by printing your GPU name.
 | `./start browser` | Start the demo for a laptop or PC, from a development setup |
 | `make bundle` | Build the zip that runs on someone else's laptop |
 | `./start tablet` | Start the demo for the Lenovo tablet, on https so its mic works |
-| `make train` | Train a model |
-| `make tb` | Training graphs at http://localhost:6006 |
 | `make fmt` | Tidy code style and auto-fix lint |
 | `make check` | Lint and test: run before opening a PR |
 | `make entire` | Install and enable Entire |
@@ -44,7 +42,6 @@ Should end by printing your GPU name.
 | `make laptop-model` | Get Val's small model for a laptop with no GPU, before going offline. Needs Ollama |
 | `make model` | Download Val's larger model for a GPU (about 20 GB), before going offline |
 | `make voice-model` | Get the speech model for talking to Val (about 460 MB), before going offline |
-| `make up` | Train inside Docker |
 
 ## Team workflow
 - Work on a `name/feature` branch, not `main`. Keep it small and merge within a couple of hours.
@@ -59,14 +56,11 @@ Should end by printing your GPU name.
 | Path | What it is |
 |---|---|
 | `app/` | Pipeline, API, and copilot code ([who owns what](docs/PLAN.md)) |
-| `app/train.py` | Training template, not used by the demo so far |
-| `app/gpu_check.py` | GPU test |
 | `scripts/` | Pipeline, route check, copilot test, frame selection, the demo zip, and Roihu jobs |
 | `scenes/` | One settings file per scene, for `make pipeline` |
 | `fixtures/` | Fake sample data to build against |
 | `data/` | Datasets and generated scene files (not in git) |
 | `runs/` | Run outputs and saved models (not in git) |
-| `lumi/` | Run on the LUMI supercomputer ([guide](lumi/README.md)) |
 | `docs/` | Plan, challenge, results, devlog, pitch, Entire setup, live schedule |
 | `tests/` | Tests, run by `make test` and CI |
 | `handoffs/` | Each person's current status |

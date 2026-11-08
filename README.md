@@ -1,6 +1,13 @@
 <p align="center"><img src="docs/images/logos/val.png" alt="VAL" width="240"></p>
+<p align="center">
+  <img src="docs/images/logos/newbies.png" alt="Team Newbies" height="44">
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/logos/since-ai-dark.png"><img src="docs/images/logos/since-ai-light.png" alt="Since AI" height="40"></picture>
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/logos/valmet-dark.png"><img src="docs/images/logos/valmet-light.png" alt="Valmet" height="34"></picture>
+</p>
 
-# VAL: Valmet Asset Locator
+<h1 align="center">VAL: Valmet Asset Locator</h1>
 
 > VAL turns a 3D scan of a plant room into a digital twin. Its assistant, Val, finds the equipment
 > that needs attention, guides you to it safely, and explains the fault from the plant's own records
@@ -175,14 +182,6 @@ Every control, key and command is in [`docs/USAGE.md`](docs/USAGE.md).
 ## Team
 Viktor Trilar, Oleksandr Yakovlev, Eduard Rednic, Hannu Kiviranta, Benjamin Sundell
 
-<p align="center">
-  <img src="docs/images/logos/newbies.jpg" alt="Team Newbies" height="72">
-  &nbsp;&nbsp;&nbsp;
-  <img src="docs/images/logos/since-ai.png" alt="Since AI" height="72">
-  &nbsp;&nbsp;&nbsp;
-  <img src="docs/images/logos/valmet.jpg" alt="Valmet" height="72">
-</p>
-<p align="center">Built by Team Newbies at Since AI Hackathon 2026, for Valmet's challenge.</p>
 
 ## Pre-existing work
 The setup in the first commits was made before the event. Everything after was built at Since AI 2026.

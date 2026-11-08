@@ -555,16 +555,20 @@ export function setupTour({ ui, handlers, press, view }) {
       fault && {
         title: "The record at a glance",
         text: "Dashboard draws the whole record as charts: health, sensor trends, alarms and events, and the maintenance history.",
-        how: "Tap a device with a record, then Dashboard.",
-        target: "open-dashboard",
-        task: "Open the Dashboard of a device with a record.",
-        done: () => shown($("dashboard")),
+        how: "Tap a device with a record, then Dashboard. Esc or the × closes it.",
+        // Point at the button until the charts are up, then at nothing over them.
+        target: () => (shown($("dashboard")) ? null : $("open-dashboard")),
+        task: "Open the Dashboard of a device with a record, then close it.",
+        prepare: () => (switched = switches(() => shown($("dashboard")))),
+        done: () => switched() >= 2,
         show: async () => {
           press("copilot-close");
           view.select(fault);
           await wait(600);
           await pressShown("open-dashboard");
-          await wait(1500);
+          point(null);
+          // Show the charts once they're drawn, not the blank panel.
+          await until(() => !$("dashboard-image").hidden && $("dashboard-image").complete, 8000);
         },
         hold: 6000,
         after: () => {

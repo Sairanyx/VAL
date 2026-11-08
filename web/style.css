@@ -1033,15 +1033,22 @@ body:has(#tour:not([hidden])) #bim-panel { display: none; }
 #dashboard-status { position: absolute; color: var(--muted); }
 #dashboard-close {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
   min-width: 44px;
   min-height: 44px;
-  border: 0;
-  background: none;
+  border: 1px solid #4b5563;
+  border-radius: 50%;
+  background: rgba(17, 22, 28, 0.92);
   color: var(--text);
-  font-size: 26px;
+  font-size: 24px;
+  line-height: 1;
 }
+#dashboard-close:hover { background: #1f2730; }
+/* During the tutorial, the charts leave its caption in view. */
+body:has(#tour:not([hidden])) #dashboard { bottom: 270px; }
+body:has(#tour:not([hidden])) #tour { z-index: 31; }
 
 /* Keys drawn as keys, in the help panel. */
 kbd {

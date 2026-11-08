@@ -1,7 +1,7 @@
 # VAL: Valmet Asset Locator
 
-> A virtual twin of the plant room, where Val finds the faulty device, routes you there safely,
-> and explains the fault from the records.
+> VAL turns a 3D scan of a plant room into a digital twin. Its assistant, Val, finds the equipment
+> that needs attention, guides you to it safely, and explains the fault from the plant's own records.
 
 Team Newbies, Since AI Hackathon 2026, for Valmet's Industrial Metaverse challenge.
 
@@ -10,19 +10,21 @@ make demo   # downloads, sets up and starts everything; needs git, make and uv o
 ```
 
 ## The problem
-When a pump starts failing in a plant room, the technician sent to fix it has to work out several
+When a machine starts failing in a plant room, the technician sent to fix it has to work out several
 things before touching anything. Where exactly is it? What's around it? What has gone wrong before, and
 what does the service history say? What's safe to do? That knowledge is spread over drawings, the
-control system, maintenance records and manuals, and the room itself is cramped, full of pipes, carts
-and things that have moved since anyone last drew it.
+control system, maintenance records and manuals, and the room itself can be large and cramped, full of
+obstacles and things that have moved since anyone last drew it.
 
 A 3D scan captures the room as it really is, but a scan is just a picture you can walk through. It
-doesn't know that the red thing in the corner is pump P-005, that it's been losing efficiency for a
-week, or how to get to it without walking through a tank. And the companies running these plants
+doesn't know that the red thing in the corner is a pump, that it's been losing efficiency for a week,
+or how to get to it without walking through a tank. And the companies running these plants
 usually don't want their data going to a cloud service to find out.
 
 ## What we built
-VAL turns Valmet's scan of an equipment room into a twin that does know those things:
+VAL is a pipeline that turns a scan of a room into a twin that does know those things. Nothing in it is
+specific to one room: give it the scan of another plant room or factory floor, and its equipment
+records, and it does the same. We built and tested it on Valmet's scan of a boiler room:
 
 - **It knows what's in the room.** 440 objects found in the scan, each framed in 3D and named.
 - **It knows what they are on record.** Valmet's equipment records are linked to the scanned objects,
@@ -33,7 +35,9 @@ VAL turns Valmet's scan of an equipment room into a twin that does know those th
   the plant's own records, says where each answer came from, and suggests safe checks. It never
   operates the plant.
 
-All of it, Val included, runs on one laptop with no internet, so the plant's data never leaves the site.
+All of it, Val included, runs on one laptop with no internet. A tablet or phone on the same local
+network can open it too, so a technician can carry it into the room, and the plant's data never leaves
+the site.
 
 ### Every object, framed
 Each object gets a frame coloured by type. Equipment with a record shows its condition and health, and
@@ -43,7 +47,7 @@ condition or whether it can move, and the equipment list puts what needs attenti
 ![Filters and the equipment list](docs/images/find.jpg)
 
 ### From a simple model to the real room
-The same room can be shown five ways: dark, a simple BIM model of fitted shapes, a rougher model built
+The same room can be shown five ways: empty, a simple BIM model of fitted shapes, a rougher model built
 from the scan's surfaces, the raw point cloud, and the real scan. Press the **B** key to step through
 them, or ask Val to "show the point cloud". The BIM model exports to IFC, the format CAD and BIM tools
 read, and the floor plan to DXF.
@@ -63,6 +67,9 @@ and the safety steps, with the record IDs it used. You can ask more: when it was
 sensors are trending, what the guidance says. Val also controls the view: "show only pumps", "take me to
 P-005", "move the cart 2 metres left".
 
+Here the condition, sensor readings and service history come from Valmet's sample records. In a real
+plant, the same answers would draw on live data from the control system and connected IoT sensors.
+
 ![Val explaining the fault on arrival](docs/images/val.jpg)
 
 Each device's full record can also be opened as a dashboard: health, sensor trends, alarms and events,
@@ -81,16 +88,14 @@ A tutorial runs on the first visit: watch it play through, or try each step your
 ## How it works
 
 **Finding objects.** A scan has no objects in it, only 1.7 million coloured blobs. We render 700 views
-of it, cut every view into object masks with SAM 3 and SAM 2, and match the masks
-across views: 22,671 masks become 440 objects, each a set of the scan's own points with a 3D box. A
-vision model running locally (Qwen) names each object from several views. Its names were often wrong,
-so we checked them against close-up screenshots and corrected the clear mistakes.
+of it, cut every view into object masks with SAM 3, and match the masks across views: 22,671 masks become 440 objects, each a set of the scan's own points with a 3D box. A
+vision model running locally (Qwen) names each object from several views, and those names were checked
+against close-up screenshots to correct the clear mistakes.
 
 **Linking records.** Valmet's Excel pack describes 30 devices but not where they are, so each record is
-placed on an object of the right kind, as the challenge allows: a pump record on a pump, never on a
-light. Healthy devices go near the route, so a walk passes normal equipment and ends at the fault.
-Every link stores how it was made and how sure we are, and shows a "?" after the name. We never claim
-an identity we don't know.
+placed on an object of the right kind, as the challenge allows: a pump record on a pump, not on a broom.
+Healthy devices go near the route, so a walk passes normal equipment and ends at the fault. Every link
+stores how it was made and how sure we are, and we never claim an identity we don't know.
 
 **Finding the way.** The floor map is built from the scan in 5 cm cells, with how much room there is
 at body height for a 0.6 m-wide person, or low down for a small robot. Routes are planned with A* and
@@ -124,22 +129,29 @@ links, [`app/nav`](app/nav) the floor map and routes, [`app/api`](app/api) the b
 Full measurements: [`docs/RESULTS.md`](docs/RESULTS.md).
 
 ## Running it
+On Linux, with `git` and `make`:
 ```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh   # if you don't have uv yet
+git clone https://github.com/Sairanyx/Newbies.git && cd Newbies
 make demo
 ```
 The first run downloads Valmet's scan and Excel pack, installs only what the demo needs (no PyTorch, no
-GPU), and builds the scene files, which takes a while and needs internet. After that it starts straight
-away, offline, on free ports. Open the address it prints.
+GPU), and builds the scene files: about five minutes and 2.5 GB, with internet. After that `make demo`
+starts straight away, offline. Open the address it prints in a browser.
+
+To use it from a tablet or phone, run `./start tablet` instead and open the address it prints on the
+device, on the same network. It uses HTTPS so the microphone works, so accept the certificate warning
+once.
 
 - `make pipeline` runs a new scan through the whole extraction, with the full install and an NVIDIA GPU.
 - `make bundle` builds a zip for another laptop that sets itself up on first run.
 
-Details: [`docs/USAGE.md`](docs/USAGE.md).
+Every control, key and command is in [`docs/USAGE.md`](docs/USAGE.md).
 
 ## Limits
-- The record links are placed by type, not confirmed. Even P-005 is our best guess.
-- Object names were checked from screenshots by a coding agent, not by a person.
-- The sensor data is a sample from the records, not live.
+- The record links are placed by type, not confirmed.
+- Object names were checked from screenshots by an AI model, not by a person.
+- The sensor data is a sample from the records, not live data.
 - The technician's position is simulated: the camera is the technician.
 
 ## More
@@ -151,5 +163,4 @@ Viktor Trilar, Oleksandr Yakovlev, Eduard Rednic, Hannu Kiviranta, Benjamin Sund
 
 ## Pre-existing work
 The setup in the first commits was made before the event. Everything after was built at Since AI 2026.
-Experiments on Roihu reused Python environments and model weights installed before the event, for
-Pi3X and COLMAP.
+Experiments on Roihu reused Python environments and model weights installed before the event.

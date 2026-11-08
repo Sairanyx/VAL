@@ -21,10 +21,21 @@ MODEL_DIR ?= data/models/$(MODEL)
 LAPTOP_MODEL ?= gemma4:e2b
 VOICE_MODEL ?= small.en
 
-.PHONY: setup entire views scene scene-full model laptop-model voice-model pieces highlights shapes bim bundle pipeline web fmt lint test check api floor mapping db nav-check start-browser start-laptop start-tablet
+.PHONY: setup demo entire views scene scene-full model laptop-model voice-model pieces highlights shapes bim bundle pipeline web fmt lint test check api floor mapping db nav-check start-browser start-laptop start-tablet
 
 setup:   ## install everything
 	uv sync
+demo:    ## everything in one go: set up once, then start. Needs Valmet's scan in SCENE_DIR and Excel pack in data/
+	@test -f "$(SCENE_DIR)/Equipment Room.ply" || { echo "Put Valmet's 'Equipment Room.ply' in $(SCENE_DIR)/ first."; exit 1; }
+	@ls data/*.xlsx >/dev/null 2>&1 || { echo "Put Valmet's Excel pack (.xlsx) in data/ first."; exit 1; }
+	uv sync
+	test -f $(SCENE_DIR)/assets_viewer.json || $(MAKE) scene
+	$(MAKE) mapping
+	test -f $(PIECES_DIR)/pieces.json || $(MAKE) pieces
+	test -f $(HIGHLIGHTS_DIR)/highlights.json || $(MAKE) highlights
+	test -f $(BIM_DIR)/bim.json || $(MAKE) bim
+	test -f data/models/whisper-$(VOICE_MODEL)/model.bin || $(MAKE) voice-model
+	./start laptop
 entire:  ## install and enable Entire, set AGENT= for other agents
 	bash scripts/setup_entire.sh
 views:   ## get rendered views from the GitHub Release, or use ARCHIVE=path for a local copy
@@ -36,7 +47,7 @@ endif
 scene:   ## get the original scene's objects and light splats from the GitHub Release, or use ARCHIVE=path
 ifndef ARCHIVE
 	mkdir -p data/scene
-	gh release download $(SCENE_TAG) --pattern $(SCENE_FILE) --dir data/scene --clobber
+	gh release download $(SCENE_TAG) --pattern $(SCENE_FILE) --dir data/scene --clobber 2>/dev/null || curl -fL -o data/scene/$(SCENE_FILE) https://github.com/Sairanyx/Newbies/releases/download/$(SCENE_TAG)/$(SCENE_FILE)
 endif
 	mkdir -p $(SCENE_DIR)
 	tar -xf $(or $(ARCHIVE),data/scene/$(SCENE_FILE)) -C $(SCENE_DIR)

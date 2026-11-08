@@ -84,6 +84,7 @@ their area.
 | `make lint` | Format check and ruff only (no torch needed) |
 | `make test` | pytest |
 | `make fmt` | Auto-fix style |
+| `make demo` | Everything in one go: set up once, then start the demo |
 | `make scene` | Get objects, floor map, and light scenes: then `make mapping` |
 | `make pieces` | Cut movable objects out of the scene |
 | `make laptop-model` | Get Val's small model, for a laptop with no GPU |

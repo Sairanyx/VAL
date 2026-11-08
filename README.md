@@ -95,13 +95,13 @@ Code: [`app/extract`](app/extract) finding objects, [`app/nav`](app/nav) routes,
 Full measurements: [`docs/RESULTS.md`](docs/RESULTS.md).
 
 ## Running it
-On a laptop with the data in place:
+Put Valmet's `Equipment Room.ply` in `data/scene/equipment_room/` and their Excel pack in `data/`
+(neither is in this repository), then:
 ```bash
-make setup
-make scene mapping pieces highlights bim   # once, with internet
-./start laptop                             # or ./start browser on a PC with a graphics card
+make demo
 ```
-Then open the address it prints. Valmet's scan and Excel pack aren't in this repository. For another
+The first run downloads and builds everything, which needs internet; after that it starts straight
+away, offline. Open the address it prints. For another
 laptop, `make bundle` builds a zip that sets itself up on first run. Details:
 [`docs/USAGE.md`](docs/USAGE.md).
 

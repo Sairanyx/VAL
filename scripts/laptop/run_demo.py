@@ -101,7 +101,7 @@ def main() -> None:
         print("Press the Demo button under Actions for a guided tour.")
         print("Leave this window open. Press Ctrl+C or close it to stop.\n", flush=True)
         if not options.no_browser:
-            webbrowser.open(address)
+            webbrowser.open(address + "?tour")  # the tutorial is offered on every start
         while all(process.poll() is None for process in processes):
             time.sleep(1)
         print("Something stopped. See demo.log.")

@@ -3,6 +3,9 @@
 How to run the demo, use the viewer, and fix what goes wrong.
 
 ## Set up
+**The short way:** put the two files below in place, then run `make demo`. It does every step here
+once, skips what's already done, and starts the demo.
+
 You need `gh auth login` once, plus two files from Viktor that aren't in git:
 - `Equipment Room.ply`, in `data/scene/equipment_room/`
 - The Excel pack, in `data/`, as any `.xlsx` file
@@ -221,7 +224,7 @@ views, objects, filters, alerts, the map, a route to what's critical, an object 
 the walk, then Val on maintenance logs, sensor data, guidance and the dashboard, safety, and BIM. It's built for
 the video. **Try it myself** points at each control and waits for you to use it, and **Show me** does it for you.
 **Back**, **Pause**, **Next** and **Close** are on its caption, and Esc stops it. It puts everything back afterwards, but never
-undoes changes made before it started. `?demo=1` starts Watch on opening, and `?notour` skips the offer.
+undoes changes made before it started. `?demo=1` starts Watch on opening, `?tour` offers it every time (the demo zip opens with it), and `?notour` skips the offer.
 
 ## Download IFC of part of the model
 In BIM mode, **Download IFC** saves the whole model as it stands now. When types, Filters or Isolate narrow the

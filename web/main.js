@@ -1974,9 +1974,11 @@ async function load() {
   }
 }
 
-// The tutorial offers itself once per browser. Storage can be blocked: then it just doesn't offer.
+// The tutorial offers itself once per browser, or every time with ?tour, as the demo zip opens it.
+// Storage can be blocked: then it just doesn't offer.
 function firstVisit() {
   if (params.has("camera") || params.has("notour")) return false;
+  if (params.has("tour")) return true;
   try {
     if (localStorage.getItem("tutorial-offered")) return false;
     localStorage.setItem("tutorial-offered", "1");

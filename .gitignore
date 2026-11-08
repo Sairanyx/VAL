@@ -23,3 +23,5 @@ web/.cert/
 skills/
 dist/
 .venv-demo/
+# Entire session files, kept on the development branch only
+.entire/

@@ -87,7 +87,8 @@ flowchart LR
   CP --> T
 ```
 
-Start it with `./start laptop`, `./start browser` or `./start tablet`, or on someone else's laptop from the zip
+Start it with `make demo`, which sets everything up once in a light environment without PyTorch, or with
+`./start laptop`, `./start browser` or `./start tablet` once set up, or on someone else's laptop from the zip
 that `make bundle` builds, which holds the demo's backend, viewer and data, with its own Python packages and no
 torch. The browser's graphics draw the scene, and the server only answers the API and Val, so a small machine is
 enough to serve it. Without a language model, Val answers from the records.

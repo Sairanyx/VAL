@@ -45,7 +45,7 @@ demo:    ## the demo in one go: only what it needs (no PyTorch), set up once, th
 	test -f $(HIGHLIGHTS_DIR)/highlights.json || $(MAKE) highlights PY=$(DEMO_ENV)/bin/python
 	test -f $(BIM_DIR)/bim.json || $(MAKE) bim PY=$(DEMO_ENV)/bin/python
 	test -f data/models/whisper-$(VOICE_MODEL)/model.bin || $(MAKE) voice-model PY=$(DEMO_ENV)/bin/python
-	PY=$(DEMO_ENV)/bin/python ./start laptop
+	PY=$(DEMO_ENV)/bin/python OPEN_PATH='?tour' ./start laptop
 demo-env: ## the demo's own light Python environment, the same packages as the laptop zip
 	test -x $(DEMO_ENV)/bin/python || { uv venv --python 3.12 $(DEMO_ENV) && uv pip install --python $(DEMO_ENV)/bin/python -r scripts/laptop/requirements.in -r scripts/laptop/requirements-voice.in -r scripts/laptop/requirements-export.in; }
 views:   ## get rendered views from the GitHub Release, or use ARCHIVE=path for a local copy

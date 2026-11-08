@@ -72,8 +72,22 @@ if [[ "$VERSION" == "tablet" ]]; then
   echo "Accept the certificate warning once. The mic only works on this https address."
   echo "If it can't connect, allow the port: sudo ufw allow $WEB_PORT/tcp"
 else
-  echo "Browser: open $SCHEME://localhost:$WEB_PORT"
+  echo "Browser: opening $SCHEME://localhost:$WEB_PORT in a moment"
 fi
 echo
+
+# Open the viewer in this machine's browser once it answers. A tablet opens it on the tablet instead.
+# NO_BROWSER=1 skips this; OPEN_PATH adds to the address, such as ?tour to offer the tutorial.
+open_when_ready() {
+  local url="$SCHEME://localhost:$WEB_PORT/${OPEN_PATH:-}"
+  for _ in $(seq 180); do
+    curl -skf -o /dev/null "$SCHEME://localhost:$WEB_PORT/" && break
+    sleep 1
+  done
+  ${BROWSER_CMD:-xdg-open} "$url" >/dev/null 2>&1 || echo "Open $url in a browser."
+}
+if [[ "$VERSION" != "tablet" && -z "${NO_BROWSER:-}" ]]; then
+  open_when_ready &
+fi
 
 make web SCENE="$CUT/base.ply" ASSETS="$ASSETS" SHAPES="$SCENE_DIR/shapes.json" PIECES="$CUT" $HTTPS_FLAG

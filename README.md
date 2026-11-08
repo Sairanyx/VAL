@@ -1,13 +1,24 @@
 # VAL: Valmet Asset Locator
 
 > VAL turns a 3D scan of a plant room into a digital twin. Its assistant, Val, finds the equipment
-> that needs attention, guides you to it safely, and explains the fault from the plant's own records.
+> that needs attention, guides you to it safely, and explains the fault from the plant's own records
+> and data.
 
 Team Newbies, Since AI Hackathon 2026, for Valmet's Industrial Metaverse challenge.
 
 ```bash
 make demo   # downloads, sets up and starts everything; needs git, make and uv on Linux
 ```
+
+## Features
+- **Objects from a scan:** 440 objects found automatically in a 3D scan, each framed and named.
+- **Linked to equipment records:** condition, health and service history shown on the equipment itself.
+- **Val, the copilot:** ask by typing or talking. Answers come from the plant's records, with sources.
+- **Collision-free routes** to the equipment that needs attention, for a person or a small robot.
+- **A live room:** move, turn, split or delete objects, and the route goes around them.
+- **Five views:** empty, simple BIM, blob BIM, point cloud and the real scan, with IFC and DXF export.
+- **Built for the job:** filters, a minimap, an equipment list by urgency, dashboards, and a tutorial.
+- **Runs on site:** one laptop, no internet, and a tablet or phone over the local network.
 
 ## The problem
 When a machine starts failing in a plant room, the technician sent to fix it has to work out several
@@ -137,7 +148,8 @@ make demo
 ```
 The first run downloads Valmet's scan and Excel pack, installs only what the demo needs (no PyTorch, no
 GPU), and builds the scene files: about five minutes and 2.5 GB, with internet. After that `make demo`
-starts straight away, offline. Open the address it prints in a browser.
+starts straight away, offline. When it's ready, it opens the demo in your browser by itself, with
+the tutorial offered.
 
 To use it from a tablet or phone, run `./start tablet` instead and open the address it prints on the
 device, on the same network. It uses HTTPS so the microphone works, so accept the certificate warning

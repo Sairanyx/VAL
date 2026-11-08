@@ -25,7 +25,7 @@ brackets belong to that person.
 | **Sasha** | Selecting an object. BIM. Scoring: extraction. Setup: LiDAR decision |
 | **Hannu** | Routes and nearby, Saving, Backend commands. Scoring: AI diagnostics. Setup: mapping, language models |
 | **Benjamin** | Main buttons, Actions menu, Tablet and speed. Scoring: demo |
-| **Everyone** | `make setup`, `make gpu`, `make check` on your own machine |
+| **Everyone** | `make setup`, `make check` on your own machine |
 
 ## Must work: Valmet's scoring
 - [ ] (Sasha) **Extraction, 30%:** objects framed in the scene. ✅ 🤖 KEEP. Count them, and score the 60-object sample
@@ -172,7 +172,7 @@ brackets belong to that person.
 - [ ] **Health check:** `GET /api/health`. ✅ 🤖 KEEP
 
 ## Setup and pipeline
-- [ ] (Everyone) `make setup`, `make gpu`: ✅ 👤 KEEP
+- [ ] (Everyone) `make setup`: ✅ 👤 KEEP
 - [ ] (Viktor) `make scene`: objects, floor map, light scenes. ✅ 👤 KEEP
 - [ ] (Hannu) `make mapping`: links 30 Excel records. ✅ 🤖 KEEP
 - [ ] (Viktor) `make pieces`, `make highlights`, `make bim`: ✅ 👤 KEEP
@@ -190,7 +190,7 @@ brackets belong to that person.
 Only after the rehearsal, and only if tests pass.
 - [ ] **Second extraction route:** `app/extract/masks`, `merge`, `label`. CUT or retire
 - [ ] **Old code:** `app/scene/cluster.py`, `split.py`. CUT once confirmed unused
-- [ ] **Starter template:** `app/train.py`, `make train`, `make up`. CUT
+- [x] **Starter template:** `app/train.py`, `make train`, `make up`, the GPU check and LUMI jobs. Removed
 - [ ] **Own-splat and Roihu scripts:** KEEP, marked for new rooms only
 - [ ] **Stale handoffs:** Benjamin and Hannu to update theirs
 

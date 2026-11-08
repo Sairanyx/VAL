@@ -10,7 +10,6 @@ __pycache__/
 data/*
 !data/.gitkeep
 .DS_Store
-.venv-lumi/
 logs/
 submission.zip
 runs/

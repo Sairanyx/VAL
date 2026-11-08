@@ -91,7 +91,6 @@ their area.
 | `make voice-model` | Get the speech model for talking to Val, before going offline |
 | `make pipeline` | Run a scene through everything, from `scenes/*.toml` |
 | `make bundle` | Build `dist/val-demo.zip`, which runs on someone else's laptop |
-| `make train` | Train a model |
 
 - Python 3.12, managed by uv. Use `uv run` and `uv add`, not `pip`.
 - Put tests in `tests/`. Use `pytest.importorskip("torch")` for tests needing torch or other heavy
@@ -102,7 +101,6 @@ their area.
 |---|---|
 | ThinkPads | Coding and small CPU runs |
 | RTX 5090 | Quick GPU training and experiments (shared, so check `nvidia-smi` first) |
-| LUMI | Large jobs. AMD GPUs and no Docker: follow `lumi/README.md` |
 | Roihu | Project `project_2020113`, work in `/scratch/project_2020113/sinceai`. x86 L40 GPUs via `vizinteractive` (12 h limit). GH200 nodes are ARM with a long queue |
 
 ## Hackathon rules

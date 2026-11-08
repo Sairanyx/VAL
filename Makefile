@@ -21,7 +21,7 @@ MODEL_DIR ?= data/models/$(MODEL)
 LAPTOP_MODEL ?= gemma4:e2b
 VOICE_MODEL ?= small.en
 
-.PHONY: setup entire views scene scene-full model laptop-model voice-model pieces highlights shapes bim bundle pipeline gpu train tb web fmt lint test check up api floor mapping db nav-check start-browser start-laptop start-tablet
+.PHONY: setup entire views scene scene-full model laptop-model voice-model pieces highlights shapes bim bundle pipeline web fmt lint test check api floor mapping db nav-check start-browser start-laptop start-tablet
 
 setup:   ## install everything
 	uv sync
@@ -71,8 +71,6 @@ start-laptop: ## start everything for a laptop with no graphics card, using the 
 	./start laptop
 start-tablet: ## start everything for the Lenovo tablet. Same as ./start tablet
 	./start tablet
-gpu:     ## check the GPU works
-	uv run python -m app.gpu_check
 db:      ## start local TimescaleDB and load the Excel telemetry
 	docker compose up -d --wait db
 	DATABASE_URL=$(DATABASE_URL) uv run python -m app.api.db
@@ -85,10 +83,6 @@ nav-check: ## test floor map, routes, mapping and API together, and draw runs/na
 	uv run python -m app.nav.check $(SCENE_DIR)
 mapping: ## link Excel records to objects, marking them procedural
 	uv run python -m app.copilot.mapping $(SCENE_DIR)
-train:   ## train a model
-	uv run python -m app.train
-tb:      ## training graphs at http://localhost:6006
-	uv run tensorboard --logdir runs
 SCENE ?= data/scene/sample/scene.ply
 web:     ## web viewer on port 8000, SCENE= picks the splat, HTTPS=1 for phone sensors, LIGHT= for phones
 	uv run python web/serve.py --scene "$(SCENE)" $(if $(HTTPS),--https) $(if $(ASSETS),--assets "$(ASSETS)") $(if $(SHAPES),--shapes "$(SHAPES)") $(if $(PIECES),--pieces "$(PIECES)") $(if $(HIGHLIGHTS),--highlights "$(HIGHLIGHTS)") $(if $(LIGHT),--light "$(LIGHT)") $(if $(BIM),--bim "$(BIM)")
@@ -101,5 +95,3 @@ lint:    ## check style without changing anything
 test:    ## run the tests
 	uv run pytest
 check: lint test  ## run before finishing work
-up:      ## train inside Docker
-	docker compose up --build

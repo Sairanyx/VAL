@@ -119,7 +119,7 @@ The original scan is never overwritten, so **Undo changes** can always go back.
 | `make scene` and `make pipeline` | Two ways to get the same files | Download for the demo, pipeline for a new room |
 | `app/extract/masks`, `merge`, `label` | A second extraction route nobody runs | Pick one route and retire the other |
 | `app/scene/cluster.py`, `split.py` | Early versions, replaced for the demo | Check they're unused, then remove |
-| `app/train.py`, `make train`, `make up` | Starter template, not in the demo | Remove |
+| `app/train.py`, `make train`, `make up` | Starter template, not in the demo | Removed on 8 Nov, with the GPU check, LUMI jobs and Docker training |
 | `make scene-full`, own-splat steps | The demo doesn't use them | Keep only for new rooms, and say so |
 | 16 buttons at once | Too much on screen | Simplify (Viktor's next task) |
 | `docs/` | Plan and usage repeat each other | Plan for tasks, usage for steps, this for the picture |

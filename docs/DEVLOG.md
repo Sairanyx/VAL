@@ -6,7 +6,7 @@ the commits, so they are rough. Five people, each working with coding agents, on
 
 ## Before the event (4 Nov)
 Eduard set up the repo: training template, GPU check, LUMI jobs and Docker. It's listed under
-"Pre-existing work" in the README. None of it is the product.
+"Pre-existing work" in the README. None of it is the product, and it was removed on the last morning.
 
 ## Friday: the plan and a first look (6 Nov, afternoon to midnight)
 We wrote down how people and agents share the repo (`AGENTS.md`, a handoff file per person) and read

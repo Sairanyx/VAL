@@ -1,11 +1,8 @@
-VIEWS_TAG ?= views-v1
-VIEWS_FILE ?= equipment_room_views_v1.tar
 DATABASE_URL ?= postgresql://copilot:copilot@127.0.0.1:5433/copilot
 FLOOR_SCENE ?= $(SCENE_DIR)/Equipment Room.ply
-SCENE_TAG ?= objects-v2
+SCENE_TAG ?= data-v1
 SCENE_FILE ?= objects_v2.tar
 SCENE_DIR ?= data/scene/equipment_room
-SCENE_FULL ?= clean.ply
 PIECES_OBJECTS ?= obj-0067 obj-0021 obj-0112
 PIECES_BOX ?= obj-0067
 PIECES_FROM ?= $(SCENE_DIR)/Equipment Room.ply
@@ -26,12 +23,12 @@ PY ?= uv run python
 DEMO_ENV ?= .venv-demo
 API_PORT ?= 8001
 
-.PHONY: setup entire demo demo-env data views scene scene-full model laptop-model voice-model pieces highlights shapes bim bundle pipeline web fmt lint test check api floor mapping db nav-check start-browser start-laptop start-tablet
+.PHONY: setup entire demo demo-env data scene model laptop-model voice-model pieces highlights shapes bim bundle pipeline web fmt lint test check api floor mapping db nav-check start-browser start-laptop start-tablet
 
 data:    ## get Valmet's scan and Excel pack from the data-v1 release, unless they're already here
 	mkdir -p $(SCENE_DIR)
-	test -f "$(SCENE_DIR)/Equipment Room.ply" || gh release download data-v1 --pattern equipment_room.ply --output "$(SCENE_DIR)/Equipment Room.ply" 2>/dev/null || curl -fL -o "$(SCENE_DIR)/Equipment Room.ply" https://github.com/Sairanyx/Newbies/releases/download/data-v1/equipment_room.ply
-	ls data/*.xlsx >/dev/null 2>&1 || gh release download data-v1 --pattern builder_pack.xlsx --output data/builder_pack.xlsx 2>/dev/null || curl -fL -o data/builder_pack.xlsx https://github.com/Sairanyx/Newbies/releases/download/data-v1/builder_pack.xlsx
+	test -f "$(SCENE_DIR)/Equipment Room.ply" || gh release download data-v1 --pattern equipment_room.ply --output "$(SCENE_DIR)/Equipment Room.ply" 2>/dev/null || curl -fL -o "$(SCENE_DIR)/Equipment Room.ply" https://github.com/Sairanyx/VAL/releases/download/data-v1/equipment_room.ply
+	ls data/*.xlsx >/dev/null 2>&1 || gh release download data-v1 --pattern builder_pack.xlsx --output data/builder_pack.xlsx 2>/dev/null || curl -fL -o data/builder_pack.xlsx https://github.com/Sairanyx/VAL/releases/download/data-v1/builder_pack.xlsx
 entire:  ## install and enable Entire, set AGENT= for other agents
 	bash scripts/setup_entire.sh
 setup:   ## install everything
@@ -48,26 +45,16 @@ demo:    ## the demo in one go: only what it needs (no PyTorch), set up once, th
 	PY=$(DEMO_ENV)/bin/python OPEN_PATH='?tour' ./start laptop
 demo-env: ## the demo's own light Python environment, the same packages as the laptop zip
 	test -x $(DEMO_ENV)/bin/python || { uv venv --python 3.12 $(DEMO_ENV) && uv pip install --python $(DEMO_ENV)/bin/python -r scripts/laptop/requirements.in -r scripts/laptop/requirements-voice.in -r scripts/laptop/requirements-export.in; }
-views:   ## get rendered views from the GitHub Release, or use ARCHIVE=path for a local copy
+scene:   ## get the scene's objects, floor map and light splats from the data-v1 release, or use ARCHIVE=path
 ifndef ARCHIVE
 	mkdir -p data/scene
-	gh release download $(VIEWS_TAG) --pattern $(VIEWS_FILE) --dir data/scene --clobber
-endif
-	uv run scripts/views_archive.py unpack $(or $(ARCHIVE),data/scene/$(VIEWS_FILE)) data/scene/equipment_room
-scene:   ## get the original scene's objects and light splats from the GitHub Release, or use ARCHIVE=path
-ifndef ARCHIVE
-	mkdir -p data/scene
-	gh release download $(SCENE_TAG) --pattern $(SCENE_FILE) --dir data/scene --clobber 2>/dev/null || curl -fL -o data/scene/$(SCENE_FILE) https://github.com/Sairanyx/Newbies/releases/download/$(SCENE_TAG)/$(SCENE_FILE)
+	gh release download $(SCENE_TAG) --pattern $(SCENE_FILE) --dir data/scene --clobber 2>/dev/null || curl -fL -o data/scene/$(SCENE_FILE) https://github.com/Sairanyx/VAL/releases/download/$(SCENE_TAG)/$(SCENE_FILE)
 endif
 	mkdir -p $(SCENE_DIR)
 	tar -xf $(or $(ARCHIVE),data/scene/$(SCENE_FILE)) -C $(SCENE_DIR)
 	@echo "Next: put 'Equipment Room.ply' in $(SCENE_DIR) and the Excel pack in data/, then: make mapping db api"
 	@echo "Viewer on a PC: make web SCENE=\"$(SCENE_DIR)/Equipment Room.ply\" ASSETS=$(SCENE_DIR)/assets_mapped.json SHAPES=$(SCENE_DIR)/shapes.json"
 	@echo "Viewer on a tablet: use SCENE=$(SCENE_DIR)/light_full.ply, or light_400k.ply if it's slow"
-scene-full: ## get our own full-quality splat (513 MB). The demo uses the original scene instead
-	mkdir -p $(SCENE_DIR)
-	gh release download scene-v2 --pattern $(SCENE_FULL) --dir data/scene/splat_v2 --clobber
-	@echo "Viewer: make web SCENE=data/scene/splat_v2/$(SCENE_FULL) ASSETS=$(SCENE_DIR)/assets_viewer.json SHAPES=$(SCENE_DIR)/shapes.json"
 laptop-model: ## get Val's small model for a laptop with no GPU, before going offline. Needs Ollama
 	ollama pull $(LAPTOP_MODEL)
 voice-model: ## get the speech-to-text model for talking to Val, before going offline (about 460 MB)

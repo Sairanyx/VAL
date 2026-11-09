@@ -5,7 +5,7 @@
     python -m app.extract label  --scene data/scene/equipment_room              # VLM, resumable
     python -m app.extract assets --scene data/scene/equipment_room              # assets.json
 
-The scene folder needs clean.ply and render folders from app/scene/render.py (`make views`).
+The scene folder needs clean.ply and render folders from app/scene/render.py.
 Intermediate files go in SCENE/extract/. SAM3 is gated: run `hf auth login` with an approved
 account first.
 """

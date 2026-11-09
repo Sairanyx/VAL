@@ -30,8 +30,8 @@ API_PORT ?= 8001
 
 data:    ## get Valmet's scan and Excel pack from the data-v1 release, unless they're already here
 	mkdir -p $(SCENE_DIR)
-	test -f "$(SCENE_DIR)/Equipment Room.ply" || gh release download data-v1 --pattern equipment_room.ply --output "$(SCENE_DIR)/Equipment Room.ply" 2>/dev/null || curl -fL -o "$(SCENE_DIR)/Equipment Room.ply" https://github.com/Sairanyx/Newbies/releases/download/data-v1/equipment_room.ply
-	ls data/*.xlsx >/dev/null 2>&1 || gh release download data-v1 --pattern builder_pack.xlsx --output data/builder_pack.xlsx 2>/dev/null || curl -fL -o data/builder_pack.xlsx https://github.com/Sairanyx/Newbies/releases/download/data-v1/builder_pack.xlsx
+	test -f "$(SCENE_DIR)/Equipment Room.ply" || gh release download data-v1 --pattern equipment_room.ply --output "$(SCENE_DIR)/Equipment Room.ply" 2>/dev/null || curl -fL -o "$(SCENE_DIR)/Equipment Room.ply" https://github.com/Sairanyx/VAL/releases/download/data-v1/equipment_room.ply
+	ls data/*.xlsx >/dev/null 2>&1 || gh release download data-v1 --pattern builder_pack.xlsx --output data/builder_pack.xlsx 2>/dev/null || curl -fL -o data/builder_pack.xlsx https://github.com/Sairanyx/VAL/releases/download/data-v1/builder_pack.xlsx
 setup:   ## install everything
 	uv sync
 demo:    ## the demo in one go: only what it needs (no PyTorch), set up once, then start
@@ -55,7 +55,7 @@ endif
 scene:   ## get the original scene's objects and light splats from the GitHub Release, or use ARCHIVE=path
 ifndef ARCHIVE
 	mkdir -p data/scene
-	gh release download $(SCENE_TAG) --pattern $(SCENE_FILE) --dir data/scene --clobber 2>/dev/null || curl -fL -o data/scene/$(SCENE_FILE) https://github.com/Sairanyx/Newbies/releases/download/$(SCENE_TAG)/$(SCENE_FILE)
+	gh release download $(SCENE_TAG) --pattern $(SCENE_FILE) --dir data/scene --clobber 2>/dev/null || curl -fL -o data/scene/$(SCENE_FILE) https://github.com/Sairanyx/VAL/releases/download/$(SCENE_TAG)/$(SCENE_FILE)
 endif
 	mkdir -p $(SCENE_DIR)
 	tar -xf $(or $(ARCHIVE),data/scene/$(SCENE_FILE)) -C $(SCENE_DIR)

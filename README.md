@@ -152,7 +152,7 @@ Full measurements: [`docs/RESULTS.md`](docs/RESULTS.md).
 On Linux, with `git` and `make`:
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh   # if you don't have uv yet
-git clone https://github.com/Sairanyx/Newbies.git && cd Newbies
+git clone https://github.com/Sairanyx/VAL.git && cd VAL
 make demo
 ```
 The first run downloads Valmet's scan and Excel pack, installs only what the demo needs (no PyTorch, no
